@@ -1,0 +1,133 @@
+﻿@model IEnumerable<CreArte.Models.USUARIO>
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+</head>
+<body>
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_NOMBRE)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_CONTRASENA)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_SALT)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_FECHAREGISTRO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_CAMBIOINICIAL)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_CORREO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_CREACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ELIMINADO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ESTADO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.EMPLEADO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ROL)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_NOMBRE)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_CONTRASENA)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_SALT)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_FECHAREGISTRO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_CAMBIOINICIAL)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_CORREO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ELIMINADO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ESTADO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.EMPLEADO.EMPLEADO_ID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ROL.ROL_ID)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.USUARIO_ID">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.USUARIO_ID">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.USUARIO_ID">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+</body>
+</html>

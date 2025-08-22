@@ -1,4 +1,10 @@
+using Microsoft.EntityFrameworkCore;
+using CreArte.Data;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<CreArteDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultCreArteDB")));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -18,6 +24,6 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Login}/{action=Login}/{id?}");
 
 app.Run();
