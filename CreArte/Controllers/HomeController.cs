@@ -15,7 +15,9 @@ namespace CreArte.Controllers
 
         public IActionResult Index()
         {
-            return View();
+            // Traemos de sesión el nombre que guardaste al hacer login
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Usuario";
+            return View(); // Views/Home/Index.cshtml
         }
 
         public IActionResult Privacy()

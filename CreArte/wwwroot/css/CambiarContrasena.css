@@ -29,9 +29,9 @@ body {
 
 .footer-date-time {
     position: absolute;
-    bottom: 3rem;
+    bottom: 1rem;
     display: flex;
-    gap: 20px;
+    gap: 10px;
 }
 
 .badge-date, .badge-time {
@@ -98,10 +98,3 @@ body {
     color: #333;
 }
 
-/* Mensaje con color de la paleta (#C5D930) */
-.alert-paleta {
-    background-color: #C5D930 !important; /* color de fondo solicitado */
-    border-color: #C5D930 !important; /* borde del mismo color */
-    color: #1a1a1a !important; /* texto oscuro para buen contraste */
-    text-align: center; /* centrar el texto */
-}
