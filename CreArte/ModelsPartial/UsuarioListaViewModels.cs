@@ -15,8 +15,8 @@ namespace CreArte.ModelsPartial
         public bool? Estado { get; set; }
 
         // Ordenamiento
-        public string? Sort { get; set; } = "fecha"; // "id","usuario","fecha","rol","estado"
-        public string? Dir { get; set; } = "desc";  // "asc" | "desc"
+        public string? Sort { get; set; } = "id"; // "id","usuario","fecha","rol","estado"
+        public string? Dir { get; set; } = "asc";  // "asc" | "desc"
 
         // Paginación
         public int Page { get; set; } = 1;

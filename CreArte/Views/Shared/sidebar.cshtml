@@ -1,5 +1,87 @@
 ﻿@{
     Layout = null; // este es un layout raíz
+
+    // [NUEVO] Tomamos el nombre del controlador actual para marcar el item activo.
+    var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
+}
+
+
+<!-- Sidebar -->
+<aside class="app-sidebar" id="sidebar">
+    <div class="sidebar-title">Módulos</div>
+
+    <!-- Items del menú -->
+    <nav class="sidebar-nav">
+        <!-- NOTA: Este apunta a Home/Index pero etiqueta "Caja" (rutas correctas según tu app) -->
+        <a asp-controller="Home" asp-action="Index"
+           class="nav-item @(currentController == "home" ? "is-active" : "")">
+            <i class="bi bi-cash-stack"></i> <span>Caja</span>
+        </a>
+
+        <a asp-controller="Ventas" asp-action="Index"
+           class="nav-item @(currentController == "ventas" ? "is-active" : "")">
+            <i class="bi bi-bag"></i> <span>Ventas</span>
+        </a>
+
+        <a asp-controller="Pedidos" asp-action="Index"
+           class="nav-item @(currentController == "pedidos" ? "is-active" : "")">
+            <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
+        </a>
+
+        <a asp-controller="Clientes" asp-action="Index"
+           class="nav-item @(currentController == "clientes" ? "is-active" : "")">
+            <i class="bi bi-people"></i> <span>Clientes</span>
+        </a>
+
+        <a asp-controller="Productos" asp-action="Index"
+           class="nav-item @(currentController == "productos" ? "is-active" : "")">
+            <i class="bi bi-box"></i> <span>Productos</span>
+        </a>
+
+        <a asp-controller="Inventario" asp-action="Index"
+           class="nav-item @(currentController == "inventario" ? "is-active" : "")">
+            <i class="bi bi-stack"></i> <span>Inventario</span>
+        </a>
+
+        <a asp-controller="Compras" asp-action="Index"
+           class="nav-item @(currentController == "compras" ? "is-active" : "")">
+            <i class="bi bi-basket"></i> <span>Compras</span>
+        </a>
+
+        <a asp-controller="Proveedores" asp-action="Index"
+           class="nav-item @(currentController == "proveedores" ? "is-active" : "")">
+            <i class="bi bi-truck"></i> <span>Proveedores</span>
+        </a>
+
+        <div class="sidebar-sep"></div>
+
+        <a asp-controller="Empleados" asp-action="Index"
+           class="nav-item @(currentController == "empleados" ? "is-active" : "")">
+            <i class="bi bi-person-badge"></i> <span>Empleados</span>
+        </a>
+
+        <a asp-controller="Puestos" asp-action="Index"
+           class="nav-item @(currentController == "puestos" ? "is-active" : "")">
+            <i class="bi bi-diagram-3"></i> <span>Puestos</span>
+        </a>
+
+        <a asp-controller="Usuarios" asp-action="Index"
+           class="nav-item @(currentController == "usuarios" ? "is-active" : "")">
+            <i class="bi bi-person-gear"></i> <span>Usuarios</span>
+        </a>
+
+        <div class="sidebar-sep"></div>
+
+        <a asp-controller="Reportes" asp-action="Index"
+           class="nav-item @(currentController == "reportes" ? "is-active" : "")">
+            <i class="bi bi-graph-up"></i> <span>Reportes</span>
+        </a>
+    </nav>
+</aside>
+
+
+@* @{
+    Layout = null; // este es un layout raíz
 }
 
     <!-- Sidebar -->
@@ -52,3 +134,4 @@
             </a>
         </nav>
     </aside>
+ *@

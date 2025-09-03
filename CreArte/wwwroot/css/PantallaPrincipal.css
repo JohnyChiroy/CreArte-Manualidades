@@ -142,3 +142,15 @@ body.sidebar-collapsed .sidebar-title {
     border-color: #C5D930 !important;
     color: #1a1a1a !important;
 }
+
+.app-sidebar .nav-item.is-active {
+    background: #C5D930; /* verde activo */
+    color: black;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    border-radius:10px;
+}
+
+        .app-sidebar .nav-item.is-active i {
+            color: black;
+        }
+/* icono blanco cuando está activo */

@@ -14,6 +14,7 @@
     <!-- Estilos de la app -->
     <link rel="stylesheet" href="~/css/PantallaPrincipal.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/UsuarioIndex.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/UsuarioCreate.css" asp-append-version="true" />
 
     @* Esta línea le dice al layout que inserte el contenido de la sección "Styles"
    de cada vista que la defina. "required: false" evita errores si una vista
@@ -37,9 +38,10 @@
         </main>
 
     </div>  
-
+    @RenderSection("Scripts", required: false)
     @* referencias a JS específicos de vistas *@
     <script src="~/js/PantallaPrincipal.js" asp-append-version="true"></script>
     <script src="~/js/UsuarioIndex.js" asp-append-version="true"></script>
+    <script src="~/js/UsuarioCreate.js" asp-append-version="true"></script>
 </body>
 </html>

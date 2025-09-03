@@ -1,4 +1,119 @@
 ﻿@model CreArte.Models.USUARIO
+@{
+    // Vista Create de Usuarios
+    ViewData["Title"] = "Crear usuario";
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Asegúrate que tu _Layout renderiza @RenderSection("Styles"/"Scripts", false)
+}
+
+<!--
+    Vista: Create de Usuarios
+    - USUARIO_ID llega desde el GET (solo lectura).
+    - ESTADO se muestra como “Activo” si es true.
+    - La contraseña se envía en campos PwdPlain / PwdPlainConfirm (texto);
+      el hash SALT+SHA-256 se calcula en el POST del controlador.
+-->
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Nuevo usuario</h2>
+
+    <form asp-action="Create" method="post" id="frmUsuario" autocomplete="off">
+        @Html.AntiForgeryToken() <!-- Seguridad contra CSRF -->
+        <!-- Resumen de validación MVC -->
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <!-- Fila superior: Código y Estado (solo lectura) -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label for="USUARIO_ID"><strong>Código:</strong></label>
+                    <input asp-for="USUARIO_ID" class="form-control" readonly />
+                </div>
+                <span asp-validation-for="USUARIO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <!-- Agrego espacio condicional para no pegar las clases -->
+                    <span class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                    <input type="hidden" asp-for="ESTADO" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Nombre de usuario -->
+        <div class="ua-field" style="margin-top:12px;">
+            <label asp-for="USUARIO_NOMBRE"><strong>Nombre:</strong></label>
+            <input asp-for="USUARIO_NOMBRE" class="form-control" placeholder="Ingrese el nombre de usuario..." />
+            <span asp-validation-for="USUARIO_NOMBRE" class="text-danger"></span>
+        </div>
+
+        <!-- Nota / Reglas de contraseña -->
+        <div class="ua-note" aria-live="polite">
+            <strong>Nota:</strong> La contraseña debe cumplir:
+            <ul class="ua-checklist" id="pwdChecklist">
+                <li><span id="chkLower" class="ua-check">✔</span> Tener al menos una letra minúscula.</li>
+                <li><span id="chkUpper" class="ua-check">✔</span> Tener al menos una letra mayúscula.</li>
+                <li><span id="chkDigit" class="ua-check">✔</span> Tener al menos un número.</li>
+                <li><span id="chkLen" class="ua-check">✔</span> Tener una longitud entre 8 y 15 caracteres.</li>
+            </ul>
+        </div>
+
+        <!-- Contraseña y Confirmación -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <label for="pwd"><strong>Contraseña:</strong></label>
+                <!-- Estos campos NO bindean a USUARIO_CONTRASENA (byte[]) -->
+                <input id="pwd" name="PwdPlain" type="password" class="form-control" placeholder="Ingrese la contraseña" />
+                <div class="small-hint" id="pwdMsg"></div>
+            </div>
+            <div class="ua-field">
+                <label for="pwd2"><strong>Confirmar contraseña:</strong></label>
+                <input id="pwd2" name="PwdPlainConfirm" type="password" class="form-control" placeholder="Confirme su contraseña" />
+                <div class="small-hint" id="pwd2Msg"></div>
+            </div>
+        </div>
+
+        <!-- Selects: Rol y Empleado -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="ROL_ID"><strong>Rol:</strong></label>
+                <select asp-for="ROL_ID" class="form-control" asp-items="ViewBag.ROL_ID">
+                    <option value="">Seleccione el rol...</option>
+                </select>
+                <span asp-validation-for="ROL_ID" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_ID"><strong>Empleado:</strong></label>
+                <select asp-for="EMPLEADO_ID" class="form-control" asp-items="ViewBag.EMPLEADO_ID">
+                    <option value="">Seleccione al empleado...</option>
+                </select>
+                <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel" asp-action="Index" asp-controller="Usuarios"> <i class="bi bi-x-circle"></i> <span>Cancelar</span></a>
+            <button id="btnSave" type="submit" class="btn-save" disabled> <i class="bi bi-save"></i> <span>Guardar</span></button>
+        </div>
+
+        <!-- Campos ocultos de auditoría (si aplica) -->
+        <input type="hidden" asp-for="ELIMINADO" />
+        <input type="hidden" asp-for="USUARIO_CORREO" />
+        <input type="hidden" asp-for="USUARIO_CREACION" />
+        <input type="hidden" asp-for="USUARIO_MODIFICACION" />
+        <input type="hidden" asp-for="FECHA_MODIFICACION" />
+        <input type="hidden" asp-for="USUARIO_ELIMINACION" />
+        <input type="hidden" asp-for="FECHA_ELIMINACION" />
+        <!-- USUARIO_SALT y USUARIO_CONTRASENA se calculan en el POST -->
+    </form>
+</div>
+
+
+@* @model CreArte.Models.USUARIO
 
 @{
     Layout = null;
@@ -100,3 +215,4 @@
 
 </body>
 </html>
+ *@
