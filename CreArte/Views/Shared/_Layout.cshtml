@@ -1,15 +1,4 @@
-﻿@*
-  Layout principal de la aplicación (post-login)
-  - Header magenta con título y usuario + botón salir
-  - Sidebar dorado con módulos
-  - Contenido al centro con @RenderBody()
-*@
-@{
-    var usuario = ViewBag.Nombre as string ?? "Usuario";
-    Layout = null; // este es un layout raíz
-}
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
@@ -24,138 +13,33 @@
 
     <!-- Estilos de la app -->
     <link rel="stylesheet" href="~/css/PantallaPrincipal.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/UsuarioIndex.css" asp-append-version="true" />
+
+    @* Esta línea le dice al layout que inserte el contenido de la sección "Styles"
+   de cada vista que la defina. "required: false" evita errores si una vista
+   NO define la sección. *@
+    @RenderSection("Styles", required: false)
+
 </head>
 <body>
-    <!-- Header superior -->
-    <header class="app-header">
-        <button class="btn-icon" id="btnToggle">
-            <i class="bi bi-list"></i>
-        </button>
-
-        <h1 class="app-title">Bienvenido</h1>
-
-        <div class="app-user">
-            <span class="user-name">@usuario</span>
-            <a class="btn-icon" title="Cerrar sesión" href="@Url.Action("Logout", "Login")">
-                <i class="bi bi-box-arrow-right"></i>
-            </a>
-        </div>
-    </header>
-
-    <!-- Contenedor principal con sidebar + contenido -->
+    
+    
     <div class="app-shell">
-        <!-- Sidebar -->
-        <aside class="app-sidebar" id="sidebar">
-            <div class="sidebar-title">Módulos</div>
+        @* referencias a partial views *@
+        @await Html.PartialAsync("header")
 
-            <!-- Items del menú (rutas de ejemplo; ajusta cuando crees los módulos) -->
-            <nav class="sidebar-nav">
-                <a asp-controller="Home" asp-action="Index" class="nav-item">
-                    <i class="bi bi-cash-stack"></i> <span>Caja</span>
-                </a>
-                <a asp-controller="Ventas" asp-action="Index" class="nav-item">
-                    <i class="bi bi-bag"></i> <span>Ventas</span>
-                </a>
-                <a asp-controller="Pedidos" asp-action="Index" class="nav-item">
-                    <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
-                </a>
-                <a asp-controller="Clientes" asp-action="Index" class="nav-item">
-                    <i class="bi bi-people"></i> <span>Clientes</span>
-                </a>
-                <a asp-controller="Productos" asp-action="Index" class="nav-item">
-                    <i class="bi bi-box"></i> <span>Productos</span>
-                </a>
-                <a asp-controller="Inventario" asp-action="Index" class="nav-item">
-                    <i class="bi bi-stack"></i> <span>Inventario</span>
-                </a>
-                <a asp-controller="Compras" asp-action="Index" class="nav-item">
-                    <i class="bi bi-basket"></i> <span>Compras</span>
-                </a>
-                <a asp-controller="Proveedores" asp-action="Index" class="nav-item">
-                    <i class="bi bi-truck"></i> <span>Proveedores</span>
-                </a>
+        @await Html.PartialAsync("sidebar")
 
-                <div class="sidebar-sep"></div>
-
-                <a asp-controller="Empleados" asp-action="Index" class="nav-item">
-                    <i class="bi bi-person-badge"></i> <span>Empleados</span>
-                </a>
-                <a asp-controller="Puestos" asp-action="Index" class="nav-item">
-                    <i class="bi bi-diagram-3"></i> <span>Puestos</span>
-                </a>
-                <a asp-controller="Usuarios" asp-action="Index" class="nav-item">
-                    <i class="bi bi-person-gear"></i> <span>Usuarios</span>
-                </a>
-
-                <div class="sidebar-sep"></div>
-
-                <a asp-controller="Reportes" asp-action="Index" class="nav-item">
-                    <i class="bi bi-graph-up"></i> <span>Reportes</span>
-                </a>
-            </nav>
-        </aside>
-
-        <!-- Contenido -->
+        
+    <!-- Contenido -->
         <main class="app-content">
             @RenderBody()
         </main>
-    </div>
 
-    <!-- JS simple para colapsar sidebar -->
+    </div>  
+
+    @* referencias a JS específicos de vistas *@
     <script src="~/js/PantallaPrincipal.js" asp-append-version="true"></script>
+    <script src="~/js/UsuarioIndex.js" asp-append-version="true"></script>
 </body>
 </html>
-
-
-@* <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CreArte</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/CreArte.styles.css" asp-append-version="true" />
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-</head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">CreArte</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - CreArte - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-            <script src="~/js/Login.js"></script>
-        </div>
-    </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
- *@

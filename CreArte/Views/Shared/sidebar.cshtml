@@ -1,0 +1,54 @@
+﻿@{
+    Layout = null; // este es un layout raíz
+}
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar" id="sidebar">
+        <div class="sidebar-title">Módulos</div>
+
+        <!-- Items del menú (rutas de ejemplo; ajusta cuando crees los módulos) -->
+        <nav class="sidebar-nav">
+            <a asp-controller="Home" asp-action="Index" class="nav-item">
+                <i class="bi bi-cash-stack"></i> <span>Caja</span>
+            </a>
+            <a asp-controller="Ventas" asp-action="Index" class="nav-item">
+                <i class="bi bi-bag"></i> <span>Ventas</span>
+            </a>
+            <a asp-controller="Pedidos" asp-action="Index" class="nav-item">
+                <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
+            </a>
+            <a asp-controller="Clientes" asp-action="Index" class="nav-item">
+                <i class="bi bi-people"></i> <span>Clientes</span>
+            </a>
+            <a asp-controller="Productos" asp-action="Index" class="nav-item">
+                <i class="bi bi-box"></i> <span>Productos</span>
+            </a>
+            <a asp-controller="Inventario" asp-action="Index" class="nav-item">
+                <i class="bi bi-stack"></i> <span>Inventario</span>
+            </a>
+            <a asp-controller="Compras" asp-action="Index" class="nav-item">
+                <i class="bi bi-basket"></i> <span>Compras</span>
+            </a>
+            <a asp-controller="Proveedores" asp-action="Index" class="nav-item">
+                <i class="bi bi-truck"></i> <span>Proveedores</span>
+            </a>
+
+            <div class="sidebar-sep"></div>
+
+            <a asp-controller="Empleados" asp-action="Index" class="nav-item">
+                <i class="bi bi-person-badge"></i> <span>Empleados</span>
+            </a>
+            <a asp-controller="Puestos" asp-action="Index" class="nav-item">
+                <i class="bi bi-diagram-3"></i> <span>Puestos</span>
+            </a>
+            <a asp-controller="Usuarios" asp-action="Index" class="nav-item">
+                <i class="bi bi-person-gear"></i> <span>Usuarios</span>
+            </a>
+
+            <div class="sidebar-sep"></div>
+
+            <a asp-controller="Reportes" asp-action="Index" class="nav-item">
+                <i class="bi bi-graph-up"></i> <span>Reportes</span>
+            </a>
+        </nav>
+    </aside>

@@ -1,0 +1,21 @@
+﻿@{
+    var usuario = ViewBag.Nombre as string ?? "Usuario";
+    Layout = null; // este es un layout raíz
+}
+
+
+    <!-- Header superior -->
+    <header class="app-header">
+        <button class="btn-icon" id="btnToggle">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <h1 class="app-title">Bienvenido</h1>
+
+        <div class="app-user">
+            <span class="user-name">@usuario</span>
+            <a class="btn-icon" title="Cerrar sesión" href="@Url.Action("Logout", "Login")">
+                <i class="bi bi-box-arrow-right"></i>
+            </a>
+        </div>
+    </header>

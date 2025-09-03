@@ -1,0 +1,310 @@
+    /* ---------------------------
+   Barra superior
+   --------------------------- */
+    .ua-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        text-align: center;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .ua-btn {
+        border: none;
+        border-radius: 14px;
+        padding: 10px 16px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,.08);
+        margin-right: 50px;
+    }
+
+        .ua-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+    .ua-btn-new {
+        background: #C5D930;
+        color: black;
+    }
+
+    .ua-btn-view {
+        background: #F2B90F;
+        color: black;
+    }
+
+    .ua-btn-edit {
+        background: #242259;
+        color: white;
+    }
+
+    .ua-btn:hover {
+        opacity: .95;
+        text-decoration: none
+    }
+
+    .ua-search {
+        max-width: 460px;
+        width: 100%;
+        border: 2px solid #dbdbdb;
+        border-radius: 15px;
+        overflow: hidden;
+        background: white;
+    }
+
+        .ua-search input {
+            border: 0;
+            outline: none;
+            padding: 10px 14px;
+            width: 100%;
+        }
+
+        .ua-search button {
+            border: 0;
+            padding: 0 14px;
+            background: transparent;
+            cursor: pointer;
+        }
+    /* ---------------------------
+   Tabla
+   --------------------------- */
+    .ua-table thead tr {
+        background: #C5D930;
+    }
+
+    .ua-table thead th {
+        font-weight: 700;
+        color: black;
+        border: 0 !important;
+    }
+
+    .ua-table thead th, .ua-table tbody td {
+        text-align: center
+    }
+
+    .ua-table tbody tr {
+        border-bottom: 1px solid #C5D930;
+    }
+
+    .ua-table tbody td {
+        vertical-align: middle;
+    }
+
+    .ua-col-check {
+        width: 40px;
+    }
+
+    .ua-col-no {
+        width: 110px;
+    }
+    /* Encabezado con filtro + orden */
+    .ua-th {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 4px 12px;
+        background: #C5D930;
+        border-radius: 10px;
+    }
+
+    .ua-title {
+        font-weight: 700;
+        color: black;
+        letter-spacing: .5px;
+    }
+    /* Botón embudo */
+    .ua-filter-btn {
+        border: none;
+        background: #C5D930;
+        cursor: pointer;
+        padding: 2px;
+        line-height: 0;
+        border-radius: 6px;
+    }
+
+        .ua-filter-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .ua-filter-btn:hover {
+            background: rgba(0,0,0,.06);
+        }
+
+        .ua-filter-btn.active {
+            background: #F2B90F;
+            box-shadow: 0 0 0 2px rgba(0,0,0,.08) inset;
+        }
+    /* Popover contenedor */
+    .ua-popover-wrap {
+        position: relative;
+    }
+
+    .ua-popover {
+        position: absolute;
+        z-index: 50;
+        top: 100%;
+        left: 0;
+        margin-top: 6px;
+        width: 280px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        padding: 10px;
+        display: none;
+    }
+
+        .ua-popover.open {
+            display: block;
+        }
+
+        .ua-popover .ua-input {
+            width: 100%;
+            border: 1px solid #F2B90F;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+
+            .ua-popover .ua-input option:hover {
+                background-color: #C5D930; /* verde de tu paleta */
+                color: #000; /* texto en negro */
+            }
+    /* Lista estilo Excel */
+    .ua-options {
+        margin-top: 8px;
+        border: 1px solid #F2B90F;
+        border-radius: 6px;
+        max-height: 160px;
+        overflow: auto;
+    }
+
+    .ua-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+        .ua-option:hover {
+            background: #f5f7ff;
+        }
+
+        .ua-option input {
+            margin: 0;
+            accent-color: #C5D930
+        }
+    /* Footer popover */
+    .ua-pop-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
+
+    .ua-btn-sm {
+        border: 1px solid #BF265E;
+        background: #BF265E;
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        color: white;
+    }
+
+        .ua-btn-sm.primary {
+            background: #C5D930;
+            color: black;
+            border-color: #C5D930;
+        }
+    /* Fechas */
+    .ua-dates {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+        .ua-dates input {
+            border: 1px solid #F2B90F;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+
+        .ua-dates small {
+            display: block;
+            margin-bottom: 4px;
+            color: black;
+            font-size: .85rem;
+        }
+    /* Badges */
+    .ua-badge-activo {
+        background: #C5D930;
+        color: black;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 3px 10px;
+    }
+
+    .ua-badge-inactivo {
+        background: #BF265E;
+        color: white;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 3px 10px;
+    }
+    /* Paginación */
+    .ua-pagination .page-link {
+        margin: 0 6px;
+        border: 0;
+        color: #444;
+    }
+
+    .ua-pagination .page-item.active .page-link {
+        background: #BF265E;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+
+    .ua-pagination .page-link:hover {
+        background: #ededff;
+        color: black;
+        border-radius: 10%;
+    }
+
+    .ua-pagination .page-item.active .page-link {
+        border-radius: 25%; /* círculo */
+        width: 36px; /* ancho fijo */
+        height: 36px; /* alto fijo */
+        display: flex; /* activar flexbox */
+        align-items: center; /* centrar vertical */
+        justify-content: center; /* centrar horizontal */
+        padding: 0; /* quitar padding extra */
+    }
+    /* Orden visual */
+    .ua-sort {
+        color: black;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .ua-sort:hover {
+            text-decoration: none;
+        }
+
+        .ua-sort .ua-arrow {
+            font-size: .85rem;
+            opacity: .7;
+        }
+
+        .ua-sort.inactive .ua-arrow {
+            visibility: hidden;
+        }
