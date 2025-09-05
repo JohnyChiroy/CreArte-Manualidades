@@ -111,7 +111,7 @@
         gap: 8px;
         padding: 4px 12px;
         background: #C5D930;
-        border-radius: 10px;
+        border-radius: 8px;
     }
 
     .ua-title {
@@ -143,11 +143,11 @@
             box-shadow: 0 0 0 2px rgba(0,0,0,.08) inset;
         }
     /* Popover contenedor */
-    .ua-popover-wrap {
+    /*.ua-popover-wrap {
         position: relative;
-    }
+    }*/
 
-    .ua-popover {
+    /*.ua-popover {
         position: absolute;
         z-index: 50;
         top: 100%;
@@ -160,19 +160,19 @@
         box-shadow: 0 8px 24px rgba(0,0,0,.12);
         padding: 10px;
         display: none;
-    }
+    }*/
 
-        .ua-popover.open {
+        /*.ua-popover.open {
             display: block;
         }
-
-        .ua-popover .ua-input {
+*/
+        /*.ua-popover .ua-input {
             width: 100%;
             border: 1px solid #F2B90F;
             border-radius: 6px;
             padding: 8px 10px;
         }
-
+*/
             .ua-popover .ua-input option:hover {
                 background-color: #C5D930; /* verde de tu paleta */
                 color: #000; /* texto en negro */
@@ -186,13 +186,13 @@
         overflow: auto;
     }
 
-    .ua-option {
+    /*.ua-option {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 8px 10px;
         cursor: pointer;
-    }
+    }*/
 
         .ua-option:hover {
             background: #f5f7ff;
@@ -203,27 +203,27 @@
             accent-color: #C5D930
         }
     /* Footer popover */
-    .ua-pop-actions {
+   /* .ua-pop-actions {
         display: flex;
         gap: 8px;
         justify-content: flex-end;
         margin-top: 10px;
-    }
+    }*/
 
-    .ua-btn-sm {
+    /*.ua-btn-sm {
         border: 1px solid #BF265E;
         background: #BF265E;
         border-radius: 8px;
         padding: 6px 10px;
         cursor: pointer;
         color: white;
-    }
+    }*/
 
-        .ua-btn-sm.primary {
+        /*.ua-btn-sm.primary {
             background: #C5D930;
             color: black;
             border-color: #C5D930;
-        }
+        }*/
     /* Fechas */
     .ua-dates {
         display: grid;
@@ -308,3 +308,71 @@
         .ua-sort.inactive .ua-arrow {
             visibility: hidden;
         }
+
+
+/* ---------------------------------------------------------
+   PARCHE VISUAL para popovers (asegura interacción):
+   - display:none por defecto, .open => display:block
+   - stacking alto y sin corte por overflow del contenedor
+   --------------------------------------------------------- */
+.ua-popover-wrap {
+    position: relative;
+}
+
+.ua-popover {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 3000;
+    background: #fff;
+    border: 1px solid var(--ua-border, #e5e7eb);
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 260px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+
+    .ua-popover.open {
+        display: block;
+    }
+
+/* Evita que el thead/tables corten el popover en algunos temas */
+.table-responsive {
+    overflow: visible;
+}
+
+/* Opcional: estética básica de inputs dentro de popover */
+.ua-popover .ua-input {
+    width: 100%;
+    border: 1px solid #F2B90F;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.ua-pop-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.ua-btn-sm {
+    /*border: 1px solid #BF265E;*/
+    background: #BF265E;
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+    .ua-btn-sm.primary {
+        background: #C5D930;
+        color: #000;
+    }
+
+.ua-option {
+    display: block;
+    margin-top: 4px;
+}

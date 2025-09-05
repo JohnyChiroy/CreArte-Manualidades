@@ -1,5 +1,7 @@
-using Microsoft.EntityFrameworkCore;
 using CreArte.Data;
+using CreArte.Services.Auditoria;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +12,7 @@ builder.Services.AddDbContext<CreArteDbContext>(options =>
 builder.Services.AddSession(options =>
 {
     // Tiempo de vida de la cookie de sesión (ajusta a tu gusto)
-    options.IdleTimeout = TimeSpan.FromMinutes(60); // para sesiones más largas 
+    options.IdleTimeout = TimeSpan.FromMinutes(8); // para sesiones más largas 
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
@@ -19,6 +21,35 @@ builder.Services.AddSession(options =>
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+// Program.cs (minimal hosting) o Startup.ConfigureServices
+builder.Services.AddHttpContextAccessor(); // necesario para CurrentUserService
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
+
+//builder.Services
+//    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+//    .AddCookie(options =>
+//    {
+//        options.LoginPath = "/Auth/Login";        // ajusta a tu ruta
+//        options.AccessDeniedPath = "/Auth/Denied";
+//        // Opcional: nombre de la cookie, expiración, etc.
+//    });
+// 3) Cookie Authentication (LO CLAVE para que User.Identity tenga datos)
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login/Login";               // si no autenticado
+        options.AccessDeniedPath = "/Login/Login";        // acceso denegado
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);   // duración cookie
+        options.SlidingExpiration = true;                 // renovar con uso
+        // options.Cookie.Name = "CreArte.Auth";           // opcional: nombre del cookie
+    });
+
+builder.Services.AddAuthorization();
+// MVC
+builder.Services.AddControllersWithViews();
+// Razor Pages
 
 var app = builder.Build();
 
@@ -26,17 +57,20 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
 }
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession(); // <-- IMPORTANTE para HttpContext.Session
 
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Login}/{action=Login}/{id?}");
 
 app.Run();

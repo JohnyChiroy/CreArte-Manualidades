@@ -1,0 +1,70 @@
+﻿@model CreArte.ModelsPartial.AreaDetailsVM
+@{
+    ViewData["Title"] = "Detalles del Área";
+    Layout = null;
+}
+
+<div class="ua-card">
+        <!-- Fila superior -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código:</strong></label>
+                <input value="@Model.AREA_ID" class="form-control" readonly />
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nombre -->
+    <div class="ua-field" style="margin-top:12px;">
+        <label><strong>Nombre del área:</strong></label>
+        <input value="@Model.AREA_NOMBRE" class="form-control" readonly />
+    </div>
+
+    <!-- Nivel + Descripción -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Nivel:</strong></label>
+            <input value="@($"{Model.NIVEL_NOMBRE} ({Model.NIVEL_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Descripción:</strong></label>
+            <textarea class="form-control" rows="3" readonly>@Model.AREA_DESCRIPCION</textarea>
+        </div>
+    </div>
+
+    <!-- Auditoría con usuario + fecha en el mismo campo -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+        </div>
+
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- Acciones -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Areas">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-route-id="@Model.AREA_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
+</div>

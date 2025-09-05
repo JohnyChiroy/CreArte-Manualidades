@@ -37,7 +37,7 @@
     background: transparent;
     border: 0;
     color: var(--text-on-dark);
-    font-size: 1.5rem;
+    font-size: 2rem;
     line-height: 1;
     cursor: pointer;
 }
@@ -57,9 +57,9 @@
    ============================ */
 .app-shell {
     display: grid;
-    grid-template-columns: 220px 1fr; /* sidebar + contenido */
+    grid-template-columns: 180px 1fr; /* sidebar + contenido */
     min-height: 100vh;
-    padding-top: 64px; /* altura del header */
+    padding-top: 55px; /* altura del header */
 }
 
 /* Sidebar */
@@ -67,7 +67,7 @@
     background: var(--gold);
     color: var(--text-on-gold);
     border-right: 1px solid var(--sep);
-    padding: 12px 10px;
+    padding: 12px 5px;
 }
 
 .sidebar-title {
@@ -86,7 +86,7 @@
     gap: 10px;
     color: var(--text-on-gold);
     text-decoration: none;
-    padding: 10px 12px;
+    padding: 7px 12px;
     border-radius: 8px;
 }
 
@@ -99,14 +99,14 @@
     }
 
 .sidebar-sep {
-    margin: 10px 0;
+    margin: 5px 0;
     border-top: 1px solid var(--sep);
 }
 
 /* Contenido */
 .app-content {
     background: #fff;
-    padding: 24px;
+    padding: 5px;
 }
 
 /* Centro Home (logo grande) */

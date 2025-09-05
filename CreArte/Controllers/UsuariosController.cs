@@ -23,6 +23,12 @@ namespace CreArte.Controllers
         {
             _context = context;
         }
+        //public IActionResult Index()
+        //{
+        //    // Traemos de sesión el nombre que guardaste al hacer login
+        //    ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Usuario";
+        //    return View(); // Views/Home/Index.cshtml
+        //}
 
         // ============================================================
         // LISTADO (queda como lo tenías, sólo se mantiene tal cual)
@@ -136,65 +142,55 @@ namespace CreArte.Controllers
             return View(uSUARIO);
         }
 
-        // ============================================================
-        // CREATE (GET)
-        // Ruta: GET /Usuarios/Create
-        // - Genera el siguiente USUARIO_ID automático (U00001, U00002, ...)
-        // - Setea ESTADO = true (Activo)
-        // - Llena combos: ROL y EMPLEADO
-        // ============================================================
+        // =========================================================
+        // GET: /Usuarios/Create
+        // - Genera el USUARIO_ID (ej. U00001)
+        // - Pone ESTADO = true
+        // - Llena combos Rol/Empleado
+        // =========================================================
         public async Task<IActionResult> Create()
         {
-            // 1) Obtener siguiente código
-            string nextId = await ObtenerSiguienteUsuarioIdAsync();
-
-            // 2) Modelo base para la vista
             var model = new USUARIO
             {
-                USUARIO_ID = nextId,
-                ESTADO = true,     // “Activo” en la UI
-                ELIMINADO = false  // por defecto
+                USUARIO_ID = await ObtenerSiguienteUsuarioIdAsync(),
+                ESTADO = true,
+                ELIMINADO = false
             };
 
-            // 3) Cargar combos (usa nombres legibles como texto)
             await CargarCombosAsync(null, null);
-
             return View(model);
         }
 
-        // ============================================================
-        // CREATE (POST)
-        // Ruta: POST /Usuarios/Create
-        // - Recibe USUARIO de campos visibles (NO contraseña)
-        // - Recibe PwdPlain y PwdPlainConfirm (inputs de la vista)
-        // - Genera SALT (64 bytes) + HASH = SHA256(SALT || UTF8(PwdPlain))
+        // =========================================================
+        // POST: /Usuarios/Create
+        // - Recibe: USUARIO (campos visibles) + PwdPlain + PwdPlainConfirm
+        // - Valida reglas de contraseña (mismas que en tu JS)
+        // - Calcula SALT + SHA-256(SALT||UTF8(password))
         // - Completa auditoría y guarda
-        // ============================================================
+        // =========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(
-            // Sólo bindea lo que viene visible/permitido en la vista
+            // Bindea solo los campos visibles/seguros de la vista
             [Bind("USUARIO_ID,USUARIO_NOMBRE,ROL_ID,EMPLEADO_ID,ESTADO")] USUARIO usuario,
             string PwdPlain,
             string PwdPlainConfirm)
         {
-            // --- 1) Validaciones del modelo y de la contraseña ---
+            // 1) Validaciones básicas del modelo
             if (string.IsNullOrWhiteSpace(usuario.USUARIO_ID))
                 ModelState.AddModelError(nameof(usuario.USUARIO_ID), "El código es requerido.");
-
             if (string.IsNullOrWhiteSpace(usuario.USUARIO_NOMBRE))
                 ModelState.AddModelError(nameof(usuario.USUARIO_NOMBRE), "El nombre de usuario es requerido.");
 
+            // 2) Validación de contraseña (servidor)
             if (string.IsNullOrWhiteSpace(PwdPlain) || string.IsNullOrWhiteSpace(PwdPlainConfirm))
                 ModelState.AddModelError("", "Debe ingresar y confirmar la contraseña.");
-
             if (PwdPlain != PwdPlainConfirm)
                 ModelState.AddModelError("", "Las contraseñas no coinciden.");
-
             if (!ValidaReglasPassword(PwdPlain))
                 ModelState.AddModelError("", "La contraseña no cumple: minúscula, mayúscula, número y longitud 8–15.");
 
-            // Verificación de unicidad de nombre (opcional)
+            // 3) Unicidad de nombre de usuario (opcional pero recomendado)
             bool nombreDuplicado = await _context.USUARIO
                 .AnyAsync(u => u.USUARIO_NOMBRE == usuario.USUARIO_NOMBRE && !u.ELIMINADO);
             if (nombreDuplicado)
@@ -206,21 +202,22 @@ namespace CreArte.Controllers
                 return View(usuario);
             }
 
-            // --- 2) Generar SALT y HASH desde la contraseña en texto plano ---
+            // 4) Generar SALT + HASH
             (byte[] salt, byte[] hash) = GenerarSaltYHash(PwdPlain);
 
-            // --- 3) Completar campos no visibles/auditoría ---
+            // 5) Completar campos no visibles (auditoría)
             usuario.USUARIO_SALT = salt;
             usuario.USUARIO_CONTRASENA = hash;
             usuario.ELIMINADO = false;
-            usuario.USUARIO_CREACION = "SYSTEM";         // <-- Ajusta a tu usuario logueado
-            usuario.FECHA_CREACION = DateTime.Now;       // <-- Guarda fecha/hora de creación
+            usuario.USUARIO_CREACION = "SYSTEM";      // TODO: reemplaza por usuario logueado
+            usuario.FECHA_CREACION = DateTime.Now;
             usuario.USUARIO_MODIFICACION = null;
             usuario.FECHA_MODIFICACION = null;
             usuario.USUARIO_ELIMINACION = null;
             usuario.FECHA_ELIMINACION = null;
+            // usuario.USUARIO_CORREO -> si no lo manejas aquí, déjalo null o string.Empty
 
-            // --- 4) Guardar en DB ---
+            // 6) Guardar
             try
             {
                 _context.Add(usuario);
@@ -235,19 +232,66 @@ namespace CreArte.Controllers
             }
         }
 
-        // ============================================================
-        // EDIT (GET) – sin cambios mayores
-        // Ruta: GET /Usuarios/Edit/{id}
-        // ============================================================
-        public async Task<IActionResult> Edit(string id)
+        // =========================================================
+        // ===================== HELPERS ===========================
+        // =========================================================
+
+        /// Genera el siguiente ID con formato U00001, U00002, ...
+        private async Task<string> ObtenerSiguienteUsuarioIdAsyncHelper()
         {
-            if (id == null) return NotFound();
+            var last = await _context.USUARIO
+                                     .OrderByDescending(u => u.USUARIO_ID)
+                                     .Select(u => u.USUARIO_ID)
+                                     .FirstOrDefaultAsync();
+            int n = 0;
+            if (!string.IsNullOrEmpty(last) && last.Length >= 6 && last.StartsWith("U"))
+                int.TryParse(last.Substring(1), out n);
+            return $"U{(n + 1).ToString("D5")}";
+        }
 
-            var uSUARIO = await _context.USUARIO.FindAsync(id);
-            if (uSUARIO == null) return NotFound();
+        /// Llena combos de Rol y Empleado (seguro).
+        private async Task CargarCombosAsyncHelper(string? rolSeleccionado, string? empleadoSeleccionado)
+        {
+            var roles = await _context.ROL
+                .AsNoTracking()
+                .OrderBy(r => r.ROL_NOMBRE) // si no existe, usa .OrderBy(r => r.ROL_ID)
+                .Select(r => new { Value = r.ROL_ID, Text = r.ROL_NOMBRE ?? r.ROL_ID })
+                .ToListAsync();
+            ViewData["ROL_ID"] = new SelectList(roles, "Value", "Text", rolSeleccionado);
 
-            await CargarCombosAsync(uSUARIO.ROL_ID, uSUARIO.EMPLEADO_ID);
-            return View(uSUARIO);
+            var empleados = await _context.EMPLEADO
+                .AsNoTracking()
+                .OrderBy(e => e.EMPLEADO_ID)
+                .Select(e => new { Value = e.EMPLEADO_ID, Text = e.EMPLEADO_ID }) // cambia Text si luego tienes nombre
+                .ToListAsync();
+            ViewData["EMPLEADO_ID"] = new SelectList(empleados, "Value", "Text", empleadoSeleccionado);
+        }
+
+        /// Reglas de contraseña: 1 minúscula, 1 mayúscula, 1 número, longitud [8..15].
+        private bool ValidaReglasPasswordHelper(string pwd)
+        {
+            if (string.IsNullOrEmpty(pwd)) return false;
+            bool hasLower = pwd.Any(char.IsLower);
+            bool hasUpper = pwd.Any(char.IsUpper);
+            bool hasDigit = pwd.Any(char.IsDigit);
+            bool okLen = pwd.Length >= 8 && pwd.Length <= 15;
+            return hasLower && hasUpper && hasDigit && okLen;
+        }
+
+        /// SALT(64) + SHA256(SALT || UTF8(password))
+        private (byte[] salt, byte[] hash) GenerarSaltYHashHelper(string password)
+        {
+            using var rng = RandomNumberGenerator.Create();
+            byte[] salt = new byte[64];
+            rng.GetBytes(salt);
+
+            using var sha = SHA256.Create();
+            byte[] pwdBytes = Encoding.UTF8.GetBytes(password);
+            byte[] toHash = new byte[salt.Length + pwdBytes.Length];
+            Buffer.BlockCopy(salt, 0, toHash, 0, salt.Length);
+            Buffer.BlockCopy(pwdBytes, 0, toHash, salt.Length, pwdBytes.Length);
+            byte[] hash = sha.ComputeHash(toHash);
+            return (salt, hash);
         }
 
         // ============================================================
