@@ -1,7 +1,7 @@
 ﻿// /wwwroot/js/alerts.js
 // Módulo global con helpers de SweetAlert2 reutilizables.
-// Queda disponible como window.KarySwal en toda la app.
-window.KarySwal = (function () {
+// Queda disponible como window.CreArteSwal en toda la app.
+window.CreArteSwal = (function () {
 
     /**
      * Modal de éxito con una o dos acciones.
@@ -33,7 +33,7 @@ window.KarySwal = (function () {
             if (r.isConfirmed && o.indexUrl) window.location.href = o.indexUrl;
             else if (r.isDenied && o.createUrl) window.location.href = o.createUrl;
         });
-    } // 👈 IMPORTANTE: este cierre faltaba
+    } 
 
     /**
      * Protege un formulario de salidas accidentales si hay cambios sin guardar.

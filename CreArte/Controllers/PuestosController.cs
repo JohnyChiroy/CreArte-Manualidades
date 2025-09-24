@@ -62,8 +62,8 @@ namespace CreArte.Controllers
                 q = q.Where(p =>
                     EF.Functions.Like(p.PUESTO_ID, $"%{s}%") ||
                     EF.Functions.Like(p.PUESTO_NOMBRE, $"%{s}%") ||
-                    EF.Functions.Like(p.AREA.AREA_NOMBRE, $"%{s}%"));// ||
-                    //EF.Functions.Like(p.NIVEL.NIVEL_NOMBRE), $"%{s}%"));
+                    EF.Functions.Like(p.AREA.AREA_NOMBRE, $"%{s}%") ||//);// ||
+                    EF.Functions.Like(p.NIVEL.NIVEL_NOMBRE, $"%{s}%"));
             }
 
             // ============================================================

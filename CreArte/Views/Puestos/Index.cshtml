@@ -69,7 +69,7 @@
         <form method="get" asp-controller="Puestos" asp-action="Index" class="ua-search d-flex align-items-center">
             <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
             <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
-            <input name="Search" value="@Model.Search" placeholder="Ingrese el texto a buscar..." />
+            <input name="Search" value="@Model.Search" placeholder="Buscar ID, Puesto o Área" />
             <button title="Buscar" type="submit">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             </button>
@@ -87,6 +87,7 @@
         <!-- Valores actuales (para activar iconos si quieres) -->
         <input type="hidden" id="ua_val_puesto" value="@(Context.Request.Query["Puesto"])" />
         <input type="hidden" id="ua_val_area"   value="@(Context.Request.Query["Area"])" />
+        <input type="hidden" id="ua_val_nivel"  value="@(Context.Request.Query["Nivel"])"/> <!-- no usado -->
         <input type="hidden" id="ua_val_fi"     value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" />
         <input type="hidden" id="ua_val_ff"     value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" />
         <input type="hidden" id="ua_val_estado" value="@(Model.Estado?.ToString().ToLower())" />
@@ -208,7 +209,47 @@
                     </th>
 
                     <!-- NIVEL (solo mostrar) -->
-                    <th><div class="ua-th"><span class="ua-title">NIVEL</span></div></th>
+                    @* <th><div class="ua-th"><span class="ua-title">NIVEL</span></div></th> *@
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_nivel = NextDir("nivel", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_nivel = Url.Action("Index", "Puestos", new {
+                                    Search = Model.Search,
+                                    Puesto = Context.Request.Query["Puesto"].ToString(),
+                                    Area   = Context.Request.Query["Area"].ToString(),
+                                    Nivel = Context.Request.Query["Nivel"].ToString(),
+                                    FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
+                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
+                                    Estado = Model.Estado,
+                                    Sort = "nivel", Dir = next_nivel, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_nivel = (Model.Sort ?? "fecha").Equals("nivel", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_nivel ? "" : "inactive")" href="@href_nivel">
+                                <span class="ua-title">NIVEL</span>
+                                <span class="ua-arrow">@Arrow("nivel", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popNivel" title="Filtrar Nivel">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+
+                            <div id="popNivel" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fArea" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Nivel"])" />
+                                <div class="ua-options" style="margin-top:8px;">
+                                    <label class="ua-option"><input type="radio" name="optA" value="all" checked> (Todos)</label>
+                                    <label class="ua-option"><input type="radio" name="optA" value="blanks"> (Vacíos)</label>
+                                    <label class="ua-option"><input type="radio" name="optA" value="nonblanks"> (No vacíos)</label>
+                                </div>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearNivel()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyNivel()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
 
                     <!-- FECHA CREACIÓN (ordenable + popover rango) -->
                     <th style="width:260px;">
@@ -487,6 +528,17 @@ function uaApplyArea(){
     submitFilter({ Area: val });
 }
 function uaClearArea(){ submitFilter({ Area: null }); }
+
+// NIVEL
+function uaApplyNivel(){
+    const txt = (document.getElementById('fNivel')?.value || '').trim();
+    const opt = document.querySelector('input[name="optA"]:checked')?.value;
+    let val = txt;
+    if (opt === 'blanks') val = '__BLANKS__';
+    if (opt === 'nonblanks') val = '__NONBLANKS__';
+    submitFilter({ Nivel: val });
+}
+function uaClearNivel(){ submitFilter({ Nivel: null }); }
 
 // FECHAS
 function uaApplyFecha(){

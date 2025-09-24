@@ -1,18 +1,15 @@
-﻿@* /Views/Shared/_SwalBootstrap.cshtml
-   - Lee TempData para mostrar modales SweetAlert2.
-   - Prioriza flujos de 1 botón (SwalOneBtnFlag) sobre los de 2 botones.
-   - Activa la protección de formularios con data-guard="true".
-   - Requiere que SweetAlert2 y ~/js/alerts.js ya estén cargados. *@
-
+﻿@* /Views/Shared/_SwalBootstrap.cshtml *@
 @{
-    // Flash (PRG) – valores opcionales
     var tTitle = TempData["SwalTitle"] as string;
     var tText = TempData["SwalText"] as string;
-    var tIndex = TempData["SwalIndexUrl"] as string;
-    var tCreate = TempData["SwalCreateUrl"] as string;
+    var tIndex = TempData["SwalIndexUrl"] as string;   // opcional
+    var tCreate = TempData["SwalCreateUrl"] as string;  // opcional
+    var tOneFlag = TempData["SwalOneBtnFlag"] as string; // "nochange" | "updated"
 
-    // Bandera para “un solo botón” (Edit): "nochange" | "updated"
-    var tOneFlag = TempData["SwalOneBtnFlag"] as string;
+    // Controller actual (Puestos, Areas, etc.)
+    var controller = (string)ViewContext.RouteData.Values["controller"];
+    // Fallback dinámico: Index del controlador actual
+    var defaultIndex = Url.Action("Index", controller);
 }
 
 <div id="swal-flash"
@@ -20,7 +17,8 @@
      data-text="@tText"
      data-index-url="@tIndex"
      data-create-url="@tCreate"
-     data-one-flag="@tOneFlag">
+     data-one-flag="@tOneFlag"
+     data-default-index="@defaultIndex">
 </div>
 
 <script>
@@ -29,59 +27,55 @@
         // 1) Proteger formularios con data-guard="true"
         document.querySelectorAll('form[data-guard="true"]').forEach(function (form) {
           if (!form.id) form.id = 'form-' + Math.random().toString(36).slice(2);
-          if (window.KarySwal && typeof KarySwal.guardUnsaved === 'function') {
-            KarySwal.guardUnsaved('#' + form.id, '.js-leave');
+          if (window.CreArteSwal && typeof window.CreArteSwal.guardUnsaved === 'function') {
+            window.CreArteSwal.guardUnsaved('#' + form.id, '.js-leave');
           }
         });
 
+        // 2) SweetAlert2 según TempData
+        var flash = document.getElementById('swal-flash');
+        if (!flash || !window.Swal || !window.CreArteSwal) return;
 
+        var title        = flash.dataset.title        || '';
+        var text         = flash.dataset.text         || '';
+        var indexUrl     = flash.dataset.indexUrl     || '';
+        var createUrl    = flash.dataset.createUrl    || '';
+        var oneFlag      = flash.dataset.oneFlag      || '';
+        var defaultIndex = flash.dataset.defaultIndex || ''; // 👈 fallback dinámico
 
-        // 2) SweetAlert2 segun TempData
-         var flash = document.getElementById('swal-flash');
-    if (!flash || !window.Swal || !window.KarySwal) return;
+        // === Prioridad 1: flujo de 1 botón (Edit) ===
+        if (oneFlag) {
+          const isUpdated = (oneFlag === 'updated');
 
-    var title    = flash.dataset.title     || '';
-    var text     = flash.dataset.text      || '';
-    var indexUrl = flash.dataset.indexUrl  || '';
-    var createUrl= flash.dataset.createUrl || '';
-    var oneFlag  = flash.dataset.oneFlag   || '';
+          window.CreArteSwal.info({
+            icon: isUpdated ? 'success' : 'info',
+            title: title || (isUpdated ? '¡Actualizado!' : 'Información'),
+            text : text  || (isUpdated ? 'El registro se actualizó correctamente.' : 'No se modificó ningún dato.'),
+            confirmText: 'Aceptar',
+            // 👇 Si no viene IndexUrl desde el controlador, caerá al Index del controlador actual (Puestos, Áreas, etc.)
+            redirectUrl: indexUrl || defaultIndex
+          });
+          return; // no dispares el modal de 2 botones
+        }
 
-
-
-
-           // === Prioridad 1: flujo de 1 botón (Edit) ===
-      if (oneFlag) {
-        const isUpdated = (oneFlag === 'updated');
-
-        // 👇 Forzamos el icono: 'success' si updated, 'info' si nochange
-        KarySwal.info({
-          icon: isUpdated ? 'success' : 'info',
-          title: title || (isUpdated ? '¡Actualizado!' : 'Información'),
-          text : text  || (isUpdated ? 'El registro se actualizó correctamente.' : 'No se modificó ningún dato.'),
-          confirmText: 'Aceptar',
-          redirectUrl: indexUrl || '@Url.Action("Index", "Areas")'
-        });
-        return; // NO dispares el modal de 2 botones
+        // === Prioridad 2: flujo de 2 botones (Create u otros) ===
+        if (title || text) {
+          window.CreArteSwal.saveSuccess({
+            title: title || '¡Operación exitosa!',
+            text : text  || 'La operación se realizó correctamente.',
+            indexUrl: indexUrl || defaultIndex, // 👈 mismo fallback dinámico
+            createUrl: createUrl,
+            showDenyButton: !!createUrl,
+            confirmText: 'Guardar y cerrar',
+            denyText: 'Guardar y nuevo'
+          });
+        }
       }
 
-      // === Prioridad 2: flujo de 2 botones (Create u otros) ===
-      if (title || text) {
-        KarySwal.saveSuccess({
-          title: title || '¡Operación exitosa!',
-          text : text  || 'La operación se realizó correctamente.',
-          indexUrl: indexUrl,
-          createUrl: createUrl,
-          showDenyButton: !!createUrl,
-          confirmText: 'Guardar y cerrar',
-          denyText: 'Guardar y nuevo'
-        });
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+      } else {
+        run();
       }
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', run);
-    } else {
-      run();
-    }
     })();
 </script>

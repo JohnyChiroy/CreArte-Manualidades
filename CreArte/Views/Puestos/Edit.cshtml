@@ -10,7 +10,7 @@
 }
 
 <div class="ua-card">
-    <h2 style="margin:0 0 12px 0;">Editar Puesto</h2>
+    <h2 style="margin:0 0 12px 0;">Modificar Puesto</h2>
 
     <form asp-action="Edit" asp-controller="Puestos" method="post" id="frmPuestoEdit" data-guard="true" autocomplete="off">
         @Html.AntiForgeryToken()
@@ -175,23 +175,41 @@
             });
         })();
 
-        // (5) Modales tras PRG (un botón)
+                        // (5) Modales tras PRG (un botón) — VERSIÓN con helper global
         (function () {
-            if (!window.Swal) return;
+            // Asegúrate de usar el módulo correcto
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+
             const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
             const title = '@(TempData["SwalTitle"] ?? "")';
             const text  = '@(TempData["SwalText"] ?? "")';
+
             if (!flag) return;
 
-            const baseCfg = { allowOutsideClick:false, allowEscapeKey:false, confirmButtonText:'Aceptar', showDenyButton:false, showCancelButton:false };
+            // URL correcta del módulo PUESTOS
+            const redirectPuestos = '@Url.Action("Index", "Puestos")';
+
             if (flag === 'nochange') {
-                Swal.fire({ icon:'info', title: title || 'Sin cambios', text: text || 'No se modificó ningún dato.', ...baseCfg })
-                    .then(r => { if (r.isConfirmed) window.location.href='@Url.Action("Index", "Puestos")'; });
+                window.CreArteSwal.info({
+                    icon: 'info',
+                    title: title || 'Sin cambios',
+                    text:  text  || 'No se modificó ningún dato.',
+                    confirmText: 'Aceptar',
+                    redirectUrl: redirectPuestos
+                });
             }
+
             if (flag === 'updated') {
-                Swal.fire({ icon:'success', title: title || '¡Actualizado!', text: text || 'El registro se actualizó correctamente.', ...baseCfg })
-                    .then(r => { if (r.isConfirmed) window.location.href='@Url.Action("Index", "Puestos")'; });
+                window.CreArteSwal.info({
+                    icon: 'success',
+                    title: title || '¡Puesto actualizado!',
+                    text:  text  || 'El registro se actualizó correctamente.',
+                    confirmText: 'Aceptar',
+                    redirectUrl: redirectPuestos
+                });
             }
         })();
+
+
     </script>
 }
