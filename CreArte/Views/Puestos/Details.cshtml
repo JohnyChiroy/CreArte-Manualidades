@@ -1,99 +1,79 @@
-﻿@model CreArte.Models.PUESTO
-
+﻿@* ===============================================
+   RUTA: Views/Puestos/Details.cshtml
+   DESCRIPCIÓN: PartialView (Layout = null) para inyectar en SweetAlert2
+   =============================================== *@
+@model CreArte.ModelsPartial.PuestoDetailsVM
 @{
+    ViewData["Title"] = "Detalles del Puesto";
     Layout = null;
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <!-- Fila superior -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código:</strong></label>
+                <input value="@Model.PUESTO_ID" class="form-control" readonly />
+            </div>
+        </div>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
 
-<div>
-    <h4>PUESTO</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PUESTO_NOMBRE)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PUESTO_NOMBRE)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PUESTO_DESCRIPCION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PUESTO_DESCRIPCION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.AREA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.AREA.AREA_ID)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.NIVEL)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.NIVEL.NIVEL_ID)
-        </dd>
-    </dl>
+    <!-- Nombre -->
+    <div class="ua-field" style="margin-top:12px;">
+        <label><strong>Nombre del puesto:</strong></label>
+        <input value="@Model.PUESTO_NOMBRE" class="form-control" readonly />
+    </div>
+
+    <!-- Área + Nivel -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Área:</strong></label>
+            <input value="@($"{Model.AREA_NOMBRE} ({Model.AREA_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Nivel:</strong></label>
+            <input value="@($"{Model.NIVEL_NOMBRE} ({Model.NIVEL_ID})")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Descripción -->
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Descripción:</strong></label>
+        <textarea class="form-control" rows="3" readonly>@Model.PUESTO_DESCRIPCION</textarea>
+    </div>
+
+    <!-- Auditoría -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+        </div>
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- Acciones -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Puestos">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-route-id="@Model.PUESTO_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.PUESTO_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>

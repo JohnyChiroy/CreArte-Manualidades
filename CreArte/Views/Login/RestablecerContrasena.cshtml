@@ -1,0 +1,60 @@
+﻿@model CreArte.ModelsPartial.RestablecerContrasenaVM
+@{
+    ViewData["Title"] = "Restablecer contraseña";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="ua-card" style="padding:20px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08);">
+                <h3 style="margin-top:0;">Crear nueva contraseña</h3>
+                <p>Ingresa y confirma tu nueva contraseña.</p>
+
+                <form asp-action="RestablecerContrasena" asp-controller="Login" method="post" id="frmNewPwd">
+                    @Html.AntiForgeryToken()
+
+                    <!-- Campos ocultos necesarios para validar token -->
+                    <input type="hidden" asp-for="UsuarioNombre" />
+                    <input type="hidden" asp-for="Token" />
+
+                    <div class="mb-3">
+                        <label asp-for="NuevaContrasena" class="form-label"></label>
+                        <input asp-for="NuevaContrasena" class="form-control" />
+                        <span asp-validation-for="NuevaContrasena" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ConfirmarContrasena" class="form-label"></label>
+                        <input asp-for="ConfirmarContrasena" class="form-control" />
+                        <span asp-validation-for="ConfirmarContrasena" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success" id="btnCambiar">
+                            <i class="bi bi-check-circle"></i> Cambiar contraseña
+                        </button>
+                        <a asp-action="Login" asp-controller="Login" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al login
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function(){
+            const frm = document.getElementById('frmNewPwd');
+            const btn = document.getElementById('btnCambiar');
+            if(!frm || !btn) return;
+            frm.addEventListener('submit', function(){
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+    </script>
+}

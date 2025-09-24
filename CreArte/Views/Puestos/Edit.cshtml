@@ -1,95 +1,197 @@
-﻿@model CreArte.Models.PUESTO
-
+﻿@* ===============================================
+   RUTA: Views/Puestos/Edit.cshtml
+   DESCRIPCIÓN: Formulario de edición con guard de "sin cambios"
+   y SweetAlert2 (PRG) igual que en ÁREAS.
+   =============================================== *@
+@model CreArte.ModelsPartial.PuestoCreateVM
 @{
-    Layout = null;
+    ViewData["Title"] = "Editar Puesto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Editar Puesto</h2>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Edit</title>
-</head>
-<body>
+    <form asp-action="Edit" asp-controller="Puestos" method="post" id="frmPuestoEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
 
-<h4>PUESTO</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="PUESTO_ID" />
-            <div class="form-group">
-                <label asp-for="PUESTO_NOMBRE" class="control-label"></label>
-                <input asp-for="PUESTO_NOMBRE" class="form-control" />
-                <span asp-validation-for="PUESTO_NOMBRE" class="text-danger"></span>
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="PUESTO_ID"><strong>Código:</strong></label>
+                    <input asp-for="PUESTO_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="PUESTO_ID" />
+                <span class="ua-help">Código de puesto no editable.</span>
+                <span asp-validation-for="PUESTO_ID" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="PUESTO_DESCRIPCION" class="control-label"></label>
-                <input asp-for="PUESTO_DESCRIPCION" class="form-control" />
-                <span asp-validation-for="PUESTO_DESCRIPCION" class="text-danger"></span>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="AREA_ID" class="control-label"></label>
-                <select asp-for="AREA_ID" class="form-control" asp-items="ViewBag.AREA_ID"></select>
+        </div>
+
+        <!-- Nombre -->
+        <div class="ua-field" style="margin-top:12px;">
+            <label asp-for="PUESTO_NOMBRE"><strong>Nombre del puesto:</strong></label>
+            <input asp-for="PUESTO_NOMBRE" class="form-control" maxlength="100" />
+            <span asp-validation-for="PUESTO_NOMBRE" class="text-danger"></span>
+            <div class="ua-help">Máximo 100 caracteres. <span id="cntNombre">0</span>/100</div>
+        </div>
+
+        <div class="ua-note" aria-live="polite">
+            <strong>Nota:</strong> Actualice el área, nivel y descripción si corresponde.
+        </div>
+
+        <!-- Área + Nivel -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="AREA_ID"><strong>Área:</strong></label>
+                <select asp-for="AREA_ID" class="form-control" asp-items="Model.Areas">
+                    <option value="">-- Seleccione un área --</option>
+                </select>
                 <span asp-validation-for="AREA_ID" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="NIVEL_ID" class="control-label"></label>
-                <select asp-for="NIVEL_ID" class="form-control" asp-items="ViewBag.NIVEL_ID"></select>
+
+            <div class="ua-field">
+                <label asp-for="NIVEL_ID"><strong>Nivel:</strong></label>
+                <select asp-for="NIVEL_ID" class="form-control" asp-items="Model.Niveles">
+                    <option value="">-- Seleccione un nivel --</option>
+                </select>
                 <span asp-validation-for="NIVEL_ID" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_CREACION" class="control-label"></label>
-                <input asp-for="FECHA_CREACION" class="form-control" />
-                <span asp-validation-for="FECHA_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="ua-field" style="margin-top:8px;">
+            <label asp-for="PUESTO_DESCRIPCION"><strong>Descripción:</strong></label>
+            <textarea asp-for="PUESTO_DESCRIPCION" class="form-control" rows="3" maxlength="255"></textarea>
+            <span asp-validation-for="PUESTO_DESCRIPCION" class="text-danger"></span>
+            <div class="ua-help">Opcional. Máximo 255 caracteres. <span id="cntDesc">0</span>/255</div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Puestos">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-</body>
-</html>
+    <script>
+        // (1) Contadores
+        (function () {
+            const $nom = document.getElementById('PUESTO_NOMBRE');
+            const $des = document.getElementById('PUESTO_DESCRIPCION');
+            const $cnNom = document.getElementById('cntNombre');
+            const $cnDes = document.getElementById('cntDesc');
+            function upd($el, $cn, max) { if (!$el || !$cn) return; const len = ($el.value || '').length; $cn.textContent = len + '/' + max; }
+            if ($nom) { upd($nom, $cnNom, 100); $nom.addEventListener('input', () => upd($nom, $cnNom, 100)); }
+            if ($des) { upd($des, $cnDes, 255); $des.addEventListener('input', () => upd($des, $cnDes, 255)); }
+        })();
+
+        // (2) Pill Estado
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            function syncPill() { if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; } else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; } }
+            chk.addEventListener('change', syncPill);
+            syncPill();
+        })();
+
+        // (3) Habilitar botón
+        (function () {
+            const btn = document.getElementById('btnActualizar');
+            const nom = document.getElementById('PUESTO_NOMBRE');
+            const area = document.getElementById('AREA_ID') || document.querySelector('[name="AREA_ID"]');
+            const niv  = document.getElementById('NIVEL_ID') || document.querySelector('[name="NIVEL_ID"]');
+            function evalReady() {
+                const okNom = nom && nom.value.trim().length > 0;
+                const okArea = area && (area.value || '').trim().length > 0;
+                const okNiv  = niv && (niv.value || '').trim().length > 0;
+                const ready = okNom && okArea && okNiv;
+                if (!btn) return;
+                btn.disabled = !ready;
+                btn.classList.toggle('enabled', ready);
+            }
+            if (nom) nom.addEventListener('input', evalReady);
+            if (area) area.addEventListener('change', evalReady);
+            if (niv) niv.addEventListener('change', evalReady);
+            evalReady();
+        })();
+
+        // (4) Guard: comparar snapshot para "sin cambios"
+        (function () {
+            const frm = document.getElementById('frmPuestoEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                const sinCambios = (currentSnapshot === initialSnapshot);
+
+                if (sinCambios) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "Puestos")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "Puestos")';
+                    }
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // (5) Modales tras PRG (un botón)
+        (function () {
+            if (!window.Swal) return;
+            const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
+            const title = '@(TempData["SwalTitle"] ?? "")';
+            const text  = '@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+
+            const baseCfg = { allowOutsideClick:false, allowEscapeKey:false, confirmButtonText:'Aceptar', showDenyButton:false, showCancelButton:false };
+            if (flag === 'nochange') {
+                Swal.fire({ icon:'info', title: title || 'Sin cambios', text: text || 'No se modificó ningún dato.', ...baseCfg })
+                    .then(r => { if (r.isConfirmed) window.location.href='@Url.Action("Index", "Puestos")'; });
+            }
+            if (flag === 'updated') {
+                Swal.fire({ icon:'success', title: title || '¡Actualizado!', text: text || 'El registro se actualizó correctamente.', ...baseCfg })
+                    .then(r => { if (r.isConfirmed) window.location.href='@Url.Action("Index", "Puestos")'; });
+            }
+        })();
+    </script>
+}

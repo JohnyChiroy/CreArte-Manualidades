@@ -74,35 +74,38 @@
     /* ---------------------------
    Tabla
    --------------------------- */
-    .ua-table thead tr {
-        background: #C5D930;
-    }
+.ua-table thead tr {
+    background: #C5D930; /* verde de tu paleta */
+}
 
-    .ua-table thead th {
-        font-weight: 700;
-        color: black;
-        border: 0 !important;
-    }
+.ua-table thead th {
+    font-weight: 700;
+    color: black; /* texto en
+    border: 0 !important; /* elimina bordes predeterminados */
+    /*background-color: transparent;*/
+} /* elimina bordes predeterminados */
 
     .ua-table thead th, .ua-table tbody td {
         text-align: center
-    }
+    } /* centra texto en celdas */
 
     .ua-table tbody tr {
         border-bottom: 1px solid #C5D930;
-    }
+    } /* línea divisoria entre filas */
 
     .ua-table tbody td {
         vertical-align: middle;
-    }
+    } /* centra verticalmente contenido */
 
-    .ua-col-check {
-        width: 40px;
-    }
+.ua-col-check {
+    width: 40px;
+    color: #C5D930;
+} /* columna checkbox */
 
     .ua-col-no {
         width: 110px;
-    }
+    } /* columna número */
+
     /* Encabezado con filtro + orden */
     .ua-th {
         display: flex;
@@ -112,13 +115,14 @@
         padding: 4px 12px;
         background: #C5D930;
         border-radius: 8px;
-    }
+    } /* contenedor título + botones */
 
     .ua-title {
         font-weight: 700;
         color: black;
         letter-spacing: .5px;
-    }
+    } /* título columna */
+
     /* Botón embudo */
     .ua-filter-btn {
         border: none;
@@ -127,21 +131,22 @@
         padding: 2px;
         line-height: 0;
         border-radius: 6px;
-    }
+    } /* botón filtro */
 
         .ua-filter-btn svg {
             width: 16px;
             height: 16px;
-        }
+        } /* ícono filtro */
 
         .ua-filter-btn:hover {
             background: rgba(0,0,0,.06);
-        }
+        } /* hover botón filtro */
 
         .ua-filter-btn.active {
             background: #F2B90F;
             box-shadow: 0 0 0 2px rgba(0,0,0,.08) inset;
-        }
+        } /* estado activo */
+
     /* Popover contenedor */
     /*.ua-popover-wrap {
         position: relative;
@@ -176,7 +181,7 @@
             .ua-popover .ua-input option:hover {
                 background-color: #C5D930; /* verde de tu paleta */
                 color: #000; /* texto en negro */
-            }
+            } 
     /* Lista estilo Excel */
     .ua-options {
         margin-top: 8px;
@@ -184,7 +189,7 @@
         border-radius: 6px;
         max-height: 160px;
         overflow: auto;
-    }
+    } 
 
     /*.ua-option {
         display: flex;
@@ -196,12 +201,13 @@
 
         .ua-option:hover {
             background: #f5f7ff;
-        }
+            /*background-color: transparent;*/
+        } 
 
         .ua-option input {
             margin: 0;
             accent-color: #C5D930
-        }
+        } 
     /* Footer popover */
    /* .ua-pop-actions {
         display: flex;
@@ -229,20 +235,20 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 12px;
-    }
+    } /* contenedor fechas */
 
         .ua-dates input {
             border: 1px solid #F2B90F;
             border-radius: 6px;
             padding: 6px 8px;
-        }
+        } /* inputs fechas */
 
         .ua-dates small {
             display: block;
             margin-bottom: 4px;
             color: black;
             font-size: .85rem;
-        }
+        } /* etiquetas fechas */
     /* Badges */
     .ua-badge-activo {
         background: #C5D930;
@@ -250,7 +256,7 @@
         font-weight: 600;
         border-radius: 10px;
         padding: 3px 10px;
-    }
+    } /* badge activo */
 
     .ua-badge-inactivo {
         background: #BF265E;
@@ -258,25 +264,25 @@
         font-weight: 600;
         border-radius: 10px;
         padding: 3px 10px;
-    }
+    } /* badge inactivo */
     /* Paginación */
     .ua-pagination .page-link {
         margin: 0 6px;
         border: 0;
         color: #444;
-    }
+    } /* enlaces paginación */
 
     .ua-pagination .page-item.active .page-link {
         background: #BF265E;
         color: #fff;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
-    }
+    } /* página activa */
 
     .ua-pagination .page-link:hover {
         background: #ededff;
         color: black;
         border-radius: 10%;
-    }
+    } /* hover enlace paginación */
 
     .ua-pagination .page-item.active .page-link {
         border-radius: 25%; /* círculo */
@@ -286,7 +292,7 @@
         align-items: center; /* centrar vertical */
         justify-content: center; /* centrar horizontal */
         padding: 0; /* quitar padding extra */
-    }
+    } /* estilos para círculo */
     /* Orden visual */
     .ua-sort {
         color: black;
@@ -294,20 +300,20 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-    }
+    } 
 
         .ua-sort:hover {
             text-decoration: none;
-        }
+        } 
 
         .ua-sort .ua-arrow {
             font-size: .85rem;
             opacity: .7;
-        }
+        } 
 
         .ua-sort.inactive .ua-arrow {
             visibility: hidden;
-        }
+        } 
 
 
 /* ---------------------------------------------------------
@@ -317,7 +323,7 @@
    --------------------------------------------------------- */
 .ua-popover-wrap {
     position: relative;
-}
+} /* contenedor relativo */
 
 .ua-popover {
     display: none;
@@ -331,16 +337,16 @@
     padding: 12px;
     min-width: 260px;
     box-shadow: 0 8px 24px rgba(0,0,0,.12);
-}
+} 
 
     .ua-popover.open {
         display: block;
-    }
+    } 
 
 /* Evita que el thead/tables corten el popover en algunos temas */
 .table-responsive {
     overflow: visible;
-}
+} 
 
 /* Opcional: estética básica de inputs dentro de popover */
 .ua-popover .ua-input {
@@ -365,7 +371,7 @@
     border-radius: 6px;
     padding: 6px 10px;
     cursor: pointer;
-}
+} 
 
     .ua-btn-sm.primary {
         background: #C5D930;

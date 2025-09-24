@@ -1,69 +1,91 @@
-﻿using CreArte.Models;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
+﻿// ===============================================
+// RUTA: ModelsPartial/PuestoViewModels.cs
+// DESCRIPCIÓN: ViewModels para listado, creación/edición y detalles de PUESTO
+// ===============================================
+using CreArte.Models;
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace CreArte.ModelsPartial
 {
+    // VM para el listado con filtros, orden y paginación
     public class PuestoViewModels
     {
-        [Required, Display(Name = "ID Puesto")]
-        [StringLength(10, ErrorMessage = "Máximo 10 caracteres.")]
-        public string Id_Puesto { get; set; } = default!;
-
-        [Required, Display(Name = "Nombre del Puesto")]
-        [StringLength(80)]
-        public string Nombre_Puesto { get; set; } = default!;
-
-        [Display(Name = "Descripción")]
-        [StringLength(250)]
-        public string? Descripcion_Puesto { get; set; }
-
-        [Required, Display(Name = "Área")]
-        public string Id_Area { get; set; } = default!;
-
-        [Display(Name = "Área")]
-        public string? Area_Nombre { get; set; }
-
-        [Required, Display(Name = "Nivel")]
-        public string Id_Nivel { get; set; } = default!;
-
-        [Display(Name = "Nivel")]
-        public string? Nivel_Nombre { get; set; }
-
-        [Display(Name = "Estado")]
-        public bool Estado { get; set; } = true;
-
-        // Campos de auditoría: los llenará el controlador
-        public string Usuario_Create { get; set; } = default!;
-        public DateTime Fecha_Create { get; set; }
-        public string? Usuario_Modify { get; set; }
-        public DateTime? Fecha_Modify { get; set; }
-
-        // Filtros
-        public string? Search { get; set; }      // búsqueda global (ID/Nombre)
-        public string? Puesto { get; set; }     // filtro del popover de USUARIO (o "__BLANKS__" / "__NONBLANKS__")
-        public string? Area { get; set; }     // filtro del popover de USUARIO (o "__BLANKS__" / "__NONBLANKS__")
+        // ---------- Filtros ----------
+        public string? Search { get; set; }     // búsqueda global: PUESTO_ID, PUESTO_NOMBRE, AREA.AREA_NOMBRE
+        public string? Puesto { get; set; }     // filtro de columna PUESTO ("__BLANKS__", "__NONBLANKS__", o texto)
+        public string? Area { get; set; }       // filtro de columna ÁREA ("__BLANKS__", "__NONBLANKS__", o texto)
+        public string? Nivel { get; set; }      // filtro de columna NIVEL ("__BLANKS__", "__NONBLANKS__", o texto)
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
-        public string? Nivel { get; set; }         // nombre o ID
-        public bool? Estado_Filtro { get; set; }
+        public bool? Estado { get; set; }       // true/false/null
 
-        // Ordenamiento
-        public string? Sort { get; set; } = "id"; // "id","Puesto","fecha","Area","Nivel","estado"
-        public string? Dir { get; set; } = "asc";  // "asc" | "desc"
+        // ---------- Orden ----------
+        // Permitidos: "id","puesto","area","fecha","estado"
+        public string? Sort { get; set; } = "id";
+        public string? Dir { get; set; } = "asc";   // "asc" | "desc"
 
-        // Paginación
+        // ---------- Paginación ----------
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public int TotalItems { get; set; }
         public int TotalPages { get; set; }
 
-        // Combos:
-        public List<SelectListItem> Areas { get; set; } = new();
-        public List<SelectListItem> Niveles { get; set; } = new();
-    
+        // ---------- Datos ----------
+        public List<PUESTO> Items { get; set; } = new();
+    }
+
+    // VM para Create/Edit
+    public class PuestoCreateVM
+    {
+        [Display(Name = "Código de Puesto")]
+        public string PUESTO_ID { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El nombre del puesto es obligatorio.")]
+        [StringLength(100, ErrorMessage = "Máximo 100 caracteres.")]
+        [Display(Name = "Nombre del puesto")]
+        public string PUESTO_NOMBRE { get; set; } = string.Empty;
+
+        [StringLength(255, ErrorMessage = "Máximo 255 caracteres.")]
+        [Display(Name = "Descripción (opcional)")]
+        public string? PUESTO_DESCRIPCION { get; set; }
+
+        [Required(ErrorMessage = "Debe seleccionar un área.")]
+        [Display(Name = "Área")]
+        public string AREA_ID { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Debe seleccionar un nivel.")]
+        [Display(Name = "Nivel")]
+        public string NIVEL_ID { get; set; } = string.Empty;
+
+        [Display(Name = "Activo")]
+        public bool ESTADO { get; set; } = true;
+
+        // Para selects
+        public IEnumerable<SelectListItem> Areas { get; set; } = new List<SelectListItem>();
+        public IEnumerable<SelectListItem> Niveles { get; set; } = new List<SelectListItem>();
+    }
+
+    // VM para Details (tarjeta/partial)
+    public class PuestoDetailsVM
+    {
+        public string PUESTO_ID { get; set; } = string.Empty;
+        public string PUESTO_NOMBRE { get; set; } = string.Empty;
+        public string? PUESTO_DESCRIPCION { get; set; }
+
+        public string AREA_ID { get; set; } = string.Empty;
+        public string AREA_NOMBRE { get; set; } = string.Empty;
+
+        public string NIVEL_ID { get; set; } = string.Empty;
+        public string NIVEL_NOMBRE { get; set; } = string.Empty;
+
+        public bool ESTADO { get; set; }
+
+        public DateTime FECHA_CREACION { get; set; }
+        public string USUARIO_CREACION { get; set; } = string.Empty;
+        public DateTime? FECHA_MODIFICACION { get; set; }
+        public string? USUARIO_MODIFICACION { get; set; }
     }
 }
-

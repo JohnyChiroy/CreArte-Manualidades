@@ -1,5 +1,60 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model CreArte.ModelsPartial.RecuperacionContrasenaVM
 @{
+    ViewData["Title"] = "Recuperar contraseña";
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Ruta del layout principal
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="ua-card" style="padding:20px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08);">
+                <h3 style="margin-top:0;">Recuperar contraseña</h3>
+                <p>Ingresa tu <strong>usuario</strong> o tu <strong>correo registrado</strong>. Te enviaremos un enlace para restablecer tu contraseña.</p>
+
+                @if (TempData["ResetInfo"] != null)
+                {
+                    <div class="alert alert-info">@TempData["ResetInfo"]</div>
+                }
+                @if (TempData["ResetError"] != null)
+                {
+                    <div class="alert alert-danger">@TempData["ResetError"]</div>
+                }
+
+                <form asp-action="RecuperarContrasena" asp-controller="Login" method="post" id="frmReset">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="UsuarioONCorreo" class="form-label"></label>
+                        <input asp-for="UsuarioONCorreo" class="form-control" />
+                        <span asp-validation-for="UsuarioONCorreo" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark" id="btnEnviar">
+                            <i class="bi bi-envelope-check"></i> Enviar enlace
+                        </button>
+                        <a asp-action="Login" asp-controller="Login" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al login
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Deshabilitar botón al enviar (ux anti-doble clic)
+        (function(){
+            const frm = document.getElementById('frmReset');
+            const btn = document.getElementById('btnEnviar');
+            if(!frm || !btn) return;
+            frm.addEventListener('submit', function(){
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+            });
+        })();
+    </script>
 }

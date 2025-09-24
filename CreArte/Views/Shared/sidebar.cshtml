@@ -78,8 +78,12 @@
         </a>
         <a asp-controller="Areas" asp-action="Index"
            class="nav-item @(currentController == "configuracion" ? "is-active" : "")">
-            <i class="bi bi-gear"></i> <span>Configuracion</span>
+            <i class="bi bi-gear"></i> <span>Areas</span>
         </a>
+        @* <a asp-controller="Login" asp-action="RestablecerContrasena"
+           class="nav-item @(currentController == "Restablecr Contraseña" ? "is-active" : "")">
+            <i class="bi bi-gear"></i> <span>Restablecer Contraseña</span>
+        </a> *@
     </nav>
 </aside>
 
