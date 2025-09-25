@@ -62,7 +62,7 @@ namespace CreArte.Controllers
                 q = q.Where(p =>
                     EF.Functions.Like(p.PUESTO_ID, $"%{s}%") ||
                     EF.Functions.Like(p.PUESTO_NOMBRE, $"%{s}%") ||
-                    EF.Functions.Like(p.AREA.AREA_NOMBRE, $"%{s}%") ||//);// ||
+                    EF.Functions.Like(p.AREA.AREA_NOMBRE, $"%{s}%") ||
                     EF.Functions.Like(p.NIVEL.NIVEL_NOMBRE, $"%{s}%"));
             }
 
@@ -493,10 +493,35 @@ namespace CreArte.Controllers
             return prefijo + siguiente.ToString(new string('0', ancho));
         }
 
+        //private async Task<List<SelectListItem>> CargarAreasAsync()
+        //{
+        //    return await _context.AREA
+        //        .Where(a => !a.ELIMINADO)
+        //        .OrderBy(a => a.AREA_NOMBRE)
+        //        .Select(a => new SelectListItem
+        //        {
+        //            Text = a.AREA_NOMBRE,
+        //            Value = a.AREA_ID
+        //        })
+        //        .ToListAsync();
+        //}
+
+        //private async Task<List<SelectListItem>> CargarNivelesAsync()
+        //{
+        //    return await _context.NIVEL
+        //        .OrderBy(n => n.NIVEL_NOMBRE)
+        //        .Select(n => new SelectListItem
+        //        {
+        //            Text = n.NIVEL_NOMBRE,
+        //            Value = n.NIVEL_ID
+        //        })
+        //        .ToListAsync();
+        //}
+
         private async Task<List<SelectListItem>> CargarAreasAsync()
         {
             return await _context.AREA
-                .Where(a => !a.ELIMINADO)
+                .Where(a => !a.ELIMINADO && a.ESTADO) //  solo áreas activas y no eliminadas
                 .OrderBy(a => a.AREA_NOMBRE)
                 .Select(a => new SelectListItem
                 {
@@ -509,6 +534,7 @@ namespace CreArte.Controllers
         private async Task<List<SelectListItem>> CargarNivelesAsync()
         {
             return await _context.NIVEL
+                .Where(n => !n.ELIMINADO && n.ESTADO) //  solo niveles activos y no eliminados
                 .OrderBy(n => n.NIVEL_NOMBRE)
                 .Select(n => new SelectListItem
                 {

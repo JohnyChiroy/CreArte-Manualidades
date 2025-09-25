@@ -1,0 +1,63 @@
+﻿@* ===============================================================
+   /Views/Shared/_SwalCheatsheet.cshtml
+   Chuletario de uso de TempData para SweetAlert2 (CreArteSwal)
+   ---------------------------------------------------------------
+   Este archivo sirve como guía interna de referencia rápida.
+   NO renderiza en la app final (usa comentarios Razor).
+   =============================================================== *@
+
+@* =====================
+   Tabla de referencia
+   ===================== *@
+@* /*
+┌───────────┬───────────────────────────────┬──────────────────────────────────────────┬──────────┐
+│  Acción   │       TempData necesarios     │         Descripción del modal            │ Botones  │
+├───────────┼───────────────────────────────┼──────────────────────────────────────────┼──────────┤
+│ CREATE    │ SwalTitle                     │ Éxito con opción: Index o Create nuevo   │ 2        │
+│ (POST)    │ SwalText                      │                                          │          │
+│           │ SwalIndexUrl                  │                                          │          │
+│           │ SwalCreateUrl                 │                                          │          │
+├───────────┼───────────────────────────────┼──────────────────────────────────────────┼──────────┤
+│ EDIT      │ SwalOneBtnFlag = "updated"    │ Éxito, mensaje actualizado, botón Index  │ 1        │
+│ (POST)    │ SwalTitle                     │                                          │          │
+│           │ SwalText                      │                                          │          │
+├───────────┼───────────────────────────────┼──────────────────────────────────────────┼──────────┤
+│ EDIT      │ SwalOneBtnFlag = "nochange"   │ Info, sin cambios, botón Index           │ 1        │
+│ (sin cambios)                             │                                          │          │
+│           │ SwalTitle                     │                                          │          │
+│           │ SwalText                      │                                          │          │
+├───────────┼───────────────────────────────┼──────────────────────────────────────────┼──────────┤
+│ DELETE    │ SwalOneBtnFlag = "deleted"    │ Éxito, registro eliminado, botón Index   │ 1        │
+│ (POST)    │ SwalTitle                     │                                          │          │
+│           │ SwalText                      │                                          │          │
+└───────────┴───────────────────────────────┴──────────────────────────────────────────┴──────────┘
+*/ *@
+
+@* =====================
+   Ejemplos de uso
+   ===================== *@
+@* /*
+
+// CREATE
+TempData["SwalTitle"] = "¡Puesto guardado!";
+TempData["SwalText"]  = $"El registro \"{entidad.PUESTO_NOMBRE}\" se creó correctamente.";
+TempData["SwalIndexUrl"] = Url.Action("Index", "Puestos");
+TempData["SwalCreateUrl"] = Url.Action("Create", "Puestos");
+
+// EDIT (actualizado)
+TempData["SwalOneBtnFlag"] = "updated";
+TempData["SwalTitle"] = "¡Puesto actualizado!";
+TempData["SwalText"]  = $"\"{dbPuesto.PUESTO_NOMBRE}\" se actualizó correctamente.";
+
+// EDIT (sin cambios)
+TempData["SwalOneBtnFlag"] = "nochange";
+TempData["SwalTitle"] = "Sin cambios";
+TempData["SwalText"]  = "No se modificó ningún dato.";
+
+// DELETE
+TempData["SwalOneBtnFlag"] = "deleted";
+TempData["SwalTitle"] = "¡Puesto eliminado!";
+TempData["SwalText"]  = $"\"{puesto.PUESTO_NOMBRE}\" se eliminó correctamente.";
+
+*/
+ *@
