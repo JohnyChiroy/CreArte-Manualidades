@@ -1,0 +1,51 @@
+﻿@* ===============================================
+   RUTA: Views/Niveles/Delete.cshtml
+   DESCRIPCIÓN: Confirmación de borrado lógico (ELIMINADO=1)
+   =============================================== *@
+@model CreArte.Models.NIVEL
+@{
+    ViewData["Title"] = "Eliminar Nivel";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Eliminar Nivel</h2>
+    <div class="ua-note" aria-live="polite">
+        <strong>Importante:</strong> Esta acción <u>no eliminará físicamente</u> el registro, solo lo marcará como eliminado.
+    </div>
+
+    <div class="ua-field" style="margin-top:12px;">
+        <label><strong>Código:</strong></label>
+        <input value="@Model.NIVEL_ID" class="form-control" readonly />
+    </div>
+
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Nombre del nivel:</strong></label>
+        <input value="@Model.NIVEL_NOMBRE" class="form-control" readonly />
+    </div>
+
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Descripción:</strong></label>
+        <textarea class="form-control" rows="2" readonly>@Model.NIVEL_DESCRIPCION</textarea>
+    </div>
+
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Estado:</strong></label>
+        <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+            @(Model.ESTADO ? "Activo" : "Inactivo")
+        </span>
+    </div>
+
+    <form asp-action="Delete" asp-controller="Niveles" method="post" class="mt-3">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@Model.NIVEL_ID" />
+        <div class="ua-actions">
+            <a class="btn-cancel" asp-action="Index" asp-controller="Niveles">
+                <i class="bi bi-arrow-left"></i> <span>Cancelar</span>
+            </a>
+            <button type="submit" class="btn-save enabled">
+                <i class="bi bi-trash"></i> <span>Confirmar borrado</span>
+            </button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,133 @@
+﻿@* ===============================================
+   RUTA: Views/Niveles/Create.cshtml
+   DESCRIPCIÓN: Formulario de creación de NIVEL
+   Mantiene UX/estilos de PUESTOS (pill estado, PRG con SweetAlert2)
+   =============================================== *@
+@model CreArte.ModelsPartial.NivelCreateVM
+@{
+    ViewData["Title"] = "Crear Nivel";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Nuevo Nivel</h2>
+
+    <form asp-action="Create" asp-controller="Niveles" method="post" id="frmNivel" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="NIVEL_ID"><strong>Código:</strong></label>
+                    <input asp-for="NIVEL_ID" class="form-control" readonly />
+                </div>
+                <span class="ua-help">Se genera como <b>NV00000001</b>, <b>NV00000002</b>, ...</span>
+                <span asp-validation-for="NIVEL_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Nombre -->
+        <div class="ua-field" style="margin-top:12px;">
+            <label asp-for="NIVEL_NOMBRE"><strong>Nombre del nivel:</strong></label>
+            <input asp-for="NIVEL_NOMBRE" class="form-control" maxlength="30" />
+            <span asp-validation-for="NIVEL_NOMBRE" class="text-danger"></span>
+            <div class="ua-help">Máximo 30 caracteres. <span id="cntNombre">0</span>/30</div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="ua-field" style="margin-top:8px;">
+            <label asp-for="NIVEL_DESCRIPCION"><strong>Descripción:</strong></label>
+            <textarea asp-for="NIVEL_DESCRIPCION" class="form-control" rows="2" maxlength="30"></textarea>
+            <span asp-validation-for="NIVEL_DESCRIPCION" class="text-danger"></span>
+            <div class="ua-help">Opcional. Máximo 30 caracteres. <span id="cntDesc">0</span>/30</div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Niveles">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // --- Contadores de caracteres ---
+        (function () {
+            const $nom = document.getElementById('NIVEL_NOMBRE');
+            const $des = document.getElementById('NIVEL_DESCRIPCION');
+            const $cnNom = document.getElementById('cntNombre');
+            const $cnDes = document.getElementById('cntDesc');
+            function upd($el, $cn, max) {
+                if (!$el || !$cn) return;
+                const len = ($el.value || '').length;
+                $cn.textContent = len + '/' + max;
+            }
+            if ($nom) { upd($nom, $cnNom, 30); $nom.addEventListener('input', () => upd($nom, $cnNom, 30)); }
+            if ($des) { upd($des, $cnDes, 30); $des.addEventListener('input', () => upd($des, $cnDes, 30)); }
+        })();
+
+        // --- Pill Estado sincronizada con checkbox ---
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            function syncPill() {
+                if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; }
+                else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; }
+            }
+            chk.addEventListener('change', syncPill);
+            syncPill();
+        })();
+
+        // --- Habilitar botón Guardar (nombre obligatorio) ---
+        (function () {
+            const btn = document.getElementById('btnGuardar');
+            const nom = document.getElementById('NIVEL_NOMBRE');
+            function evalReady() {
+                const okNom = nom && nom.value.trim().length > 0;
+                const ready = okNom;
+                if (!btn) return;
+                btn.disabled = !ready;
+                btn.classList.toggle('enabled', ready);
+            }
+            if (nom) nom.addEventListener('input', evalReady);
+            evalReady();
+        })();
+
+        // --- Prevenir doble submit ---
+        (function () {
+            const frm = document.getElementById('frmNivel');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+    </script>
+}

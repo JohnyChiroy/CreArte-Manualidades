@@ -1,0 +1,182 @@
+﻿@* ===============================================
+   RUTA: Views/Niveles/Edit.cshtml
+   DESCRIPCIÓN: Formulario de edición con guard de "sin cambios"
+   y SweetAlert2 (PRG) igual que en PUESTOS.
+   =============================================== *@
+@model CreArte.ModelsPartial.NivelCreateVM
+@{
+    ViewData["Title"] = "Editar Nivel";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Nivel</h2>
+
+    <form asp-action="Edit" asp-controller="Niveles" method="post" id="frmNivelEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="NIVEL_ID"><strong>Código:</strong></label>
+                    <input asp-for="NIVEL_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="NIVEL_ID" />
+                <span class="ua-help">Código de nivel no editable.</span>
+                <span asp-validation-for="NIVEL_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Nombre -->
+        <div class="ua-field" style="margin-top:12px;">
+            <label asp-for="NIVEL_NOMBRE"><strong>Nombre del nivel:</strong></label>
+            <input asp-for="NIVEL_NOMBRE" class="form-control" maxlength="30" />
+            <span asp-validation-for="NIVEL_NOMBRE" class="text-danger"></span>
+            <div class="ua-help">Máximo 30 caracteres. <span id="cntNombre">0</span>/30</div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="ua-field" style="margin-top:8px;">
+            <label asp-for="NIVEL_DESCRIPCION"><strong>Descripción:</strong></label>
+            <textarea asp-for="NIVEL_DESCRIPCION" class="form-control" rows="2" maxlength="30"></textarea>
+            <span asp-validation-for="NIVEL_DESCRIPCION" class="text-danger"></span>
+            <div class="ua-help">Opcional. Máximo 30 caracteres. <span id="cntDesc">0</span>/30</div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Niveles">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // (1) Contadores
+        (function () {
+            const $nom = document.getElementById('NIVEL_NOMBRE');
+            const $des = document.getElementById('NIVEL_DESCRIPCION');
+            const $cnNom = document.getElementById('cntNombre');
+            const $cnDes = document.getElementById('cntDesc');
+            function upd($el, $cn, max) { if (!$el || !$cn) return; const len = ($el.value || '').length; $cn.textContent = len + '/' + max; }
+            if ($nom) { upd($nom, $cnNom, 30); $nom.addEventListener('input', () => upd($nom, $cnNom, 30)); }
+            if ($des) { upd($des, $cnDes, 30); $des.addEventListener('input', () => upd($des, $cnDes, 30)); }
+        })();
+
+        // (2) Pill Estado
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            function syncPill() { if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; } else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; } }
+            chk.addEventListener('change', syncPill);
+            syncPill();
+        })();
+
+        // (3) Habilitar botón
+        (function () {
+            const btn = document.getElementById('btnActualizar');
+            const nom = document.getElementById('NIVEL_NOMBRE');
+            function evalReady() {
+                const okNom = nom && nom.value.trim().length > 0;
+                const ready = okNom;
+                if (!btn) return;
+                btn.disabled = !ready;
+                btn.classList.toggle('enabled', ready);
+            }
+            if (nom) nom.addEventListener('input', evalReady);
+            evalReady();
+        })();
+
+        // (4) Guard: comparar snapshot para "sin cambios"
+        (function () {
+            const frm = document.getElementById('frmNivelEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                const sinCambios = (currentSnapshot === initialSnapshot);
+
+                if (sinCambios) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "Niveles")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "Niveles")';
+                    }
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // (5) Modales tras PRG (un botón) — usando tu helper global (si existe)
+        (function () {
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+
+            const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
+            const title = '@(TempData["SwalTitle"] ?? "")';
+            const text  = '@(TempData["SwalText"] ?? "")';
+
+            if (!flag) return;
+
+            const redirectNiveles = '@Url.Action("Index", "Niveles")';
+
+            if (flag === 'nochange') {
+                window.CreArteSwal.info({
+                    icon: 'info',
+                    title: title || 'Sin cambios',
+                    text:  text  || 'No se modificó ningún dato.',
+                    confirmText: 'Aceptar',
+                    redirectUrl: redirectNiveles
+                });
+            }
+
+            if (flag === 'updated') {
+                window.CreArteSwal.info({
+                    icon: 'success',
+                    title: title || '¡Nivel actualizado!',
+                    text:  text  || 'El registro se actualizó correctamente.',
+                    confirmText: 'Aceptar',
+                    redirectUrl: redirectNiveles
+                });
+            }
+        })();
+    </script>
+}

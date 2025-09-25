@@ -1,19 +1,21 @@
-﻿@model CreArte.ModelsPartial.AreaViewModels
+﻿@* ===============================================
+   RUTA: Views/Niveles/Index.cshtml
+   DESCRIPCIÓN: Listado con filtros popover (NIVEL/FECHA/ESTADO),
+   orden, paginación, selección de fila, y Details en modal.
+   =============================================== *@
+@model CreArte.ModelsPartial.NivelViewModels
 
 @{
-    ViewData["Title"] = "Áreas";
-    Layout = "~/Views/Shared/_Layout.cshtml"; // Ruta del layout principal
+    ViewData["Title"] = "Niveles";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 @functions{
-    // Alterna dirección: si cambia de columna -> asc; si repite -> invierte
     string NextDir(string col, string currentSort, string currentDir)
     {
-        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase))
-            return "asc";
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
         return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
     }
-    // Flecha ▲/▼ solo para la columna activa
     string Arrow(string col, string currentSort, string currentDir)
     {
         if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
@@ -23,28 +25,16 @@
 
 @section Styles{
 <style>
-/* ---------------------------------------------------------
-   PARCHE VISUAL para popovers (asegura interacción):
-   - display:none por defecto, .open => display:block
-   - stacking alto y sin corte por overflow del contenedor
-   --------------------------------------------------------- */
+/* Popovers (mismo parche visual que ya funcionó) */
 .ua-popover-wrap{ position:relative; }
 .ua-popover{
-    display:none; position:absolute; top:100%; left:0;
-    z-index:3000; background:#fff;
-    border:1px solid var(--ua-border, #e5e7eb);
-    border-radius:8px; padding:12px; min-width:260px;
+    display:none; position:absolute; top:100%; left:0; z-index:3000; background:#fff;
+    border:1px solid var(--ua-border, #e5e7eb); border-radius:8px; padding:12px; min-width:260px;
     box-shadow:0 8px 24px rgba(0,0,0,.12);
 }
 .ua-popover.open{ display:block; }
-
-/* Evita que el thead/tables corten el popover en algunos temas */
 .table-responsive{ overflow:visible; }
-
-/* Opcional: estética básica de inputs dentro de popover */
-.ua-popover .ua-input{
-    width:100%; border:1px solid #F2B90F; border-radius:6px; padding:8px 10px;
-}
+.ua-popover .ua-input{ width:100%; border:1px solid #F2B90F; border-radius:6px; padding:8px 10px; }
 .ua-pop-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
 .ua-btn-sm{ border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
 .ua-btn-sm.primary{ background:#C5D930; color:#000; }
@@ -54,88 +44,75 @@
 
 <div class="container-fluid py-3">
 
-    <!-- =========================
-         BARRA SUPERIOR
-         ========================= -->
+    <!-- Toolbar -->
     <div class="ua-toolbar">
         <h2 class="m-0"></h2>
 
         <div class="d-flex align-items-center gap-2">
-            <!-- Rutas de acción del módulo AREAS -->
-            <a asp-controller="Areas" asp-action="Create" class="ua-btn ua-btn-new">
+            <a asp-controller="Niveles" asp-action="Create" class="ua-btn ua-btn-new">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 NUEVO
             </a>
-            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/>
-    </svg>
-    VER
-</a>
 
-<a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/>
-    </svg>
-    MODIFICAR
-</a>
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                VER
+            </a>
+
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                MODIFICAR
+            </a>
         </div>
 
         <!-- Buscador global (conserva Sort/Dir) -->
-        <form method="get" asp-controller="Areas" asp-action="Index" class="ua-search d-flex align-items-center">
+        <form method="get" asp-controller="Niveles" asp-action="Index" class="ua-search d-flex align-items-center">
             <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
             <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
-            <input name="Search" value="@Model.Search" placeholder="Buscar por ID o Área" />
+            <input name="Search" value="@Model.Search" placeholder="Buscar ID o Nivel" />
             <button title="Buscar" type="submit">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             </button>
         </form>
     </div>
 
-    <!-- =========================
-         FORM OCULTO PARA FILTROS/ESTADO
-         ========================= -->
-    <form id="uaFilterForm" method="get" asp-controller="Areas" asp-action="Index">
+    <!-- Form oculto para filtros -->
+    <form id="uaFilterForm" method="get" asp-controller="Niveles" asp-action="Index">
         <input type="hidden" name="Search" value="@Model.Search" />
         <input type="hidden" name="Page" value="1" />
         <input type="hidden" name="PageSize" value="@Model.PageSize" />
-        <!-- Mantener orden actual -->
         <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
         <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
-        <!-- Valores actuales para activar iconos -->
-        <input type="hidden" id="ua_val_area" value="@(Context.Request.Query["Area"])" />
-        <input type="hidden" id="ua_val_fi" value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" />
-        <input type="hidden" id="ua_val_ff" value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" />
+
+        <!-- Valores actuales (para activar iconos si quieres) -->
+        <input type="hidden" id="ua_val_nivel"  value="@(Context.Request.Query["Nivel"])" />
+        <input type="hidden" id="ua_val_fi"     value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" id="ua_val_ff"     value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" />
         <input type="hidden" id="ua_val_estado" value="@(Model.Estado?.ToString().ToLower())" />
     </form>
 
-    <!-- =========================
-         TABLA
-         ========================= -->
+    <!-- Tabla -->
     <div class="table-responsive mt-3">
         <table class="table ua-table align-middle">
             <thead>
                 <tr>
                     <th class="ua-col-check text-center align-middle">
                         <input type="checkbox" class="form-check-input" id="chkAll"
-                               onclick="document.querySelectorAll('.row-chk').forEach(c=>c.checked=this.checked);" />
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
                     </th>
 
-                    <!-- NO. (ordenable) -->
+                    <!-- NO. (NIVEL_ID) -->
                     <th class="ua-col-no">
                         <div class="ua-th">
                             @{
                                 var next_id = NextDir("id", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_id = Url.Action("Index", "Areas", new {
+                                var href_id = Url.Action("Index", "Niveles", new {
                                     Search = Model.Search,
-                                    Area = Context.Request.Query["Area"].ToString(),
+                                    Nivel = Context.Request.Query["Nivel"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                     FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "id",
-                                    Dir  = next_id,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "id", Dir = next_id, Page = 1, PageSize = Model.PageSize
                                 });
                                 var isActive_id = (Model.Sort ?? "fecha").Equals("id", StringComparison.OrdinalIgnoreCase);
                             }
@@ -146,73 +123,58 @@
                         </div>
                     </th>
 
-                    <!-- ÁREA (ordenable + popover filtro) -->
+                    <!-- NIVEL (ordenable + popover) -->
                     <th>
                         <div class="ua-th ua-popover-wrap">
                             @{
-                                var next_area = NextDir("area", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_area = Url.Action("Index", "Areas", new {
+                                var next_nivel = NextDir("nivel", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_nivel = Url.Action("Index", "Niveles", new {
                                     Search = Model.Search,
-                                    Area = Context.Request.Query["Area"].ToString(),
+                                    Nivel = Context.Request.Query["Nivel"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                     FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "area",
-                                    Dir  = next_area,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "nivel", Dir = next_nivel, Page = 1, PageSize = Model.PageSize
                                 });
-                                var isActive_area = (Model.Sort ?? "fecha").Equals("area", StringComparison.OrdinalIgnoreCase);
+                                var isActive_nivel = (Model.Sort ?? "fecha").Equals("nivel", StringComparison.OrdinalIgnoreCase);
                             }
-                            <a class="ua-sort @(isActive_area ? "" : "inactive")" href="@href_area">
-                                <span class="ua-title">ÁREA</span>
-                                <span class="ua-arrow">@Arrow("area", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            <a class="ua-sort @(isActive_nivel ? "" : "inactive")" href="@href_nivel">
+                                <span class="ua-title">NIVEL</span>
+                                <span class="ua-arrow">@Arrow("nivel", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
                             </a>
 
-                            <!-- Botón que abre el popover -->
-                            <button type="button" class="ua-filter-btn" data-pop="popArea" title="Filtrar área">
+                            <button type="button" class="ua-filter-btn" data-pop="popNivel" title="Filtrar nivel">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             </button>
 
-                            <!-- Popover: filtro por texto/vacíos -->
-                            <div id="popArea" class="ua-popover" aria-hidden="true" tabindex="-1">
-                                <input class="ua-input" type="text" id="fArea" placeholder="Ingrese el texto a filtrar..."
-                                       value="@(Context.Request.Query["Area"])" />
+                            <div id="popNivel" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fNivel" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Nivel"])" />
                                 <div class="ua-options" style="margin-top:8px;">
-                                    <label class="ua-option"><input type="radio" name="optA" value="all" checked> (Todos)</label>
-                                    <label class="ua-option"><input type="radio" name="optA" value="blanks"> (Vacíos)</label>
-                                    <label class="ua-option"><input type="radio" name="optA" value="nonblanks"> (No Vacíos)</label>
+                                    <label class="ua-option"><input type="radio" name="optN" value="all" checked> (Todos)</label>
+                                    <label class="ua-option"><input type="radio" name="optN" value="blanks"> (Vacíos)</label>
+                                    <label class="ua-option"><input type="radio" name="optN" value="nonblanks"> (No vacíos)</label>
                                 </div>
                                 <div class="ua-pop-actions">
-                                    <button type="button" class="ua-btn-sm" onclick="uaClearArea()">Limpiar</button>
-                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyArea()">Aplicar</button>
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearNivel()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyNivel()">Aplicar</button>
                                 </div>
                             </div>
                         </div>
                     </th>
-
-                    <!-- DESCRIPCION -->
-                    <th>
-    <div class="ua-th ua-popover-wrap">
-        <span class="ua-title">DESCRIPCIÓN</span>
-        </div>
-        </th>
 
                     <!-- FECHA CREACIÓN (ordenable + popover rango) -->
                     <th style="width:260px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_fecha = NextDir("fecha", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_fecha = Url.Action("Index", "Areas", new {
+                                var href_fecha = Url.Action("Index", "Niveles", new {
                                     Search = Model.Search,
-                                    Area = Context.Request.Query["Area"].ToString(),
+                                    Nivel = Context.Request.Query["Nivel"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                     FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "fecha",
-                                    Dir  = next_fecha,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "fecha", Dir = next_fecha, Page = 1, PageSize = Model.PageSize
                                 });
                                 var isActive_fecha = (Model.Sort ?? "fecha").Equals("fecha", StringComparison.OrdinalIgnoreCase);
                             }
@@ -236,22 +198,19 @@
                             </div>
                         </div>
                     </th>
-                    
-                    <!-- ESTADO (ordenable + popover select) -->
+
+                    <!-- ESTADO (ordenable + popover) -->
                     <th style="width:150px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_estado = Url.Action("Index", "Areas", new {
+                                var href_estado = Url.Action("Index", "Niveles", new {
                                     Search = Model.Search,
-                                    Area = Context.Request.Query["Area"].ToString(),
+                                    Nivel = Context.Request.Query["Nivel"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                     FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "estado",
-                                    Dir  = next_estado,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "estado", Dir = next_estado, Page = 1, PageSize = Model.PageSize
                                 });
                                 var isActive_estado = (Model.Sort ?? "fecha").Equals("estado", StringComparison.OrdinalIgnoreCase);
                             }
@@ -280,52 +239,17 @@
             </thead>
 
             <tbody>
-    @if (Model.Items != null && Model.Items.Any())
-    {
-        foreach (var a in Model.Items)
-        {
-            <tr class="ua-rowitem" data-id="@a.AREA_ID">
-                <td>
-                    <!-- Checkbox con clase específica -->
-                    <input type="checkbox" class="form-check-input ua-rowchk" value="@a.AREA_ID" />
-                </td>
-                <td>@a.AREA_ID</td>
-                <td>@a.AREA_NOMBRE</td>
-                <td>@a.AREA_DESCRIPCION</td>
-                <td>@a.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
-                <td>
-                    @if (a.ESTADO)
-                    {
-                        <span class="ua-badge-activo">Activo</span>
-                    }
-                    else
-                    {
-                        <span class="ua-badge-inactivo">Inactivo</span>
-                    }
-                </td>
-            </tr>
-        }
-    }
-    else
-    {
-        <tr><td colspan="6" class="text-center py-4">No hay registros para mostrar.</td></tr>
-    }
-</tbody>
-
-
-           @*  <tbody>
                 @if (Model.Items != null && Model.Items.Any())
                 {
-                    foreach (var a in Model.Items)
+                    foreach (var n in Model.Items)
                     {
-                        <tr>
-                            <td><input type="checkbox" class="form-check-input row-chk ua-rowchk" value="@a.AREA_ID" /></td>
-                            <td>@a.AREA_ID</td>
-                            <td>@a.AREA_NOMBRE</td>
-                            <td>@a.AREA_DESCRIPCION</td>
-                            <td>@a.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
+                        <tr class="ua-rowitem" data-id="@n.NIVEL_ID">
+                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@n.NIVEL_ID" /></td>
+                            <td>@n.NIVEL_ID</td>
+                            <td>@n.NIVEL_NOMBRE</td>
+                            <td>@n.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
                             <td>
-                                @if (a.ESTADO) { <span class="ua-badge-activo">Activo</span> }
+                                @if (n.ESTADO) { <span class="ua-badge-activo">Activo</span> }
                                 else { <span class="ua-badge-inactivo">Inactivo</span> }
                             </td>
                         </tr>
@@ -335,31 +259,26 @@
                 {
                     <tr><td colspan="5" class="text-center py-4">No hay registros para mostrar.</td></tr>
                 }
-            </tbody> *@
+            </tbody>
         </table>
     </div>
 
-    <!-- =========================
-         PAGINACIÓN (conserva filtros y orden)
-         ========================= -->
+    <!-- Paginación -->
     @if (Model.TotalPages > 1)
     {
-        <nav class="mt-2" aria-label="Paginación de áreas">
+        <nav class="mt-2" aria-label="Paginación de niveles">
             <ul class="pagination ua-pagination justify-content-center">
                 @for (int p = 1; p <= Model.TotalPages; p++)
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
                         <a class="page-link"
-                           href="@Url.Action("Index", "Areas", new {
+                           href="@Url.Action("Index","Niveles", new {
                                Search = Model.Search,
+                               Nivel = Context.Request.Query["Nivel"].ToString(),
                                FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                Estado = Model.Estado,
-                               Area = Context.Request.Query["Area"].ToString(),
-                               Sort = Model.Sort,
-                               Dir  = Model.Dir,
-                               Page = p,
-                               PageSize = Model.PageSize
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
                            })">@p</a>
                     </li>
                 }
@@ -367,16 +286,13 @@
                 {
                     <li class="page-item">
                         <a class="page-link"
-                           href="@Url.Action("Index", "Areas", new {
+                           href="@Url.Action("Index","Niveles", new {
                                Search = Model.Search,
+                               Nivel = Context.Request.Query["Nivel"].ToString(),
                                FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
                                FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                Estado = Model.Estado,
-                               Area = Context.Request.Query["Area"].ToString(),
-                               Sort = Model.Sort,
-                               Dir  = Model.Dir,
-                               Page = Model.Page + 1,
-                               PageSize = Model.PageSize
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
                            })">Siguiente →</a>
                     </li>
                 }
@@ -385,132 +301,161 @@
     }
 </div>
 
-
 @section Scripts{
 <script>
+/* =========================
+   POPovers: abrir/cerrar (versión estable que ya te funcionó)
+   ========================= */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* =========================
+   Acciones por selección de fila (VER/MODIFICAR)
+   ========================= */
 (function () {
-    // --- Referencias a botones (enlaces tipo <a> con .is-disabled) ---
     const btnVer    = document.getElementById('btnVer');
     const btnEditar = document.getElementById('btnEditar');
-
     let selectedId = null;
 
-    // Helpers -----------------------------
-    function clearSelection() {
-        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
-        document.querySelectorAll('.ua-rowchk, .row-chk').forEach(c => c.checked = false);
-        selectedId = null;
-        toggleButtons(false);
-    }
+    function toggleButtons(enable){ if (btnVer) btnVer.classList.toggle('is-disabled', !enable); if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable); }
 
     function applySelection(row) {
-        // Resalta sólo esta fila
         document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
         row.classList.add('row-selected');
-
-        // Desmarca todos los demás checkboxes
-        document.querySelectorAll('.ua-rowchk, .row-chk').forEach(c => {
-            if (c.closest('.ua-rowitem') !== row) c.checked = false;
-        });
-
-        // Guarda el ID y habilita botones
-        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk, .row-chk')?.value || null;
+        document.querySelectorAll('.ua-rowchk').forEach(c => { if (c.closest('.ua-rowitem') !== row) c.checked = false; });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
         toggleButtons(!!selectedId);
     }
 
-    function toggleButtons(enable) {
-        if (btnVer)    btnVer.classList.toggle('is-disabled', !enable);
-        if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
-    }
-
-    // 1) Selección via CLICK en la fila (excepto controles interactivos)
     document.addEventListener('click', function (e) {
         const row = e.target.closest('.ua-rowitem');
         if (!row) return;
-
-        // Si el click fue sobre un control interactivo (link/botón/inputs), no forzamos selección aquí
         if (e.target.closest('a,button,select,textarea,label,input')) return;
-
-        // Marca el checkbox de esa fila y dispara 'change'
-        const chk = row.querySelector('.ua-rowchk, .row-chk');
-        if (chk) {
-            chk.checked = true;
-            chk.dispatchEvent(new Event('change', { bubbles: true })); // irá al handler #2
-        }
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
     });
 
-    // 2) Selección via CHANGE del checkbox (lo importante para tu caso)
     document.addEventListener('change', function (e) {
-        const chk = e.target.closest('.ua-rowchk, .row-chk');
+        const chk = e.target.closest('.ua-rowchk');
         if (!chk) return;
-
-        const row = chk.closest('.ua-rowitem');
-        if (!row) return;
-
-        if (chk.checked) {
-            // Al marcar el checkbox, aplica selección visual también
-            applySelection(row);
-        } else {
-            // Si lo desmarcan, limpiamos (o podrías mantener la última selección; a elección)
-            clearSelection();
-        }
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
     });
 
-    // ============================
-    // 👇 NUEVO: abrir Details en modal SweetAlert2
-    // ============================
-    async function openDetailsModal(id) { // 👈 NUEVO
+    async function openDetailsModal(id) {
         if (!window.Swal) {
-            // Fallback: si no está Swal, navega al Details normal
-            window.location.href = '@Url.Action("Details", "Areas")/' + encodeURIComponent(id);
+            window.location.href = '@Url.Action("Details", "Niveles")/' + encodeURIComponent(id);
             return;
         }
-        const url = '@Url.Action("DetailsCard","Areas")' + '?id=' + encodeURIComponent(id); // 👈 NUEVO
-
+        const url = '@Url.Action("DetailsCard","Niveles")' + '?id=' + encodeURIComponent(id);
         try {
             const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
             if (!resp.ok) throw new Error('No se pudo cargar el detalle');
             const html = await resp.text();
-
             Swal.fire({
-                title: 'Detalle del Área',
-                html: html,             // inyectamos el partial
-                width: 900,
-                showCloseButton: true,
-                showConfirmButton: false,
-                focusConfirm: false,
-                customClass: { popup: 'swal2-no-padding' } // opcional
+                title: 'Detalle del Nivel',
+                html: html, width: 900, showCloseButton: true, showConfirmButton: false,
+                focusConfirm: false, customClass: { popup: 'swal2-no-padding' }
             });
-        } catch (err) {
-            console.error(err);
-            Swal.fire('Error','No se pudo abrir el detalle.','error');
-        }
+        } catch (err) { console.error(err); Swal.fire('Error','No se pudo abrir el detalle.','error'); }
     }
 
-    // 3) VER → ahora abre modal con partial (antes navegaba)  // 👈 NUEVO
     if (btnVer) {
         btnVer.addEventListener('click', function (e) {
             e.preventDefault();
-            if (!selectedId) {
-                if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info");
-                return;
-            }
-            openDetailsModal(selectedId); // 👈 NUEVO
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info"); return; }
+            openDetailsModal(selectedId);
         });
     }
-
-    // 4) MODIFICAR → se mantiene navegación a Edit (igual que antes)
     if (btnEditar) {
         btnEditar.addEventListener('click', function (e) {
             e.preventDefault();
-            if (!selectedId) {
-                if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info");
-                return;
-            }
-            window.location.href = '@Url.Action("Edit", "Areas")/' + encodeURIComponent(selectedId);
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info"); return; }
+            window.location.href = '@Url.Action("Edit", "Niveles")/' + encodeURIComponent(selectedId);
         });
     }
 })();
-</script>
+
+/* =========================
+   Aplicar/Limpiar filtros de popovers
+   ========================= */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // reset página
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
 }
 
+// NIVEL
+function uaApplyNivel(){
+    const txt = (document.getElementById('fNivel')?.value || '').trim();
+    const opt = document.querySelector('input[name="optN"]:checked')?.value;
+    let val = txt;
+    if (opt === 'blanks') val = '__BLANKS__';
+    if (opt === 'nonblanks') val = '__NONBLANKS__';
+    submitFilter({ Nivel: val });
+}
+function uaClearNivel(){ submitFilter({ Nivel: null }); }
+
+// FECHAS
+function uaApplyFecha(){
+    const fi = (document.getElementById('fIni')?.value || '').trim();
+    const ff = (document.getElementById('fFin')?.value || '').trim();
+    submitFilter({ FechaInicio: fi || null, FechaFin: ff || null });
+}
+function uaClearFecha(){ submitFilter({ FechaInicio: null, FechaFin: null }); }
+
+// ESTADO
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    submitFilter({ Estado: v || null });
+}
+function uaClearEstado(){ submitFilter({ Estado: null }); }
+
+// ==========================
+// Encender iconos de filtros activos
+// ==========================
+(function () {
+    // helper: evalúa si hay un valor real
+    const has = v => !!(v && String(v).trim() && !['null','undefined'].includes(String(v).trim().toLowerCase()));
+
+    // helper: marca/desmarca el botón del popover
+    const mark = (popId, on) => {
+        const btn = document.querySelector(`.ua-filter-btn[data-pop="${popId}"]`);
+        if (btn) btn.classList.toggle('ua-filter-on', !!on);
+    };
+
+    // NIVEL  <-- ESTA ES LA LÍNEA CLAVE QUE FALTABA
+    const qNivel = document.getElementById('ua_val_nivel')?.value || '';
+    mark('popNivel', has(qNivel));
+
+    // FECHA (desde/hasta)
+    const qFi = document.getElementById('ua_val_fi')?.value || '';
+    const qFf = document.getElementById('ua_val_ff')?.value || '';
+    mark('popFecha', has(qFi) || has(qFf));
+
+    // ESTADO (true/false)
+    const qEstado = (document.getElementById('ua_val_estado')?.value || '').toLowerCase();
+    mark('popEstado', qEstado === 'true' || qEstado === 'false');
+})();
+</script>
+}

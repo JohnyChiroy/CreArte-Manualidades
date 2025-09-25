@@ -261,9 +261,22 @@ namespace CreArte.Controllers
         // =====================================
         // Helper: Cargar niveles para el <select>
         // =====================================
+        //private async Task<List<SelectListItem>> CargarNivelesAsync()
+        //{
+        //    return await _context.NIVEL
+        //        .OrderBy(n => n.NIVEL_NOMBRE)
+        //        .Select(n => new SelectListItem
+        //        {
+        //            Text = n.NIVEL_NOMBRE,
+        //            Value = n.NIVEL_ID
+        //        })
+        //        .ToListAsync();
+        //}
+
         private async Task<List<SelectListItem>> CargarNivelesAsync()
         {
             return await _context.NIVEL
+                .Where(n => !n.ELIMINADO && n.ESTADO) //  solo niveles activos y no eliminados
                 .OrderBy(n => n.NIVEL_NOMBRE)
                 .Select(n => new SelectListItem
                 {
