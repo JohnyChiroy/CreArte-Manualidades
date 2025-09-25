@@ -49,9 +49,9 @@
             <label asp-for="PUESTO_NOMBRE"><strong>Nombre del puesto:</strong></label>
             <input asp-for="PUESTO_NOMBRE" class="form-control" maxlength="100" />
             <span asp-validation-for="PUESTO_NOMBRE" class="text-danger"></span>
-            <div class="ua-help">Máximo 100 caracteres. <span id="cntNombre">0</span>/100</div>
+            <div class="ua-help"><span id="cntNombre">0</span></div>
         </div>
-
+        <br />
         <div class="ua-note" aria-live="polite">
             <strong>Nota:</strong> Actualice el área, nivel y descripción si corresponde.
         </div>
@@ -61,7 +61,7 @@
             <div class="ua-field">
                 <label asp-for="AREA_ID"><strong>Área:</strong></label>
                 <select asp-for="AREA_ID" class="form-control" asp-items="Model.Areas">
-                    <option value="">-- Seleccione un área --</option>
+                    <option value="">Seleccione un área ↓</option>
                 </select>
                 <span asp-validation-for="AREA_ID" class="text-danger"></span>
             </div>
@@ -69,7 +69,7 @@
             <div class="ua-field">
                 <label asp-for="NIVEL_ID"><strong>Nivel:</strong></label>
                 <select asp-for="NIVEL_ID" class="form-control" asp-items="Model.Niveles">
-                    <option value="">-- Seleccione un nivel --</option>
+                    <option value="">Seleccione un nivel ↓</option>
                 </select>
                 <span asp-validation-for="NIVEL_ID" class="text-danger"></span>
             </div>
@@ -80,7 +80,7 @@
             <label asp-for="PUESTO_DESCRIPCION"><strong>Descripción:</strong></label>
             <textarea asp-for="PUESTO_DESCRIPCION" class="form-control" rows="3" maxlength="255"></textarea>
             <span asp-validation-for="PUESTO_DESCRIPCION" class="text-danger"></span>
-            <div class="ua-help">Opcional. Máximo 255 caracteres. <span id="cntDesc">0</span>/255</div>
+            <div class="ua-help">Opcional <span id="cntDesc">0</span></div>
         </div>
 
         <!-- Acciones -->

@@ -24,7 +24,7 @@
                     <label asp-for="NIVEL_ID"><strong>Código:</strong></label>
                     <input asp-for="NIVEL_ID" class="form-control" readonly />
                 </div>
-                <span class="ua-help">Se genera como <b>NV00000001</b>, <b>NV00000002</b>, ...</span>
+                @* <span class="ua-help">Se genera como <b>NV00000001</b>, <b>NV00000002</b>, ...</span> *@
                 <span asp-validation-for="NIVEL_ID" class="text-danger"></span>
             </div>
 
@@ -48,15 +48,15 @@
             <label asp-for="NIVEL_NOMBRE"><strong>Nombre del nivel:</strong></label>
             <input asp-for="NIVEL_NOMBRE" class="form-control" maxlength="30" />
             <span asp-validation-for="NIVEL_NOMBRE" class="text-danger"></span>
-            <div class="ua-help">Máximo 30 caracteres. <span id="cntNombre">0</span>/30</div>
+            <div class="ua-help"><span id="cntNombre">0</span></div>
         </div>
-
+        <br/>
         <!-- Descripción -->
         <div class="ua-field" style="margin-top:8px;">
             <label asp-for="NIVEL_DESCRIPCION"><strong>Descripción:</strong></label>
             <textarea asp-for="NIVEL_DESCRIPCION" class="form-control" rows="2" maxlength="30"></textarea>
             <span asp-validation-for="NIVEL_DESCRIPCION" class="text-danger"></span>
-            <div class="ua-help">Opcional. Máximo 30 caracteres. <span id="cntDesc">0</span>/30</div>
+            <div class="ua-help">Opcional <span id="cntDesc">0</span></div>
         </div>
 
         <!-- Acciones -->

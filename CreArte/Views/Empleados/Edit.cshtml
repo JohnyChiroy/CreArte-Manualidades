@@ -1,0 +1,227 @@
+﻿@* ===============================================
+   RUTA: Views/Empleados/Edit.cshtml
+   DESCRIPCIÓN: Formulario de edición de EMPLEADO
+   - Guard "sin cambios" (snapshot)
+   - Pill estado
+   =============================================== *@
+@model CreArte.ModelsPartial.EmpleadoCreateVM
+@{
+    ViewData["Title"] = "Editar Empleado";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Empleado</h2>
+
+    <form asp-action="Edit" asp-controller="Empleados" method="post" id="frmEmpleadoEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="EMPLEADO_ID"><strong>Código Empleado:</strong></label>
+                    <input asp-for="EMPLEADO_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="EMPLEADO_ID" />
+                <input type="hidden" asp-for="PERSONA_ID" />
+                <span class="ua-help">Código no editable.</span>
+                <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- PERSONA -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Nombres"><strong>Nombres:</strong></label>
+                <input asp-for="Nombres" class="form-control" maxlength="60" />
+                <span asp-validation-for="Nombres" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom">0</span></div> *@
+            </div>
+            <div class="ua-field">
+                <label asp-for="Apellidos"><strong>Apellidos:</strong></label>
+                <input asp-for="Apellidos" class="form-control" maxlength="60" />
+                <span asp-validation-for="Apellidos" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntApe">0</span></div> *@
+            </div>
+        </div>
+
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="DPI"><strong>DPI:</strong></label>
+                <input asp-for="DPI" class="form-control" maxlength="25" />
+                <span asp-validation-for="DPI" class="text-danger"></span>
+                <div class="ua-help"><span id="cntDPI">0</span>/13</div>
+            </div>
+            <div class="ua-field">
+                <label asp-for="Telefono"><strong>Teléfono:</strong></label>
+                <input asp-for="Telefono" class="form-control" maxlength="25" />
+                <span asp-validation-for="Telefono" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Correo"><strong>Correo:</strong></label>
+                <input asp-for="Correo" type="email" class="form-control" maxlength="100" />
+                <span asp-validation-for="Correo" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="Direccion"><strong>Dirección:</strong></label>
+                <input asp-for="Direccion" class="form-control" maxlength="150" />
+                <span asp-validation-for="Direccion" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- EMPLEADO -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PUESTO_ID"><strong>Puesto:</strong></label>
+                <select asp-for="PUESTO_ID" class="form-control" asp-items="Model.Puestos">
+                    <option value="">Seleccione un puesto ↓</option>
+                </select>
+                <span asp-validation-for="PUESTO_ID" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_GENERO"><strong>Género:</strong></label>
+                <select asp-for="EMPLEADO_GENERO" class="form-control" asp-items="Model.Generos"></select>
+                <span asp-validation-for="EMPLEADO_GENERO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_FECHANACIMIENTO"><strong>Fecha de Nacimiento:</strong></label>
+                <input asp-for="EMPLEADO_FECHANACIMIENTO" type="date" class="form-control" />
+                <span asp-validation-for="EMPLEADO_FECHANACIMIENTO" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_FECHAINGRESO"><strong>Fecha de Ingreso:</strong></label>
+                <input asp-for="EMPLEADO_FECHAINGRESO" type="date" class="form-control" />
+                <span asp-validation-for="EMPLEADO_FECHAINGRESO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Empleados">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // (1) Contadores
+        (function () {
+            const $n = document.getElementById('Nombres');
+            const $a = document.getElementById('Apellidos');
+            const $cn = document.getElementById('cntNom');
+            const $ca = document.getElementById('cntApe');
+            function upd(el, lab, max) { if (!el || !lab) return; lab.textContent = (el.value || '').length + '/' + max; }
+            if ($n) { upd($n, $cn, 60); $n.addEventListener('input', () => upd($n, $cn, 60)); }
+            if ($a) { upd($a, $ca, 60); $a.addEventListener('input', () => upd($a, $ca, 60)); }
+        })();
+
+        // (2) Pill Estado
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            function syncPill() { if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; } else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; } }
+            chk.addEventListener('change', syncPill);
+            syncPill();
+        })();
+
+        // (3) Habilitar botón (mismas reglas que Create)
+        (function () {
+            const btn = document.getElementById('btnActualizar');
+            const nom = document.getElementById('Nombres');
+            const ape = document.getElementById('Apellidos');
+            const puesto = document.getElementById('PUESTO_ID') || document.querySelector('[name="PUESTO_ID"]');
+            const fIng = document.getElementById('EMPLEADO_FECHAINGRESO');
+            function evalReady() {
+                const okNom = nom && nom.value.trim().length > 0;
+                const okApe = ape && ape.value.trim().length > 0;
+                const okPue = puesto && (puesto.value || '').trim().length > 0;
+                const okFIn = fIng && (fIng.value || '').trim().length > 0;
+                const ready = okNom && okApe && okPue && okFIn;
+                if (!btn) return;
+                btn.disabled = !ready;
+                btn.classList.toggle('enabled', ready);
+            }
+            [nom, ape, puesto, fIng].forEach(x => x && x.addEventListener(x.tagName === 'SELECT' ? 'change' : 'input', evalReady));
+            evalReady();
+        })();
+
+        // (4) Guard "sin cambios" (snapshot)
+        (function () {
+            const frm = document.getElementById('frmEmpleadoEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                const sinCambios = (currentSnapshot === initialSnapshot);
+                if (sinCambios) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "Empleados")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "Empleados")';
+                    }
+                    return;
+                }
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // (5) PRG una sola acción (si usas TempData en Edit)
+        (function () {
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+            const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
+            const title = '@(TempData["SwalTitle"] ?? "")';
+            const text  = '@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+            const redirect = '@Url.Action("Index", "Empleados")';
+            window.CreArteSwal.info({
+                icon: (flag === 'updated' ? 'success' : 'info'),
+                title: title || (flag === 'updated' ? '¡Empleado actualizado!' : 'Sin cambios'),
+                text:  text  || (flag === 'updated' ? 'El registro se actualizó correctamente.' : 'No se modificó ningún dato.'),
+                confirmText: 'Aceptar',
+                redirectUrl: redirect
+            });
+        })();
+    </script>
+}

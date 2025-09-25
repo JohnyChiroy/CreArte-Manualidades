@@ -1,0 +1,108 @@
+﻿@* ===============================================
+   RUTA: Views/Empleados/Details.cshtml
+   DESCRIPCIÓN: PartialView (Layout = null) para inyectar en SweetAlert2
+   =============================================== *@
+@model CreArte.ModelsPartial.EmpleadoDetailsVM
+@{
+    ViewData["Title"] = "Detalle de Empleado";
+    Layout = null;
+}
+
+<div class="ua-card">
+    <!-- Fila superior -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código Empleado:</strong></label>
+                <input value="@Model.EMPLEADO_ID" class="form-control" readonly />
+            </div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nombre completo + DPI -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Nombre completo:</strong></label>
+            <input value="@($"{Model.Nombres} {Model.Apellidos}")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>DPI:</strong></label>
+            <input value="@Model.DPI" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Contacto -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Teléfono:</strong></label>
+            <input value="@Model.Telefono" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Correo:</strong></label>
+            <input value="@Model.Correo" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Dirección -->
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Dirección:</strong></label>
+        <textarea class="form-control" rows="2" readonly>@Model.Direccion</textarea>
+    </div>
+
+    <!-- Puesto/Género -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Puesto:</strong></label>
+            <input value="@($"{Model.PUESTO_NOMBRE} ({Model.PUESTO_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Género:</strong></label>
+            <input value="@Model.EMPLEADO_GENERO" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Fechas -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Fecha Nacimiento:</strong></label>
+            <input value="@(Model.EMPLEADO_FECHANACIMIENTO?.ToString("dd/MM/yyyy"))" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Fecha Ingreso:</strong></label>
+            <input value="@Model.EMPLEADO_FECHAINGRESO.ToString("dd/MM/yyyy")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Auditoría -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+        </div>
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- Acciones -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Empleados">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-route-id="@Model.EMPLEADO_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
+</div>

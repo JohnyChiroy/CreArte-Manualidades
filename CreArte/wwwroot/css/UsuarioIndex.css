@@ -29,10 +29,11 @@
             height: 18px;
         }
 
-    .ua-btn-new {
-        background: #C5D930;
-        color: black;
-    }
+.ua-btn-new {
+    /*background: #C5D930;*/
+    background: #03C1FF;
+    color: black;
+}
 
     .ua-btn-view {
         background: #F2B90F;
@@ -250,21 +251,21 @@
             font-size: .85rem;
         } /* etiquetas fechas */
     /* Badges */
-    .ua-badge-activo {
-        background: #C5D930;
-        color: black;
-        font-weight: 600;
-        border-radius: 10px;
-        padding: 3px 10px;
-    } /* badge activo */
+.ua-badge-activo {
+    background: #03C1FF;
+    color: black;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 10px;
+} /* badge activo */
 
-    .ua-badge-inactivo {
-        background: #BF265E;
-        color: white;
-        font-weight: 600;
-        border-radius: 10px;
-        padding: 3px 10px;
-    } /* badge inactivo */
+.ua-badge-inactivo {
+    background: #FF007D;
+    color: black;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 10px;
+} /* badge inactivo */
     /* Paginación */
     .ua-pagination .page-link {
         margin: 0 6px;

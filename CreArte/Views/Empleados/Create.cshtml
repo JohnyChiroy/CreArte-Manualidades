@@ -1,0 +1,231 @@
+﻿@* ===============================================
+   RUTA: Views/Empleados/Create.cshtml
+   DESCRIPCIÓN: Formulario de creación de EMPLEADO.
+   - Captura integrada de datos PERSONA + EMPLEADO
+   - Estado con "pill", guard para habilitar botón
+   - PRG con SweetAlert2 (usa TempData del Controller)
+   =============================================== *@
+@model CreArte.ModelsPartial.EmpleadoCreateVM
+@{
+    ViewData["Title"] = "Crear Empleado";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Nuevo Empleado</h2>
+
+    <!-- Importante: el Controller reasigna IDs en servidor. -->
+    <form asp-action="Create" asp-controller="Empleados" method="post" id="frmEmpleado" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="EMPLEADO_ID"><strong>Código Empleado:</strong></label>
+                    <input asp-for="EMPLEADO_ID" class="form-control" readonly />
+                    <input type="hidden" asp-for="PERSONA_ID" />
+                </div>
+                @* <span class="ua-help">Se genera como <b>PE00000001</b>, <b>PE00000002</b>, ...</span> *@
+                <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:2px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* <div class="ua-note" aria-live="polite">
+            <strong>Persona:</strong> complete los datos de identidad y contacto.
+        </div> *@
+
+        <!-- PERSONA: Nombres / Apellidos -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Nombres"><strong>Nombres:</strong></label>
+                <input asp-for="Nombres" class="form-control" maxlength="60" />
+                <span asp-validation-for="Nombres" class="text-danger"></span>
+                <div class="ua-help"><span id="cntNom">0</span></div>
+            </div>
+            <div class="ua-field">
+                <label asp-for="Apellidos"><strong>Apellidos:</strong></label>
+                <input asp-for="Apellidos" class="form-control" maxlength="60" />
+                <span asp-validation-for="Apellidos" class="text-danger"></span>
+                <div class="ua-help"><span id="cntApe">0</span></div>
+            </div>
+        </div>
+
+        <!-- PERSONA: DPI / Teléfono -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="DPI"><strong>DPI:</strong></label>
+                <input asp-for="DPI" class="form-control" maxlength="25" />
+                <span asp-validation-for="DPI" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="Telefono"><strong>Teléfono:</strong></label>
+                <input asp-for="Telefono" class="form-control" maxlength="25" />
+                <span asp-validation-for="Telefono" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- PERSONA: Correo / Dirección -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Correo"><strong>Correo:</strong></label>
+                <input asp-for="Correo" type="email" class="form-control" maxlength="100" />
+                <span asp-validation-for="Correo" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="Direccion"><strong>Dirección:</strong></label>
+                <input asp-for="Direccion" class="form-control" maxlength="150" />
+                <span asp-validation-for="Direccion" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* <div class="ua-note" aria-live="polite">
+            <strong>Empleado:</strong> seleccione el Puesto, Género y las Fechas.
+        </div> *@
+
+        <!-- EMPLEADO: Puesto / Género -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PUESTO_ID"><strong>Puesto:</strong></label>
+                <select asp-for="PUESTO_ID" class="form-control" asp-items="Model.Puestos">
+                    <option value="">Seleccione un puesto ↓</option>
+                </select>
+                <span asp-validation-for="PUESTO_ID" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_GENERO"><strong>Género:</strong></label>
+                <select asp-for="EMPLEADO_GENERO" class="form-control" asp-items="Model.Generos"></select>
+                <span asp-validation-for="EMPLEADO_GENERO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- EMPLEADO: Fechas -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_FECHANACIMIENTO"><strong>Fecha de Nacimiento:</strong></label>
+                <input asp-for="EMPLEADO_FECHANACIMIENTO" type="date" class="form-control" />
+                <span asp-validation-for="EMPLEADO_FECHANACIMIENTO" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_FECHAINGRESO"><strong>Fecha de Ingreso:</strong></label>
+                <input asp-for="EMPLEADO_FECHAINGRESO" type="date" class="form-control" />
+                <span asp-validation-for="EMPLEADO_FECHAINGRESO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Empleados">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // --- Contadores Nombres/Apellidos ---
+        (function () {
+            const $n = document.getElementById('Nombres');
+            const $a = document.getElementById('Apellidos');
+            const $cn = document.getElementById('cntNom');
+            const $ca = document.getElementById('cntApe');
+            function upd(el, lab, max) { if (!el || !lab) return; lab.textContent = (el.value || '').length + '/' + max; }
+            if ($n) { upd($n, $cn, 60); $n.addEventListener('input', () => upd($n, $cn, 60)); }
+            if ($a) { upd($a, $ca, 60); $a.addEventListener('input', () => upd($a, $ca, 60)); }
+        })();
+
+        // --- Pill Estado sincronizada con checkbox ---
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            function syncPill() {
+                if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; }
+                else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; }
+            }
+            chk.addEventListener('change', syncPill);
+            syncPill();
+        })();
+
+        // --- Habilitar botón Guardar (campos obligatorios) ---
+        // Reglas: Nombres, Apellidos, Puesto y FechaIngreso son obligatorios
+        (function () {
+            const btn = document.getElementById('btnGuardar');
+            const nom = document.getElementById('Nombres');
+            const ape = document.getElementById('Apellidos');
+            const puesto = document.getElementById('PUESTO_ID') || document.querySelector('[name="PUESTO_ID"]');
+            const fIng = document.getElementById('EMPLEADO_FECHAINGRESO');
+
+            function evalReady() {
+                const okNom = nom && nom.value.trim().length > 0;
+                const okApe = ape && ape.value.trim().length > 0;
+                const okPue = puesto && (puesto.value || '').trim().length > 0;
+                const okFIn = fIng && (fIng.value || '').trim().length > 0;
+                const ready = okNom && okApe && okPue && okFIn;
+                if (!btn) return;
+                btn.disabled = !ready;
+                btn.classList.toggle('enabled', ready);
+            }
+            [nom, ape, puesto, fIng].forEach(x => x && x.addEventListener(x.tagName === 'SELECT' ? 'change' : 'input', evalReady));
+            evalReady();
+        })();
+
+        // --- Prevenir doble submit ---
+        (function () {
+            const frm = document.getElementById('frmEmpleado');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // --- PRG (SweetAlert2) usando TempData del Controller ---
+        (function () {
+            if (!window.Swal) return;
+            const title = '@(TempData["SwalTitle"] ?? "")';
+            const text  = '@(TempData["SwalText"] ?? "")';
+            const urlIndex  = '@(TempData["SwalIndexUrl"] ?? "")';
+            const urlCreate = '@(TempData["SwalCreateUrl"] ?? "")';
+            if (!title && !text) return;
+
+            Swal.fire({
+                icon: 'success',
+                title: title || 'Guardado',
+                text:  text  || 'El registro se creó correctamente.',
+                showDenyButton: true,
+                confirmButtonText: 'Volver al listado',
+                denyButtonText: 'Crear otro',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            }).then(r => {
+                if (r.isConfirmed && urlIndex) window.location.href = urlIndex;
+                else if (r.isDenied && urlCreate) window.location.href = urlCreate;
+            });
+        })();
+    </script>
+}
