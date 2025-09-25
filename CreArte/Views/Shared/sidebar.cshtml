@@ -1,70 +1,91 @@
 ﻿@{
-    Layout = null; // este es un layout raíz
+    Layout = null; // este parcial no usa layout propio
 
-    // [NUEVO] Tomamos el nombre del controlador actual para marcar el item activo.
+    // Controlador actual para marcar activo
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
-}
 
+    // Controladores hijos de "Configuración"
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "empresa" };
+
+    // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
+    bool isConfigOpen = configChildren.Contains(currentController);
+}
 
 <!-- Sidebar -->
 <aside class="app-sidebar" id="sidebar">
-    <div class="sidebar-title">Módulos</div>
+    @* <div class="sidebar-title">Módulos</div> *@
 
     <!-- Items del menú -->
     <nav class="sidebar-nav">
-        <!-- NOTA: Este apunta a Home/Index pero etiqueta "Caja" (rutas correctas según tu app) -->
+        <!-- Caja -->
         <a asp-controller="Home" asp-action="Index"
            class="nav-item @(currentController == "home" ? "is-active" : "")">
             <i class="bi bi-cash-stack"></i> <span>Caja</span>
         </a>
 
+        <!-- Ventas -->
         <a asp-controller="Ventas" asp-action="Index"
            class="nav-item @(currentController == "ventas" ? "is-active" : "")">
             <i class="bi bi-bag"></i> <span>Ventas</span>
         </a>
 
+        <!-- Pedidos -->
         <a asp-controller="Pedidos" asp-action="Index"
            class="nav-item @(currentController == "pedidos" ? "is-active" : "")">
             <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
         </a>
 
-        <a asp-controller="Clientes" asp-action="Index"
-           class="nav-item @(currentController == "clientes" ? "is-active" : "")">
-            <i class="bi bi-people"></i> <span>Clientes</span>
-        </a>
-
+        <!-- Productos -->
         <a asp-controller="Productos" asp-action="Index"
            class="nav-item @(currentController == "productos" ? "is-active" : "")">
             <i class="bi bi-box"></i> <span>Productos</span>
         </a>
 
+        <!-- Inventario -->
         <a asp-controller="Inventario" asp-action="Index"
            class="nav-item @(currentController == "inventario" ? "is-active" : "")">
             <i class="bi bi-stack"></i> <span>Inventario</span>
         </a>
 
+        <!-- Compras -->
         <a asp-controller="Compras" asp-action="Index"
            class="nav-item @(currentController == "compras" ? "is-active" : "")">
             <i class="bi bi-basket"></i> <span>Compras</span>
         </a>
 
+        <!-- Reportes -->
+        <a asp-controller="Reportes" asp-action="Index"
+           class="nav-item @(currentController == "reportes" ? "is-active" : "")">
+            <i class="bi bi-graph-up"></i> <span>Reportes</span>
+        </a>
+
+        <div class="sidebar-sep"></div>
+
+        <!-- Proveedores -->
         <a asp-controller="Proveedores" asp-action="Index"
            class="nav-item @(currentController == "proveedores" ? "is-active" : "")">
             <i class="bi bi-truck"></i> <span>Proveedores</span>
         </a>
 
-        <div class="sidebar-sep"></div>
+        <!-- Clientes -->
+        <a asp-controller="Clientes" asp-action="Index"
+           class="nav-item @(currentController == "clientes" ? "is-active" : "")">
+            <i class="bi bi-people"></i> <span>Clientes</span>
+        </a>
 
+        <!-- Empleados -->
         <a asp-controller="Empleados" asp-action="Index"
            class="nav-item @(currentController == "empleados" ? "is-active" : "")">
             <i class="bi bi-person-badge"></i> <span>Empleados</span>
         </a>
 
+        @* <!-- Puestos -->
         <a asp-controller="Puestos" asp-action="Index"
            class="nav-item @(currentController == "puestos" ? "is-active" : "")">
             <i class="bi bi-diagram-3"></i> <span>Puestos</span>
-        </a>
+        </a> *@
 
+        <!-- Usuarios -->
         <a asp-controller="Usuarios" asp-action="Index"
            class="nav-item @(currentController == "usuarios" ? "is-active" : "")">
             <i class="bi bi-person-gear"></i> <span>Usuarios</span>
@@ -72,74 +93,54 @@
 
         <div class="sidebar-sep"></div>
 
-        <a asp-controller="Reportes" asp-action="Index"
-           class="nav-item @(currentController == "reportes" ? "is-active" : "")">
-            <i class="bi bi-graph-up"></i> <span>Reportes</span>
+        <!-- PADRE: CONFIGURACIÓN (toggle con Bootstrap Collapse, SIN flecha) -->
+        <a id="cfg-toggle"
+           class="nav-item nav-item-toggle no-caret @(isConfigOpen ? "is-open" : "")"
+           href="#cfg-sub" data-bs-toggle="collapse" role="button"
+           aria-expanded="@(isConfigOpen.ToString().ToLower())"
+           aria-controls="cfg-sub">
+            <i class="bi bi-gear"></i> <span>Configuración</span>
         </a>
-        <a asp-controller="Areas" asp-action="Index"
-           class="nav-item @(currentController == "configuracion" ? "is-active" : "")">
-            <i class="bi bi-gear"></i> <span>Areas</span>
-        </a>
-        @* <a asp-controller="Login" asp-action="RestablecerContrasena"
-           class="nav-item @(currentController == "Restablecr Contraseña" ? "is-active" : "")">
-            <i class="bi bi-gear"></i> <span>Restablecer Contraseña</span>
-        </a> *@
-    </nav>
-</aside>
 
+        <!-- ====== HIJOS: SUBMENÚ CONFIGURACIÓN ====== -->
+        <div class="collapse nav-sub @(isConfigOpen ? "show" : "")" id="cfg-sub">
 
-@* @{
-    Layout = null; // este es un layout raíz
-}
-
-    <!-- Sidebar -->
-    <aside class="app-sidebar" id="sidebar">
-        <div class="sidebar-title">Módulos</div>
-
-        <!-- Items del menú (rutas de ejemplo; ajusta cuando crees los módulos) -->
-        <nav class="sidebar-nav">
-            <a asp-controller="Home" asp-action="Index" class="nav-item">
-                <i class="bi bi-cash-stack"></i> <span>Caja</span>
-            </a>
-            <a asp-controller="Ventas" asp-action="Index" class="nav-item">
-                <i class="bi bi-bag"></i> <span>Ventas</span>
-            </a>
-            <a asp-controller="Pedidos" asp-action="Index" class="nav-item">
-                <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
-            </a>
-            <a asp-controller="Clientes" asp-action="Index" class="nav-item">
-                <i class="bi bi-people"></i> <span>Clientes</span>
-            </a>
-            <a asp-controller="Productos" asp-action="Index" class="nav-item">
-                <i class="bi bi-box"></i> <span>Productos</span>
-            </a>
-            <a asp-controller="Inventario" asp-action="Index" class="nav-item">
-                <i class="bi bi-stack"></i> <span>Inventario</span>
-            </a>
-            <a asp-controller="Compras" asp-action="Index" class="nav-item">
-                <i class="bi bi-basket"></i> <span>Compras</span>
-            </a>
-            <a asp-controller="Proveedores" asp-action="Index" class="nav-item">
-                <i class="bi bi-truck"></i> <span>Proveedores</span>
+            <!-- Áreas -->
+            <a asp-controller="Areas" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "areas" ? "is-active" : "")">
+                <i class="bi bi-grid-3x3-gap"></i> <span>Áreas</span>
             </a>
 
-            <div class="sidebar-sep"></div>
-
-            <a asp-controller="Empleados" asp-action="Index" class="nav-item">
-                <i class="bi bi-person-badge"></i> <span>Empleados</span>
-            </a>
-            <a asp-controller="Puestos" asp-action="Index" class="nav-item">
+            <!-- Puestos -->
+            <a asp-controller="Puestos" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "puestos" ? "is-active" : "")">
                 <i class="bi bi-diagram-3"></i> <span>Puestos</span>
             </a>
-            <a asp-controller="Usuarios" asp-action="Index" class="nav-item">
-                <i class="bi bi-person-gear"></i> <span>Usuarios</span>
+
+            <!-- Niveles -->
+            <a asp-controller="Niveles" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "niveles" ? "is-active" : "")">
+                <i class="bi bi-layers"></i> <span>Niveles</span>
             </a>
 
-            <div class="sidebar-sep"></div>
-
-            <a asp-controller="Reportes" asp-action="Index" class="nav-item">
-                <i class="bi bi-graph-up"></i> <span>Reportes</span>
+            <!-- Roles -->
+            <a asp-controller="Roles" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "roles" ? "is-active" : "")">
+                <i class="bi bi-shield-lock"></i> <span>Roles</span>
             </a>
-        </nav>
-    </aside>
- *@
+
+            <!-- Categorías -->
+            <a asp-controller="Categorias" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "categorias" ? "is-active" : "")">
+                <i class="bi bi-tags"></i> <span>Categorías</span>
+            </a>
+
+            <!-- Empresa -->
+            <a asp-controller="Empresa" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "empresa" ? "is-active" : "")">
+                <i class="bi bi-building"></i> <span>Empresa</span>
+            </a>
+        </div>
+
+    </nav>
+</aside>

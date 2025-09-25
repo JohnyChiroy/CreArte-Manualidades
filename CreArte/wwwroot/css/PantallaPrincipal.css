@@ -154,3 +154,18 @@ body.sidebar-collapsed .sidebar-title {
             color: black;
         }
 /* icono blanco cuando está activo */
+
+
+/* ===== Subopciones: MISMO estilo base que .nav-item, solo agregamos sangría ===== */
+.nav-item--sub{
+    /* hereda color, background, hover y active de .nav-item */
+    padding-left: 1rem;         /* sangría adicional para diferenciar jerarquía */
+    position: relative;
+}
+
+/* ÍCONO en subopciones: tamaño y separación acordes */
+    .nav-item--sub > i {
+        font-size: 1rem; /* ligeramente menor si tus ítems superiores usan 1.1–1.2rem */
+        margin-right: .1rem; /* espacio entre ícono y texto */
+        line-height: 1;
+    }
