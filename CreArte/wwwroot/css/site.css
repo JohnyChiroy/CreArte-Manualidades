@@ -155,13 +155,13 @@
     display: inline-block !important;
     padding: 6px 12px !important;
     border-radius: 999px !important;
-    background: #BF265E !important;
-    color: #fff !important;
+    background: #FF007D !important;
+    color: black !important;
     font-weight: 600 !important;
 }
 
     .ua-pill.active {
-        background: #C5D930 !important;
+        background: #03C1FF !important;
         /*color: #000;*/
         color: black !important;
     }

@@ -1,6 +1,7 @@
 ﻿@* ===============================================
    RUTA: Views/Empleados/Edit.cshtml
    DESCRIPCIÓN: Formulario de edición de EMPLEADO
+   - 10 campos obligatorios (HTML + DataAnnotations)
    - Guard "sin cambios" (snapshot)
    - Pill estado
    =============================================== *@
@@ -13,7 +14,9 @@
 <div class="ua-card">
     <h2 style="margin:0 0 12px 0;">Modificar Empleado</h2>
 
-    <form asp-action="Edit" asp-controller="Empleados" method="post" id="frmEmpleadoEdit" data-guard="true" autocomplete="off">
+    <!-- asp-route-id: envía el ID exigido por Edit(string id, ...) -->
+    <form asp-action="Edit" asp-controller="Empleados" asp-route-id="@Model.EMPLEADO_ID"
+          method="post" id="frmEmpleadoEdit" data-guard="true" autocomplete="off">
         @Html.AntiForgeryToken()
 
         <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
@@ -38,7 +41,7 @@
                         @(Model?.ESTADO == true ? "Activo" : "Inactivo")
                     </span>
                 </div>
-                <div class="ua-switch" style="margin-top:6px;">
+                <div class="ua-switch" style="margin-top:6px%;">
                     <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
                     <span>Activo</span>
                 </div>
@@ -46,74 +49,147 @@
             </div>
         </div>
 
-        <!-- PERSONA -->
+        @* ==============================
+           PERSONA: Nombres
+           ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field">
-                <label asp-for="Nombres"><strong>Nombres:</strong></label>
-                <input asp-for="Nombres" class="form-control" maxlength="60" />
-                <span asp-validation-for="Nombres" class="text-danger"></span>
-                @* <div class="ua-help"><span id="cntNom">0</span></div> *@
+                <label asp-for="PERSONA_PRIMERNOMBRE"><strong>Primer Nombre:*</strong></label>
+                <input asp-for="PERSONA_PRIMERNOMBRE" class="form-control" maxlength="50" required />
+                <span asp-validation-for="PERSONA_PRIMERNOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom1">0</span>/50</div> *@
             </div>
             <div class="ua-field">
-                <label asp-for="Apellidos"><strong>Apellidos:</strong></label>
-                <input asp-for="Apellidos" class="form-control" maxlength="60" />
-                <span asp-validation-for="Apellidos" class="text-danger"></span>
-                @* <div class="ua-help"><span id="cntApe">0</span></div> *@
+                <label asp-for="PERSONA_SEGUNDONOMBRE"><strong>Segundo Nombre:</strong></label>
+                <input asp-for="PERSONA_SEGUNDONOMBRE" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_SEGUNDONOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom2">0</span>/50</div> *@
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_TERCERNOMBRE"><strong>Tercer Nombre:</strong></label>
+                <input asp-for="PERSONA_TERCERNOMBRE" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_TERCERNOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom3">0</span>/50</div> *@
             </div>
         </div>
 
+        @* ==============================
+           PERSONA: Apellidos
+           ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field">
-                <label asp-for="DPI"><strong>DPI:</strong></label>
-                <input asp-for="DPI" class="form-control" maxlength="25" />
-                <span asp-validation-for="DPI" class="text-danger"></span>
-                <div class="ua-help"><span id="cntDPI">0</span>/13</div>
+                <label asp-for="PERSONA_PRIMERAPELLIDO"><strong>Primer Apellido:*</strong></label>
+                <input asp-for="PERSONA_PRIMERAPELLIDO" class="form-control" maxlength="50" required />
+                <span asp-validation-for="PERSONA_PRIMERAPELLIDO" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntApe1">0</span>/50</div> *@
             </div>
             <div class="ua-field">
-                <label asp-for="Telefono"><strong>Teléfono:</strong></label>
-                <input asp-for="Telefono" class="form-control" maxlength="25" />
-                <span asp-validation-for="Telefono" class="text-danger"></span>
+                <label asp-for="PERSONA_SEGUNDOAPELLIDO"><strong>Segundo Apellido:</strong></label>
+                <input asp-for="PERSONA_SEGUNDOAPELLIDO" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_SEGUNDOAPELLIDO" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntApe2">0</span>/50</div> *@
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_APELLIDOCASADA"><strong>Apellido de Casada:</strong></label>
+                <input asp-for="PERSONA_APELLIDOCASADA" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_APELLIDOCASADA" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntApeC">0</span>/50</div> *@
             </div>
         </div>
 
+        @* ==============================
+           PERSONA: NIT / CUI (DPI)
+           ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field">
-                <label asp-for="Correo"><strong>Correo:</strong></label>
-                <input asp-for="Correo" type="email" class="form-control" maxlength="100" />
-                <span asp-validation-for="Correo" class="text-danger"></span>
+                <label asp-for="PERSONA_NIT"><strong>NIT:*</strong></label>
+                <input asp-for="PERSONA_NIT"
+                       class="form-control"
+                       maxlength="15"
+                       pattern="^[0-9-]{6,15}$"
+                       inputmode="numeric"
+                       title="Ingrese entre 6 y 15 caracteres (números y guiones). Ej.: 1234567-8" />
+                <span asp-validation-for="PERSONA_NIT" class="text-danger"></span>
             </div>
             <div class="ua-field">
-                <label asp-for="Direccion"><strong>Dirección:</strong></label>
-                <input asp-for="Direccion" class="form-control" maxlength="150" />
-                <span asp-validation-for="Direccion" class="text-danger"></span>
+                <label asp-for="PERSONA_CUI"><strong>CUI / DPI:*</strong></label>
+                <input asp-for="PERSONA_CUI"
+                       class="form-control"
+                       maxlength="13"
+                       required
+                       pattern="^\d{13}$"
+                       inputmode="numeric"
+                       title="El CUI/DPI debe tener exactamente 13 dígitos numéricos." />
+                <span asp-validation-for="PERSONA_CUI" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntDPI">0</span>/13</div> *@
             </div>
         </div>
 
-        <!-- EMPLEADO -->
-        <div class="ua-row" style="margin-top:8px;">
+        @* ==============================
+           PERSONA: Contacto (Casa/Móvil/Correo)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px%;">
             <div class="ua-field">
-                <label asp-for="PUESTO_ID"><strong>Puesto:</strong></label>
-                <select asp-for="PUESTO_ID" class="form-control" asp-items="Model.Puestos">
+                <label asp-for="PERSONA_TELEFONOCASA"><strong>Teléfono (Casa):</strong></label>
+                <input asp-for="PERSONA_TELEFONOCASA" class="form-control" maxlength="15" />
+                @* OPCIONAL: no required *@
+                <span asp-validation-for="PERSONA_TELEFONOCASA" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_TELEFONOMOVIL"><strong>Teléfono (Celular):*</strong></label>
+                <input asp-for="PERSONA_TELEFONOMOVIL" class="form-control" maxlength="15" required />
+                @* OBLIGATORIO *@
+                <span asp-validation-for="PERSONA_TELEFONOMOVIL" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_CORREO"><strong>Correo:*</strong></label>
+                <input asp-for="PERSONA_CORREO" type="email" class="form-control" maxlength="150" required />
+                @* OBLIGATORIO *@
+                <span asp-validation-for="PERSONA_CORREO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: Dirección
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="PERSONA_DIRECCION"><strong>Dirección:*</strong></label>
+                <input asp-for="PERSONA_DIRECCION" class="form-control" maxlength="255" required />
+                <span asp-validation-for="PERSONA_DIRECCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           EMPLEADO: Puesto / Género
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px%;">
+            <div class="ua-field">
+                <label asp-for="PUESTO_ID"><strong>Puesto:*</strong></label>
+                <select asp-for="PUESTO_ID" class="form-control" asp-items="Model.Puestos" required>
                     <option value="">Seleccione un puesto ↓</option>
                 </select>
                 <span asp-validation-for="PUESTO_ID" class="text-danger"></span>
             </div>
             <div class="ua-field">
-                <label asp-for="EMPLEADO_GENERO"><strong>Género:</strong></label>
-                <select asp-for="EMPLEADO_GENERO" class="form-control" asp-items="Model.Generos"></select>
+                <label asp-for="EMPLEADO_GENERO"><strong>Género:*</strong></label>
+                <select asp-for="EMPLEADO_GENERO" class="form-control" asp-items="Model.Generos" required></select>
                 <span asp-validation-for="EMPLEADO_GENERO" class="text-danger"></span>
             </div>
         </div>
 
-        <div class="ua-row" style="margin-top:8px;">
+        @* ==============================
+           EMPLEADO: Fechas
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px%;">
             <div class="ua-field">
-                <label asp-for="EMPLEADO_FECHANACIMIENTO"><strong>Fecha de Nacimiento:</strong></label>
-                <input asp-for="EMPLEADO_FECHANACIMIENTO" type="date" class="form-control" />
+                <label asp-for="EMPLEADO_FECHANACIMIENTO"><strong>Fecha de Nacimiento:*</strong></label>
+                <input asp-for="EMPLEADO_FECHANACIMIENTO" type="date" class="form-control" required />
                 <span asp-validation-for="EMPLEADO_FECHANACIMIENTO" class="text-danger"></span>
             </div>
             <div class="ua-field">
-                <label asp-for="EMPLEADO_FECHAINGRESO"><strong>Fecha de Ingreso:</strong></label>
-                <input asp-for="EMPLEADO_FECHAINGRESO" type="date" class="form-control" />
+                <label asp-for="EMPLEADO_FECHAINGRESO"><strong>Fecha de Ingreso:*</strong></label>
+                <input asp-for="EMPLEADO_FECHAINGRESO" type="date" class="form-control" required />
                 <span asp-validation-for="EMPLEADO_FECHAINGRESO" class="text-danger"></span>
             </div>
         </div>
@@ -134,58 +210,99 @@
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        // (1) Contadores
+        // Contadores (opcional)
         (function () {
-            const $n = document.getElementById('Nombres');
-            const $a = document.getElementById('Apellidos');
-            const $cn = document.getElementById('cntNom');
-            const $ca = document.getElementById('cntApe');
-            function upd(el, lab, max) { if (!el || !lab) return; lab.textContent = (el.value || '').length + '/' + max; }
-            if ($n) { upd($n, $cn, 60); $n.addEventListener('input', () => upd($n, $cn, 60)); }
-            if ($a) { upd($a, $ca, 60); $a.addEventListener('input', () => upd($a, $ca, 60)); }
+            const bindCount = (inputId, labelId, max) => {
+                const $i = document.getElementById(inputId), $l = document.getElementById(labelId);
+                if (!$i || !$l) return; const upd = () => $l.textContent = (($i.value || '').length) + '/' + max;
+                upd(); $i.addEventListener('input', upd);
+            };
+            bindCount('PERSONA_PRIMERNOMBRE','cntNom1',50);
+            bindCount('PERSONA_SEGUNDONOMBRE','cntNom2',50);
+            bindCount('PERSONA_TERCERNOMBRE','cntNom3',50);
+            bindCount('PERSONA_PRIMERAPELLIDO','cntApe1',50);
+            bindCount('PERSONA_SEGUNDOAPELLIDO','cntApe2',50);
+            bindCount('PERSONA_APELLIDOCASADA','cntApeC',50);
+            bindCount('PERSONA_CUI','cntDPI',13);
         })();
 
-        // (2) Pill Estado
+        // Pill Estado
         (function () {
             const chk = document.getElementById('chkEstado');
             const pill = document.getElementById('pillEstado');
             if (!chk || !pill) return;
-            function syncPill() { if (chk.checked) { pill.classList.add('active'); pill.textContent = 'Activo'; } else { pill.classList.remove('active'); pill.textContent = 'Inactivo'; } }
-            chk.addEventListener('change', syncPill);
-            syncPill();
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent='Activo')
+                                               : (pill.classList.remove('active'), pill.textContent='Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
         })();
 
-        // (3) Habilitar botón (mismas reglas que Create)
+        // Helper: calcular edad a una fecha (fi) desde una fecha de nacimiento (fn)
+        function calcAgeOn(isoBirth, isoOn) {
+            if (!isoBirth || !isoOn) return null;
+            const fn = new Date(isoBirth + 'T00:00:00');
+            const fi = new Date(isoOn   + 'T00:00:00');
+            let age = fi.getFullYear() - fn.getFullYear();
+            const anniv = new Date(fi.getFullYear(), fn.getMonth(), fn.getDate());
+            if (fi < anniv) age--;
+            return age;
+        }
+
+        // Habilitar botón Actualizar (10 obligatorios + EDAD ≥ 13 + checkValidity)
         (function () {
-            const btn = document.getElementById('btnActualizar');
-            const nom = document.getElementById('Nombres');
-            const ape = document.getElementById('Apellidos');
-            const puesto = document.getElementById('PUESTO_ID') || document.querySelector('[name="PUESTO_ID"]');
-            const fIng = document.getElementById('EMPLEADO_FECHAINGRESO');
-            function evalReady() {
-                const okNom = nom && nom.value.trim().length > 0;
-                const okApe = ape && ape.value.trim().length > 0;
-                const okPue = puesto && (puesto.value || '').trim().length > 0;
-                const okFIn = fIng && (fIng.value || '').trim().length > 0;
-                const ready = okNom && okApe && okPue && okFIn;
+            const btn  = document.getElementById('btnActualizar');
+            const form = document.getElementById('frmEmpleadoEdit');
+            const reqIds = [
+                'PERSONA_PRIMERNOMBRE',
+                'PERSONA_PRIMERAPELLIDO',
+                'PERSONA_CUI',
+                'PERSONA_TELEFONOMOVIL',
+                'PERSONA_CORREO',
+                'PERSONA_DIRECCION',
+                'PUESTO_ID',
+                'EMPLEADO_GENERO',
+                'EMPLEADO_FECHANACIMIENTO',
+                'EMPLEADO_FECHAINGRESO'
+            ];
+            const els = reqIds.map(id => document.getElementById(id));
+            const elFn = document.getElementById('EMPLEADO_FECHANACIMIENTO');
+            const elFi = document.getElementById('EMPLEADO_FECHAINGRESO');
+
+            function ready() {
+                const baseOk = els.every(el => el && (el.value || '').trim().length > 0);
+
+                // Edad ≥ 13
+                let ageOk = true;
+                if (elFn && elFi && elFn.value && elFi.value) {
+                    const edad = calcAgeOn(elFn.value, elFi.value);
+                    ageOk = (edad !== null && edad >= 13);
+                    if (!ageOk) elFn.setCustomValidity('El empleado debe tener más de 12 años (≥ 13) a la fecha de ingreso.');
+                    else elFn.setCustomValidity('');
+                } else {
+                    if (elFn) elFn.setCustomValidity('');
+                }
+
+                const ok = baseOk && ageOk && (form ? form.checkValidity() : true);
                 if (!btn) return;
-                btn.disabled = !ready;
-                btn.classList.toggle('enabled', ready);
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
             }
-            [nom, ape, puesto, fIng].forEach(x => x && x.addEventListener(x.tagName === 'SELECT' ? 'change' : 'input', evalReady));
-            evalReady();
+
+            els.forEach(el => el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', ready));
+            if (elFn) elFn.addEventListener('change', ready);
+            if (elFi) elFi.addEventListener('change', ready);
+            ready();
         })();
 
-        // (4) Guard "sin cambios" (snapshot)
+        // Guard "sin cambios" (snapshot)
         (function () {
             const frm = document.getElementById('frmEmpleadoEdit');
             const btn = document.getElementById('btnActualizar');
             if (!frm || !btn) return;
+
             let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
             frm.addEventListener('submit', function (e) {
                 const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
-                const sinCambios = (currentSnapshot === initialSnapshot);
-                if (sinCambios) {
+                if (currentSnapshot === initialSnapshot) {
                     e.preventDefault();
                     if (window.Swal) {
                         Swal.fire({
@@ -207,20 +324,18 @@
             });
         })();
 
-        // (5) PRG una sola acción (si usas TempData en Edit)
+        // PRG (post-Edit) si usas TempData y helper global
         (function () {
             if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
-            const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
-            const title = '@(TempData["SwalTitle"] ?? "")';
-            const text  = '@(TempData["SwalText"] ?? "")';
+            const flag='@(TempData["SwalOneBtnFlag"] ?? "")', title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
             if (!flag) return;
-            const redirect = '@Url.Action("Index", "Empleados")';
+            const redirect='@Url.Action("Index", "Empleados")';
             window.CreArteSwal.info({
-                icon: (flag === 'updated' ? 'success' : 'info'),
-                title: title || (flag === 'updated' ? '¡Empleado actualizado!' : 'Sin cambios'),
-                text:  text  || (flag === 'updated' ? 'El registro se actualizó correctamente.' : 'No se modificó ningún dato.'),
-                confirmText: 'Aceptar',
-                redirectUrl: redirect
+                icon:(flag==='updated'?'success':'info'),
+                title:title || (flag==='updated'?'¡Empleado actualizado!':'Sin cambios'),
+                text: text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                confirmText:'Aceptar',
+                redirectUrl:redirect
             });
         })();
     </script>

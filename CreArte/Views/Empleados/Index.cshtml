@@ -4,12 +4,17 @@
    (PUESTO / GÉNERO / FECHA INGRESO / ESTADO),
    buscador global, orden, paginación,
    selección de fila, Details en modal.
+   - Ajuste: mostrar NOMBRE COMPLETO (6 partes)
    =============================================== *@
 @model CreArte.ModelsPartial.EmpleadoViewModels
 
 @{
     ViewData["Title"] = "Empleados";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Diccionario enviado desde el Controller (EMPLEADO_ID -> Nombre completo)
+    // Puede ser null si no se setea; por eso hay fallback abajo.
+    var fullMap = ViewBag.NombreCompletoMap as Dictionary<string, string>;
 }
 
 @functions{
@@ -23,10 +28,18 @@
         if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
         return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
     }
-    string FullName(string? n, string? a) {
-        n = (n ?? "").Trim();
-        a = (a ?? "").Trim();
-        return string.IsNullOrEmpty((n + a).Trim()) ? "" : (n + " " + a).Trim();
+
+    // ===== NUEVO: Concatena 6 partes del nombre, omitiendo nulos/vacíos =====
+    string FullName6(string? n1, string? n2, string? n3, string? a1, string? a2, string? ac)
+    {
+        var parts = new List<string>(6);
+        if (!string.IsNullOrWhiteSpace(n1)) parts.Add(n1.Trim());
+        if (!string.IsNullOrWhiteSpace(n2)) parts.Add(n2.Trim());
+        if (!string.IsNullOrWhiteSpace(n3)) parts.Add(n3.Trim());
+        if (!string.IsNullOrWhiteSpace(a1)) parts.Add(a1.Trim());
+        if (!string.IsNullOrWhiteSpace(a2)) parts.Add(a2.Trim());
+        if (!string.IsNullOrWhiteSpace(ac)) parts.Add(ac.Trim());
+        return string.Join(" ", parts);
     }
 }
 
@@ -77,7 +90,7 @@
             <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
             <input name="Search" value="@Model.Search" placeholder="Buscar ID, Nombre, Puesto" />
             <button title="Buscar" type="submit">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></path></svg>
             </button>
         </form>
     </div>
@@ -316,11 +329,32 @@
                 {
                     foreach (var e in Model.Items)
                     {
+                        // === Preparar nombre completo por fila ===
+                        string nombreCompleto = null;
+                        if (fullMap != null)
+                        {
+                            fullMap.TryGetValue(e.EMPLEADO_ID, out nombreCompleto);
+                        }
+                        if (string.IsNullOrWhiteSpace(nombreCompleto))
+                        {
+                            // Fallback por si no llegó el diccionario
+                            nombreCompleto = FullName6(
+                                e.EMPLEADONavigation?.PERSONA_PRIMERNOMBRE,
+                                e.EMPLEADONavigation?.PERSONA_SEGUNDONOMBRE,
+                                e.EMPLEADONavigation?.PERSONA_TERCERNOMBRE,
+                                e.EMPLEADONavigation?.PERSONA_PRIMERAPELLIDO,
+                                e.EMPLEADONavigation?.PERSONA_SEGUNDOAPELLIDO,
+                                e.EMPLEADONavigation?.PERSONA_APELLIDOCASADA
+                            );
+                        }
+
                         <tr class="ua-rowitem" data-id="@e.EMPLEADO_ID">
                             <td><input type="checkbox" class="form-check-input ua-rowchk" value="@e.EMPLEADO_ID" /></td>
                             <td>@e.EMPLEADO_ID</td>
-                            <!-- Nombres y apellidos concatenados (PERSONA) -->
-                            <td>@FullName(e.EMPLEADONavigation?.PERSONA_PRIMERNOMBRE, e.EMPLEADONavigation?.PERSONA_PRIMERAPELLIDO)</td>
+
+                            <!-- NOMBRE COMPLETO (6 partes) -->
+                            <td>@nombreCompleto</td>
+
                             <td>@e.PUESTO?.PUESTO_NOMBRE</td>
                             <td>@e.EMPLEADO_FECHAINGRESO.ToString("dd/MM/yyyy")</td>
                             <td>@(string.IsNullOrWhiteSpace(e.EMPLEADO_GENERO) ? "-" : e.EMPLEADO_GENERO)</td>

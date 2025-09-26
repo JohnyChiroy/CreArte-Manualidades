@@ -3,9 +3,9 @@
 // DESCRIPCIÓN: CRUD de EMPLEADO con captura integrada
 //              de datos de PERSONA (EMP = PERSONA_ID),
 //              filtros/orden/paginación y auditoría.
-//              ▸ IMPORTANTE: En entidad EF (EMPLEADO) las fechas son DateOnly/DateOnly?,
-//                y en los ViewModels (formularios) son DateTime?.
-//                Por eso convertimos explícitamente en Create/Edit/Index.
+//              ▸ IMPORTANTE: En la ENTIDAD EF (EMPLEADO) las fechas son
+//                DateOnly/DateOnly?, y en los ViewModels (formularios) SON DateTime?.
+//                Por eso convertimos explícitamente en Create/Edit.
 // ===============================================
 using CreArte.Data;
 using CreArte.Models;
@@ -30,39 +30,63 @@ namespace CreArte.Controllers
         }
 
         // ============================================================
-        // LISTADO: GET /Empleados?Search=...&Puesto=...&Genero=...
-        //          &FechaIngresoIni=...&FechaIngresoFin=...&Estado=...
-        //          &Sort=...&Dir=...&Page=1&PageSize=10
+        // LISTADO (NO TOCAR) – /Empleados?...
         // ============================================================
         public async Task<IActionResult> Index(
-            string? Search,
-            string? Puesto,
-            string? Genero,
-            DateTime? FechaIngresoIni,  // <- del request (DateTime?)
-            DateTime? FechaIngresoFin,  // <- del request (DateTime?)
-            bool? Estado,
-            string Sort = "id",
-            string Dir = "asc",
-            int Page = 1,
-            int PageSize = 10)
+    string? Search,
+    string? Puesto,
+    string? Genero,
+    DateTime? FechaIngresoIni,  // del request (DateTime?)
+    DateTime? FechaIngresoFin,  // del request (DateTime?)
+    bool? Estado,
+    string Sort = "id",
+    string Dir = "asc",
+    int Page = 1,
+    int PageSize = 10)
         {
-            // 1) Base: IQueryable<EMPLEADO> sin Include para permitir composición
-            IQueryable<EMPLEADO> q = _context.EMPLEADO
-                .Where(e => !e.ELIMINADO);
+            // 0) Helper local para armar el nombre completo en C# (para ViewBag)
+            string ComposeFullName(PERSONA p)
+            {
+                // Concatenamos todas las partes (permitiendo nulos) y limpiamos espacios sobrantes.
+                var parts = new[]
+                {
+            p.PERSONA_PRIMERNOMBRE,
+            p.PERSONA_SEGUNDONOMBRE,
+            p.PERSONA_TERCERNOMBRE,
+            p.PERSONA_PRIMERAPELLIDO,
+            p.PERSONA_SEGUNDOAPELLIDO,
+            p.PERSONA_APELLIDOCASADA
+        };
+                return string.Join(" ", parts.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
+            }
 
-            // 2) Búsqueda global (por ID empleado, Persona (nombres/apellidos), Puesto)
+            // 1) Base
+            IQueryable<EMPLEADO> q = _context.EMPLEADO.Where(e => !e.ELIMINADO);
+
+            // 2) Búsqueda global (ID, Puesto, Nombre completo)
             if (!string.IsNullOrWhiteSpace(Search))
             {
                 string s = Search.Trim();
+
+                // IMPORTANTE: Para aplicar LIKE sobre el nombre completo en SQL,
+                // usamos la concatenación traducible por EF. Puede generar dobles espacios,
+                // lo cual no afecta la búsqueda.
                 q = q.Where(e =>
                     EF.Functions.Like(e.EMPLEADO_ID, $"%{s}%") ||
                     EF.Functions.Like(e.PUESTO.PUESTO_NOMBRE, $"%{s}%") ||
-                    // Ajusta a los nombres reales de tus columnas PERSONA
-                    EF.Functions.Like(e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE, $"%{s}%") ||
-                    EF.Functions.Like(e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO, $"%{s}%"));
+                    EF.Functions.Like(
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    )
+                );
             }
 
-            // 3) Filtro por Puesto (texto/vacíos/marcadores)
+            // 3) Filtro por Puesto
             if (!string.IsNullOrWhiteSpace(Puesto))
             {
                 if (Puesto == "__BLANKS__")
@@ -76,76 +100,88 @@ namespace CreArte.Controllers
                 }
             }
 
-            // 4) Filtro por Género (valor directo)
+            // 4) Filtro por Género
             if (!string.IsNullOrWhiteSpace(Genero))
             {
                 string g = Genero.Trim();
                 q = q.Where(e => e.EMPLEADO_GENERO != null && e.EMPLEADO_GENERO == g);
             }
 
-            // ================== 5) FILTROS POR FECHA DE INGRESO ==================
-            // En entidad EF: EMPLEADO_FECHAINGRESO es DateOnly
-            // En parámetros del request: DateTime?
-            // Convertimos DateTime? -> DateOnly antes de comparar
+            // 5) Filtros por FECHA DE INGRESO (DateTime? -> DateOnly)
             if (FechaIngresoIni.HasValue)
             {
                 var fIni = DateOnly.FromDateTime(FechaIngresoIni.Value.Date);
                 q = q.Where(e => e.EMPLEADO_FECHAINGRESO >= fIni);
             }
-
             if (FechaIngresoFin.HasValue)
             {
                 var fFin = DateOnly.FromDateTime(FechaIngresoFin.Value.Date);
-                // Rango inclusivo [ini..fin]
                 q = q.Where(e => e.EMPLEADO_FECHAINGRESO <= fFin);
-
-                // Si prefieres semicluso (ini <= x < fin+1), usa esto en su lugar:
-                // var fFinExcl = fFin.AddDays(1);
-                // q = q.Where(e => e.EMPLEADO_FECHAINGRESO < fFinExcl);
             }
 
-            // 6) Filtro por Estado
+            // 6) Estado
             if (Estado.HasValue)
                 q = q.Where(e => e.ESTADO == Estado.Value);
 
-            // 7) Ordenamiento (sobre IQueryable sin Include)
+            // 7) Orden (incluye orden por NOMBRE COMPLETO)
             bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
             q = (Sort?.ToLower()) switch
             {
                 "id" => asc ? q.OrderBy(e => e.EMPLEADO_ID) : q.OrderByDescending(e => e.EMPLEADO_ID),
-                "nombre" => asc ? q.OrderBy(e => e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE).ThenBy(e => e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO)
-                                 : q.OrderByDescending(e => e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE).ThenByDescending(e => e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO),
+
+                // *** Orden por nombre completo concatenado ***
+                "nombre" => asc
+                    ? q.OrderBy(e =>
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""))
+                    : q.OrderByDescending(e =>
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? "")),
+
                 "puesto" => asc ? q.OrderBy(e => e.PUESTO.PUESTO_NOMBRE) : q.OrderByDescending(e => e.PUESTO.PUESTO_NOMBRE),
                 "ingreso" => asc ? q.OrderBy(e => e.EMPLEADO_FECHAINGRESO) : q.OrderByDescending(e => e.EMPLEADO_FECHAINGRESO),
                 "estado" => asc ? q.OrderBy(e => e.ESTADO) : q.OrderByDescending(e => e.ESTADO),
                 _ => asc ? q.OrderBy(e => e.FECHA_CREACION) : q.OrderByDescending(e => e.FECHA_CREACION),
             };
 
-            // 8) Total para paginación
+            // 8) Paginación
             int total = await q.CountAsync();
             int totalPages = (int)Math.Ceiling(total / (double)PageSize);
             if (Page < 1) Page = 1;
             if (Page > totalPages && totalPages > 0) Page = totalPages;
 
-            // 9) Include de navegaciones que se mostrarán en la vista
-            var qWithNavs = q
-                .Include(e => e.EMPLEADONavigation)
-                .Include(e => e.PUESTO);
+            // 9) Include
+            var qWithNavs = q.Include(e => e.EMPLEADONavigation)
+                             .Include(e => e.PUESTO);
 
             var items = await qWithNavs
                 .Skip((Page - 1) * PageSize)
                 .Take(PageSize)
                 .ToListAsync();
 
-            // 10) ViewModel de salida (mantén DateTime? en VM para inputs <input type="date">)
+            // 9.1) Enviamos a la vista un diccionario EMPLEADO_ID -> NOMBRE COMPLETO
+            ViewBag.NombreCompletoMap = items.ToDictionary(
+                e => e.EMPLEADO_ID,
+                e => ComposeFullName(e.EMPLEADONavigation)
+            );
+
+            // 10) VM salida (mantén DateTime? en VM para inputs)
             var vm = new EmpleadoViewModels
             {
                 Items = items,
                 Search = Search,
                 Puesto = Puesto,
                 Genero = Genero,
-                FechaIngresoIni = FechaIngresoIni, // VM usa DateTime?
-                FechaIngresoFin = FechaIngresoFin, // VM usa DateTime?
+                FechaIngresoIni = FechaIngresoIni,
+                FechaIngresoFin = FechaIngresoFin,
                 Estado = Estado,
                 Sort = Sort,
                 Dir = Dir,
@@ -161,8 +197,8 @@ namespace CreArte.Controllers
         }
 
         // ============================================================
-        // DETAILS para modal (PartialView)
-        // GET: /Empleados/DetailsCard?id=PE00000001
+        // DETAILS para modal (PartialView) – /Empleados/DetailsCard?id=...
+        // ▸ Ajustado: Nombres = Nombre COMPLETO (6 partes); Apellidos = "" (solo aquí)
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> DetailsCard(string id)
@@ -177,17 +213,36 @@ namespace CreArte.Controllers
                 .Select(e => new EmpleadoDetailsVM
                 {
                     EMPLEADO_ID = e.EMPLEADO_ID,
-                    // PERSONA (ajusta a tu esquema real)
                     PERSONA_ID = e.EMPLEADONavigation.PERSONA_ID,
-                    Nombres = e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE,
-                    Apellidos = e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO,
+
+                    // ================== NOMBRE COMPLETO ==================
+                    // Concatenamos 6 partes (ignorando nulls con ?? "").
+                    // Nota: .Trim() se traduce a LTRIM/RTRIM en SQL Server.
+                    // Quedará bien para la gran mayoría de casos; si alguna parte
+                    // es vacía podrían quedar espacios dobles, pero es poco común.
+                    Nombres =
+                        (
+                            (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? "")
+                        ).Trim(),
+
+                    // Dejamos Apellidos vacío intencionalmente para que la vista
+                    // use solo Model.Nombres (que ya trae el nombre completo).
+                    Apellidos = "",
+
+                    // PERSONA (otros datos)
+                    NIT = e.EMPLEADONavigation.PERSONA_NIT,
+                    TelefonoCasa = e.EMPLEADONavigation.PERSONA_TELEFONOCASA,
                     DPI = e.EMPLEADONavigation.PERSONA_CUI,
                     Telefono = e.EMPLEADONavigation.PERSONA_TELEFONOMOVIL,
                     Correo = e.EMPLEADONavigation.PERSONA_CORREO,
                     Direccion = e.EMPLEADONavigation.PERSONA_DIRECCION,
 
                     // EMPLEADO
-                    // OJO: Si tu EmpleadoDetailsVM define DateTime, convierte aquí con ToDateTime(...)
                     EMPLEADO_FECHANACIMIENTO = e.EMPLEADO_FECHANACIMIENTO,
                     EMPLEADO_FECHAINGRESO = e.EMPLEADO_FECHAINGRESO,
                     EMPLEADO_GENERO = e.EMPLEADO_GENERO,
@@ -204,26 +259,27 @@ namespace CreArte.Controllers
                 .FirstOrDefaultAsync();
 
             if (vm == null) return NotFound();
-
             return PartialView("Details", vm);
         }
 
-        // =====================================
-        // CREATE (GET)
-        // =====================================
+        // ============================================================
+        // CREATE (GET) – RUTA: GET /Empleados/Create
+        // Muestra formulario con IDs generados y combos cargados.
+        // ============================================================
         [HttpGet]
         public async Task<IActionResult> Create()
         {
             var personaId = await SiguientePersonaIdAsync(); // PE + 8 dígitos
+
             var vm = new EmpleadoCreateVM
             {
                 // IDs (EMPLEADO_ID = PERSONA_ID)
                 EMPLEADO_ID = personaId,
                 PERSONA_ID = personaId,
 
-                // Defaults (VM usa DateTime? para inputs HTML)
-                //EMPLEADO_FECHAINGRESO = DateTime.Today,
-                //ESTADO = true,
+                // Defaults para el formulario (VM usa DateTime? en inputs)
+                EMPLEADO_FECHAINGRESO = DateTime.Today,
+                ESTADO = true,
 
                 // Combos
                 Puestos = await CargarPuestosAsync(),
@@ -233,94 +289,146 @@ namespace CreArte.Controllers
             return View(vm);
         }
 
-        // =====================================
-        // CREATE (POST) – Crea PERSONA + EMPLEADO
-        // =====================================
+        // ============================================================
+        // CREATE (POST) – RUTA: POST /Empleados/Create
+        // Crea PERSONA + EMPLEADO en 1 transacción.
+        // Convierte DateTime? (VM) -> DateOnly/DateOnly? (ENTIDAD).
+        // + Valida edad > 12 y unicidad de DPI/NIT.
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(EmpleadoCreateVM vm)
         {
-            // Re-asignamos IDs desde servidor por seguridad
+            // Recalcular IDs en servidor (seguridad)
             var personaId = await SiguientePersonaIdAsync();
             vm.PERSONA_ID = personaId;
             vm.EMPLEADO_ID = personaId; // EMPLEADO_ID == PERSONA_ID
 
-            if (!ModelState.IsValid)
-            {
-                vm.Puestos = await CargarPuestosAsync();
-                vm.Generos = GetGenerosSelect();
-                return View(vm);
-            }
+            // --------- VALIDACIONES DE LOS 10 CAMPOS OBLIGATORIOS ---------
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_PRIMERNOMBRE))
+                ModelState.AddModelError(nameof(vm.PERSONA_PRIMERNOMBRE), "El primer nombre es obligatorio.");
 
-            // Validar FK Puesto
-            bool puestoOk = await _context.PUESTO.AnyAsync(p => p.PUESTO_ID == vm.PUESTO_ID && !p.ELIMINADO && p.ESTADO);
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_PRIMERAPELLIDO))
+                ModelState.AddModelError(nameof(vm.PERSONA_PRIMERAPELLIDO), "El primer apellido es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_CUI))
+                ModelState.AddModelError(nameof(vm.PERSONA_CUI), "El CUI/DPI es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_TELEFONOMOVIL))
+                ModelState.AddModelError(nameof(vm.PERSONA_TELEFONOMOVIL), "El teléfono móvil es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_CORREO))
+                ModelState.AddModelError(nameof(vm.PERSONA_CORREO), "El correo es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_DIRECCION))
+                ModelState.AddModelError(nameof(vm.PERSONA_DIRECCION), "La dirección es obligatoria.");
+
+            if (string.IsNullOrWhiteSpace(vm.EMPLEADO_GENERO))
+                ModelState.AddModelError(nameof(vm.EMPLEADO_GENERO), "El género es obligatorio.");
+
+            if (!vm.EMPLEADO_FECHANACIMIENTO.HasValue)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_FECHANACIMIENTO), "La fecha de nacimiento es obligatoria.");
+
+            if (!vm.EMPLEADO_FECHAINGRESO.HasValue)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_FECHAINGRESO), "La fecha de ingreso es obligatoria.");
+
+            // Validar FK Puesto (activo y no eliminado)
+            bool puestoOk = !string.IsNullOrWhiteSpace(vm.PUESTO_ID)
+                            && await _context.PUESTO.AnyAsync(p => p.PUESTO_ID == vm.PUESTO_ID && !p.ELIMINADO && p.ESTADO);
             if (!puestoOk)
                 ModelState.AddModelError(nameof(vm.PUESTO_ID), "El puesto seleccionado no existe o no está activo.");
 
+            // ============================
+            // ✅ VALIDACIÓN DE EDAD > 12
+            // ============================
+            if (vm.EMPLEADO_FECHANACIMIENTO.HasValue && vm.EMPLEADO_FECHAINGRESO.HasValue)
+            {
+                DateTime fn = vm.EMPLEADO_FECHANACIMIENTO.Value.Date;
+                DateTime fi = vm.EMPLEADO_FECHAINGRESO.Value.Date;
+
+                int edad = fi.Year - fn.Year;
+                if (fi < fn.AddYears(edad)) edad--;
+                if (edad <= 12)
+                    ModelState.AddModelError(nameof(vm.EMPLEADO_FECHANACIMIENTO),
+                        "El empleado debe tener más de 12 años (≥ 13) a la fecha de ingreso.");
+            }
+
+            // ==========================================
+            // ✅ UNICIDAD: DPI/CUI y NIT (si hay valor)
+            // ==========================================
+            string dpiNorm = (vm.PERSONA_CUI ?? "").Trim();
+            if (!string.IsNullOrEmpty(dpiNorm))
+            {
+                bool dupDpi = await _context.PERSONA
+                    .AnyAsync(p => !p.ELIMINADO && p.PERSONA_CUI == dpiNorm);
+                if (dupDpi)
+                    ModelState.AddModelError(nameof(vm.PERSONA_CUI), "Ya existe un registro con este CUI/DPI.");
+            }
+
+            string nitNorm = (vm.PERSONA_NIT ?? "").Trim();
+            if (!string.IsNullOrEmpty(nitNorm))
+            {
+                bool dupNit = await _context.PERSONA
+                    .AnyAsync(p => !p.ELIMINADO && p.PERSONA_NIT == nitNorm);
+                if (dupNit)
+                    ModelState.AddModelError(nameof(vm.PERSONA_NIT), "Ya existe un registro con este NIT.");
+            }
+
+            // Si hay errores, recarga combos y retorna la vista
             if (!ModelState.IsValid)
             {
                 vm.Puestos = await CargarPuestosAsync();
                 vm.Generos = GetGenerosSelect();
                 return View(vm);
             }
+            // --------------------------------------------------------------
 
-            // Normalizar PERSONA (Ajusta propiedades a tu modelo real)
-            string nombres = (vm.Nombres ?? "").Trim();
-            string apellidos = (vm.Apellidos ?? "").Trim();
-            string? dpi = string.IsNullOrWhiteSpace(vm.DPI) ? null : vm.DPI.Trim();
-            string? tel = string.IsNullOrWhiteSpace(vm.Telefono) ? null : vm.Telefono.Trim();
-            string? corr = string.IsNullOrWhiteSpace(vm.Correo) ? null : vm.Correo.Trim();
-            string? dir = string.IsNullOrWhiteSpace(vm.Direccion) ? null : vm.Direccion.Trim();
+            // Normalización de strings -> null si vienen vacíos
+            string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
 
-            // Validaciones ejemplo (puedes ampliar)
-            if (string.IsNullOrWhiteSpace(nombres))
-                ModelState.AddModelError(nameof(vm.Nombres), "Los nombres son obligatorios.");
-            if (string.IsNullOrWhiteSpace(apellidos))
-                ModelState.AddModelError(nameof(vm.Apellidos), "Los apellidos son obligatorios.");
+            // Conversión de fechas del VM (DateTime?) a ENTIDAD (DateOnly)
+            DateOnly toDateOnly(DateTime dt) => DateOnly.FromDateTime(dt.Date);
+            DateOnly? toDateOnlyOrNull(DateTime? dt) => dt.HasValue ? DateOnly.FromDateTime(dt.Value.Date) : (DateOnly?)null;
 
-            if (!ModelState.IsValid)
-            {
-                vm.Puestos = await CargarPuestosAsync();
-                vm.Generos = GetGenerosSelect();
-                return View(vm);
-            }
-
-            // Transacción: insertar PERSONA y luego EMPLEADO
             using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Map VM -> PERSONA (ajusta a tu entidad real)
+                // -----------------------------
+                // 1) PERSONA (map completo)
+                // -----------------------------
                 var persona = new PERSONA
                 {
                     PERSONA_ID = personaId,
-                    PERSONA_PRIMERNOMBRE = nombres,
-                    PERSONA_PRIMERAPELLIDO = apellidos,
-                    PERSONA_CUI = dpi,
-                    PERSONA_TELEFONOMOVIL = tel,
-                    PERSONA_CORREO = corr,
-                    PERSONA_DIRECCION = dir,
-                    ESTADO = true,
+                    PERSONA_PRIMERNOMBRE = vm.PERSONA_PRIMERNOMBRE!.Trim(),
+                    PERSONA_SEGUNDONOMBRE = s2(vm.PERSONA_SEGUNDONOMBRE),
+                    PERSONA_TERCERNOMBRE = s2(vm.PERSONA_TERCERNOMBRE),
+                    PERSONA_PRIMERAPELLIDO = vm.PERSONA_PRIMERAPELLIDO!.Trim(),
+                    PERSONA_SEGUNDOAPELLIDO = s2(vm.PERSONA_SEGUNDOAPELLIDO),
+                    PERSONA_APELLIDOCASADA = s2(vm.PERSONA_APELLIDOCASADA),
+                    PERSONA_NIT = s2(vm.PERSONA_NIT),
+                    PERSONA_CUI = s2(vm.PERSONA_CUI),
+                    PERSONA_DIRECCION = s2(vm.PERSONA_DIRECCION),
+                    PERSONA_TELEFONOCASA = s2(vm.PERSONA_TELEFONOCASA),   // opcional
+                    PERSONA_TELEFONOMOVIL = s2(vm.PERSONA_TELEFONOMOVIL),
+                    PERSONA_CORREO = s2(vm.PERSONA_CORREO),
+
+                    ESTADO = vm.ESTADO,
                     ELIMINADO = false
                 };
                 _audit.StampCreate(persona);
                 _context.PERSONA.Add(persona);
                 await _context.SaveChangesAsync();
 
-                // Map VM -> EMPLEADO  (CONVERSIÓN DateTime? -> DateOnly/DateOnly?)
+                // -----------------------------
+                // 2) EMPLEADO (map + conversión fechas)
+                // -----------------------------
                 var empleado = new EMPLEADO
                 {
-                    EMPLEADO_ID = personaId, // igual que PERSONA
-
-                    // DateTime? -> DateOnly?
-                    //EMPLEADO_FECHANACIMIENTO = vm.EMPLEADO_FECHANACIMIENTO.HasValue
-                    //    ? DateOnly.FromDateTime(vm.EMPLEADO_FECHANACIMIENTO.Value)
-                    //    : (DateOnly?)null,
-                    EMPLEADO_FECHANACIMIENTO = vm.EMPLEADO_FECHANACIMIENTO!.Value,
-                    // DateTime? -> DateOnly (requerido)
-                    //EMPLEADO_FECHAINGRESO= DateOnly.FromDateTime(vm.EMPLEADO_FECHAINGRESO!.Value),
-                    EMPLEADO_FECHAINGRESO = vm.EMPLEADO_FECHAINGRESO!.Value,
-                    EMPLEADO_GENERO = vm.EMPLEADO_GENERO,
-                    PUESTO_ID = vm.PUESTO_ID,
+                    EMPLEADO_ID = personaId, // = PERSONA_ID
+                    EMPLEADO_FECHANACIMIENTO = toDateOnlyOrNull(vm.EMPLEADO_FECHANACIMIENTO),
+                    EMPLEADO_FECHAINGRESO = toDateOnly(vm.EMPLEADO_FECHAINGRESO!.Value),
+                    EMPLEADO_GENERO = s2(vm.EMPLEADO_GENERO),
+                    PUESTO_ID = vm.PUESTO_ID!,
                     ESTADO = vm.ESTADO,
                     ELIMINADO = false
                 };
@@ -330,9 +438,9 @@ namespace CreArte.Controllers
 
                 await tx.CommitAsync();
 
-                // PRG + SweetAlert (re-uso de tu patrón)
+                // PRG + SweetAlert
                 TempData["SwalTitle"] = "¡Empleado guardado!";
-                TempData["SwalText"] = $"El registro \"{nombres} {apellidos}\" se creó correctamente.";
+                TempData["SwalText"] = $"El registro \"{persona.PERSONA_PRIMERNOMBRE} {persona.PERSONA_PRIMERAPELLIDO}\" se creó correctamente.";
                 TempData["SwalIndexUrl"] = Url.Action("Index", "Empleados");
                 TempData["SwalCreateUrl"] = Url.Action("Create", "Empleados");
                 return RedirectToAction(nameof(Create));
@@ -347,9 +455,10 @@ namespace CreArte.Controllers
             }
         }
 
-        // =====================================
-        // EDIT (GET) – Edita PERSONA + EMPLEADO
-        // =====================================
+        // ============================================================
+        // EDIT (GET) – RUTA: GET /Empleados/Edit/{id}
+        // Carga PERSONA + EMPLEADO y convierte DateOnly -> DateTime? para inputs.
+        // ============================================================
         [HttpGet]
         public async Task<IActionResult> Edit(string id)
         {
@@ -362,28 +471,33 @@ namespace CreArte.Controllers
 
             if (e == null) return NotFound();
 
+            // Helper de conversión ENTIDAD (DateOnly) -> VM (DateTime?)
+            DateTime? toDateTimeOrNull(DateOnly? d) => d.HasValue ? d.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
+            DateTime toDateTime(DateOnly d) => d.ToDateTime(TimeOnly.MinValue);
+
             var vm = new EmpleadoCreateVM
             {
                 // IDs
                 EMPLEADO_ID = e.EMPLEADO_ID,
                 PERSONA_ID = e.EMPLEADO_ID,
 
-                // PERSONA (ajusta según tus columnas)
-                Nombres = e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE,
-                Apellidos = e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO,
-                DPI = e.EMPLEADONavigation.PERSONA_CUI,
-                Telefono = e.EMPLEADONavigation.PERSONA_TELEFONOMOVIL,
-                Correo = e.EMPLEADONavigation.PERSONA_CORREO,
-                Direccion = e.EMPLEADONavigation.PERSONA_DIRECCION,
+                // PERSONA (map completo)
+                PERSONA_PRIMERNOMBRE = e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE,
+                PERSONA_SEGUNDONOMBRE = e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE,
+                PERSONA_TERCERNOMBRE = e.EMPLEADONavigation.PERSONA_TERCERNOMBRE,
+                PERSONA_PRIMERAPELLIDO = e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO,
+                PERSONA_SEGUNDOAPELLIDO = e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO,
+                PERSONA_APELLIDOCASADA = e.EMPLEADONavigation.PERSONA_APELLIDOCASADA,
+                PERSONA_NIT = e.EMPLEADONavigation.PERSONA_NIT,
+                PERSONA_CUI = e.EMPLEADONavigation.PERSONA_CUI,
+                PERSONA_DIRECCION = e.EMPLEADONavigation.PERSONA_DIRECCION,
+                PERSONA_TELEFONOCASA = e.EMPLEADONavigation.PERSONA_TELEFONOCASA,   // <-- Teléfono Casa
+                PERSONA_TELEFONOMOVIL = e.EMPLEADONavigation.PERSONA_TELEFONOMOVIL,
+                PERSONA_CORREO = e.EMPLEADONavigation.PERSONA_CORREO,
 
-                // EMPLEADO  (CONVERSIÓN DateOnly -> DateTime? para inputs)
-                //EMPLEADO_FECHANACIMIENTO = e.EMPLEADO_FECHANACIMIENTO.HasValue
-                //    ? e.EMPLEADO_FECHANACIMIENTO.Value.ToDateTime(TimeOnly.MinValue)
-                //    : (DateTime?)null,
-                EMPLEADO_FECHANACIMIENTO = e.EMPLEADO_FECHANACIMIENTO,
-
-                //EMPLEADO_FECHAINGRESO = e.EMPLEADO_FECHAINGRESO.ToDateTime(TimeOnly.MinValue),
-                EMPLEADO_FECHAINGRESO = e.EMPLEADO_FECHAINGRESO,
+                // EMPLEADO (DateOnly -> DateTime? para inputs)
+                EMPLEADO_FECHANACIMIENTO = toDateTimeOrNull(e.EMPLEADO_FECHANACIMIENTO),
+                EMPLEADO_FECHAINGRESO = toDateTime(e.EMPLEADO_FECHAINGRESO),
                 EMPLEADO_GENERO = e.EMPLEADO_GENERO,
                 PUESTO_ID = e.PUESTO_ID,
                 ESTADO = e.ESTADO,
@@ -396,110 +510,149 @@ namespace CreArte.Controllers
             return View(vm);
         }
 
-        // =====================================
-        // EDIT (POST) – Actualiza PERSONA + EMPLEADO
-        // =====================================
+        // ============================================================
+        // EDIT (POST) – RUTA: POST /Empleados/Edit/{id}
+        // Actualiza PERSONA + EMPLEADO. Convierte DateTime? (VM) -> DateOnly.
+        // + Valida edad > 12 y unicidad de DPI/NIT (excluyendo el propio registro).
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(string id, EmpleadoCreateVM vm)
         {
             if (id != vm.EMPLEADO_ID) return NotFound();
 
+            // --------- VALIDACIONES DE LOS 10 CAMPOS OBLIGATORIOS ---------
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_PRIMERNOMBRE))
+                ModelState.AddModelError(nameof(vm.PERSONA_PRIMERNOMBRE), "El primer nombre es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_PRIMERAPELLIDO))
+                ModelState.AddModelError(nameof(vm.PERSONA_PRIMERAPELLIDO), "El primer apellido es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_CUI))
+                ModelState.AddModelError(nameof(vm.PERSONA_CUI), "El CUI/DPI es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_TELEFONOMOVIL))
+                ModelState.AddModelError(nameof(vm.PERSONA_TELEFONOMOVIL), "El teléfono móvil es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_CORREO))
+                ModelState.AddModelError(nameof(vm.PERSONA_CORREO), "El correo es obligatorio.");
+
+            if (string.IsNullOrWhiteSpace(vm.PERSONA_DIRECCION))
+                ModelState.AddModelError(nameof(vm.PERSONA_DIRECCION), "La dirección es obligatoria.");
+
+            if (string.IsNullOrWhiteSpace(vm.EMPLEADO_GENERO))
+                ModelState.AddModelError(nameof(vm.EMPLEADO_GENERO), "El género es obligatorio.");
+
+            if (!vm.EMPLEADO_FECHANACIMIENTO.HasValue)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_FECHANACIMIENTO), "La fecha de nacimiento es obligatoria.");
+
+            if (!vm.EMPLEADO_FECHAINGRESO.HasValue)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_FECHAINGRESO), "La fecha de ingreso es obligatoria.");
+
+            // Validar FK Puesto (activo y no eliminado)
+            bool puestoOk = !string.IsNullOrWhiteSpace(vm.PUESTO_ID)
+                            && await _context.PUESTO.AnyAsync(p => p.PUESTO_ID == vm.PUESTO_ID && !p.ELIMINADO && p.ESTADO);
+            if (!puestoOk)
+                ModelState.AddModelError(nameof(vm.PUESTO_ID), "El puesto seleccionado no existe o no está activo.");
+
+            // ============================
+            // ✅ VALIDACIÓN DE EDAD > 12
+            // ============================
+            if (vm.EMPLEADO_FECHANACIMIENTO.HasValue && vm.EMPLEADO_FECHAINGRESO.HasValue)
+            {
+                DateTime fn = vm.EMPLEADO_FECHANACIMIENTO.Value.Date;
+                DateTime fi = vm.EMPLEADO_FECHAINGRESO.Value.Date;
+
+                int edad = fi.Year - fn.Year;
+                if (fi < fn.AddYears(edad)) edad--;
+                if (edad <= 12)
+                    ModelState.AddModelError(nameof(vm.EMPLEADO_FECHANACIMIENTO),
+                        "El empleado debe tener más de 12 años (≥ 13) a la fecha de ingreso.");
+            }
+
+            // ==========================================
+            // ✅ UNICIDAD: DPI/CUI y NIT (excluye propio)
+            // ==========================================
+            string dpiNorm = (vm.PERSONA_CUI ?? "").Trim();
+            if (!string.IsNullOrEmpty(dpiNorm))
+            {
+                bool dupDpi = await _context.PERSONA
+                    .AnyAsync(p => !p.ELIMINADO && p.PERSONA_CUI == dpiNorm && p.PERSONA_ID != id);
+                if (dupDpi)
+                    ModelState.AddModelError(nameof(vm.PERSONA_CUI), "Ya existe un registro con este CUI/DPI.");
+            }
+
+            string nitNorm = (vm.PERSONA_NIT ?? "").Trim();
+            if (!string.IsNullOrEmpty(nitNorm))
+            {
+                bool dupNit = await _context.PERSONA
+                    .AnyAsync(p => !p.ELIMINADO && p.PERSONA_NIT == nitNorm && p.PERSONA_ID != id);
+                if (dupNit)
+                    ModelState.AddModelError(nameof(vm.PERSONA_NIT), "Ya existe un registro con este NIT.");
+            }
+
             if (!ModelState.IsValid)
             {
                 vm.Puestos = await CargarPuestosAsync();
                 vm.Generos = GetGenerosSelect();
                 return View(vm);
             }
+            // --------------------------------------------------------------
 
             var emp = await _context.EMPLEADO
                 .Include(x => x.EMPLEADONavigation)
                 .FirstOrDefaultAsync(x => x.EMPLEADO_ID == id && !x.ELIMINADO);
             if (emp == null) return NotFound();
 
-            // Validar FK Puesto
-            bool puestoOk = await _context.PUESTO.AnyAsync(p => p.PUESTO_ID == vm.PUESTO_ID && !p.ELIMINADO && p.ESTADO);
-            if (!puestoOk)
-                ModelState.AddModelError(nameof(vm.PUESTO_ID), "El puesto seleccionado no existe o no está activo.");
+            // Normalización de strings -> null si vienen vacíos
+            string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
 
-            // Normalizar PERSONA
-            string nombres = (vm.Nombres ?? "").Trim();
-            string apellidos = (vm.Apellidos ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(nombres))
-                ModelState.AddModelError(nameof(vm.Nombres), "Los nombres son obligatorios.");
-            if (string.IsNullOrWhiteSpace(apellidos))
-                ModelState.AddModelError(nameof(vm.Apellidos), "Los apellidos son obligatorios.");
+            // Conversión VM -> ENTIDAD
+            DateOnly toDateOnly(DateTime dt) => DateOnly.FromDateTime(dt.Date);
+            DateOnly? toDateOnlyOrNull(DateTime? dt) => dt.HasValue ? DateOnly.FromDateTime(dt.Value.Date) : (DateOnly?)null;
 
-            if (!ModelState.IsValid)
-            {
-                vm.Puestos = await CargarPuestosAsync();
-                vm.Generos = GetGenerosSelect();
-                return View(vm);
-            }
+            // -----------------------------
+            // PERSONA (aplicar cambios)
+            // -----------------------------
+            emp.EMPLEADONavigation.PERSONA_PRIMERNOMBRE = vm.PERSONA_PRIMERNOMBRE!.Trim();
+            emp.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE = s2(vm.PERSONA_SEGUNDONOMBRE);
+            emp.EMPLEADONavigation.PERSONA_TERCERNOMBRE = s2(vm.PERSONA_TERCERNOMBRE);
+            emp.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO = vm.PERSONA_PRIMERAPELLIDO!.Trim();
+            emp.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO = s2(vm.PERSONA_SEGUNDOAPELLIDO);
+            emp.EMPLEADONavigation.PERSONA_APELLIDOCASADA = s2(vm.PERSONA_APELLIDOCASADA);
+            emp.EMPLEADONavigation.PERSONA_NIT = s2(vm.PERSONA_NIT);
+            emp.EMPLEADONavigation.PERSONA_CUI = s2(vm.PERSONA_CUI);
+            emp.EMPLEADONavigation.PERSONA_DIRECCION = s2(vm.PERSONA_DIRECCION);
+            emp.EMPLEADONavigation.PERSONA_TELEFONOCASA = s2(vm.PERSONA_TELEFONOCASA); // opcional
+            emp.EMPLEADONavigation.PERSONA_TELEFONOMOVIL = s2(vm.PERSONA_TELEFONOMOVIL);
+            emp.EMPLEADONavigation.PERSONA_CORREO = s2(vm.PERSONA_CORREO);
+            emp.EMPLEADONavigation.ESTADO = vm.ESTADO;
 
-            // Detectar cambios (conversión VM DateTime? -> DateOnly/DateOnly? para comparar)
-            bool hayCambios =
-                // PERSONA
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_PRIMERNOMBRE, nombres) ||
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO, apellidos) ||
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_CUI, vm.DPI) ||
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_TELEFONOMOVIL, vm.Telefono) ||
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_CORREO, vm.Correo) ||
-                !string.Equals(emp.EMPLEADONavigation.PERSONA_DIRECCION, vm.Direccion) ||
-                // EMPLEADO
-                emp.EMPLEADO_FECHANACIMIENTO != (
-                    //vm.EMPLEADO_FECHANACIMIENTO.HasValue
-                    //    ? DateOnly.FromDateTime(vm.EMPLEADO_FECHANACIMIENTO.Value)
-                    //    : (DateOnly?)null
-                    vm.EMPLEADO_FECHANACIMIENTO!.Value
-                ) ||
-                //emp.EMPLEADO_FECHAINGRESO != DateOnly.FromDateTime(vm.EMPLEADO_FECHAINGRESO!.Value) ||
-                emp.EMPLEADO_FECHAINGRESO != vm.EMPLEADO_FECHAINGRESO!.Value ||
-                emp.PUESTO_ID != vm.PUESTO_ID ||
-                emp.EMPLEADO_GENERO != vm.EMPLEADO_GENERO ||
-                emp.ESTADO != vm.ESTADO;
-
-            if (!hayCambios)
-            {
-                TempData["SwalOneBtnFlag"] = "nochange";
-                TempData["SwalTitle"] = "Sin cambios";
-                TempData["SwalText"] = "No se modificó ningún dato.";
-                return RedirectToAction(nameof(Edit), new { id });
-            }
-
-            // Aplicar cambios (asignaciones con conversión a DateOnly/DateOnly?)
-            emp.EMPLEADONavigation.PERSONA_PRIMERNOMBRE = nombres;
-            emp.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO = apellidos;
-            emp.EMPLEADONavigation.PERSONA_CUI = string.IsNullOrWhiteSpace(vm.DPI) ? null : vm.DPI!.Trim();
-            emp.EMPLEADONavigation.PERSONA_TELEFONOMOVIL = string.IsNullOrWhiteSpace(vm.Telefono) ? null : vm.Telefono!.Trim();
-            emp.EMPLEADONavigation.PERSONA_CORREO = string.IsNullOrWhiteSpace(vm.Correo) ? null : vm.Correo!.Trim();
-            emp.EMPLEADONavigation.PERSONA_DIRECCION = string.IsNullOrWhiteSpace(vm.Direccion) ? null : vm.Direccion!.Trim();
-
-            //emp.EMPLEADO_FECHANACIMIENTO = vm.EMPLEADO_FECHANACIMIENTO.HasValue
-            //    ? DateOnly.FromDateTime(vm.EMPLEADO_FECHANACIMIENTO.Value)
-            //    : (DateOnly?)null;
-            emp.EMPLEADO_FECHANACIMIENTO = vm.EMPLEADO_FECHANACIMIENTO!.Value;
-
-            //emp.EMPLEADO_FECHAINGRESO = DateOnly.FromDateTime(vm.EMPLEADO_FECHAINGRESO!.Value);
-            emp.EMPLEADO_FECHAINGRESO = vm.EMPLEADO_FECHAINGRESO!.Value;
-            emp.EMPLEADO_GENERO = vm.EMPLEADO_GENERO;
+            // -----------------------------
+            // EMPLEADO (aplicar cambios)
+            // -----------------------------
+            emp.EMPLEADO_FECHANACIMIENTO = toDateOnlyOrNull(vm.EMPLEADO_FECHANACIMIENTO);
+            emp.EMPLEADO_FECHAINGRESO = toDateOnly(vm.EMPLEADO_FECHAINGRESO!.Value);
+            emp.EMPLEADO_GENERO = s2(vm.EMPLEADO_GENERO);
             emp.PUESTO_ID = vm.PUESTO_ID!;
             emp.ESTADO = vm.ESTADO;
 
             // Auditoría
             _audit.StampUpdate(emp.EMPLEADONavigation);
             _audit.StampUpdate(emp);
+
             await _context.SaveChangesAsync();
 
             TempData["SwalOneBtnFlag"] = "updated";
             TempData["SwalTitle"] = "¡Empleado actualizado!";
-            TempData["SwalText"] = $"\"{nombres} {apellidos}\" se actualizó correctamente.";
+            TempData["SwalText"] = $"\"{emp.EMPLEADONavigation.PERSONA_PRIMERNOMBRE} {emp.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO}\" se actualizó correctamente.";
             return RedirectToAction(nameof(Edit), new { id = emp.EMPLEADO_ID });
         }
 
+
         // ============================================================
         // DELETE (GET/POST) – Borrado lógico del EMPLEADO
-        // (No elimina PERSONA para preservar integridad y reutilización)
+        // (No elimina PERSONA para preservar integridad)
         // ============================================================
         public async Task<IActionResult> Delete(string id)
         {
