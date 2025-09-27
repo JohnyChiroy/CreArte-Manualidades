@@ -1,29 +1,16 @@
 ﻿@{
     var usuario = ViewBag.Nombre as string ?? "Usuario";
     Layout = null; // este es un layout raíz
-}
 
+    // 1) Si una vista puso un título específico, úsalo primero.
+    var overrideTitle = ViewData["HeaderTitle"] as string;
 
-    <!-- Header superior -->
-    <header class="app-header">
-        <button class="btn-icon" id="btnToggle">
-            <i class="bi bi-list"></i>
-        </button>
+    // 2) Obtiene el nombre del controlador actual desde el contexto de la vista.
+    var ctrl = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
-    @* ---------------------------
-   Encabezado dinámico del módulo
-   --------------------------- *@
-    @{
-        // 1) Si una vista puso un título específico, úsalo primero.
-        var overrideTitle = ViewData["HeaderTitle"] as string;
-
-        // 2) Obtiene el nombre del controlador actual desde el contexto de la vista.
-        var ctrl = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
-
-        // 3) Mapa de Controlador -> Título a mostrar en el header.
-        //    Ajusta las claves a los nombres EXACTOS de tus controladores.
-        var modulos = new Dictionary<string, string>
-        {
+    // 3) Mapa de Controlador -> Título a mostrar en el header.
+    var modulos = new Dictionary<string, string>
+    {
         { "home", "Bienvenido" },
         { "usuarios", "Usuarios" },
         { "ventas", "Ventas" },
@@ -40,21 +27,39 @@
         { "niveles", "Niveles" },
         { "roles", "Roles" },
         { "categorías", "Categorías" },
+        { "subcategorías", "SubCategorías" },
         { "empresa", "Empresa" }
-        };
+    };
 
-        // 4) Si no hay override, usa el mapa por controlador; si no existe, cae a "Bienvenido".
-        var headerTitle = !string.IsNullOrWhiteSpace(overrideTitle)
+    // 4) Si no hay override, usa el mapa por controlador; si no existe, cae a "Bienvenido".
+    var headerTitle = !string.IsNullOrWhiteSpace(overrideTitle)
         ? overrideTitle
         : (modulos.ContainsKey(ctrl) ? modulos[ctrl] : "Bienvenido");
-    }
+}
+
+<!-- Header superior -->
+<header class="app-header">
+    <!-- Grupo de acciones de la izquierda -->
+    <div class="app-actions">
+        <!-- Botón toggle sidebar -->
+        <button class="btn-icon" id="btnToggle" title="Mostrar/ocultar menú">
+            <i class="bi bi-text-indent-right"></i>
+        </button>
+
+        <!-- Botón Home -->
+        <a class="btn-icon" id="btnHome" title="Inicio" asp-controller="Home" asp-action="Index">
+            <i class="bi bi-house-fill"></i>
+        </a>
+    </div>
+
+    <!-- Título dinámico -->
     <h1 class="ua-header-title app-title">@headerTitle</h1>
 
-
-        <div class="app-user">
-            <span class="user-name">@usuario</span>
-            <a class="btn-icon" title="Cerrar sesión" href="@Url.Action("Logout", "Login")">
-                <i class="bi bi-box-arrow-right"></i>
-            </a>
-        </div>
-    </header>
+    <!-- Usuario / Logout -->
+    <div class="app-user">
+        <span class="user-name">@usuario</span>
+        <a class="btn-icon" title="Cerrar sesión" href="@Url.Action("Logout", "Login")">
+            <i class="bi bi-door-open-fill"></i>
+        </a>
+    </div>
+</header>

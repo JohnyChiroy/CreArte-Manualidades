@@ -1,4 +1,4 @@
-/* ============================
+Ôªø/* ============================
    Paleta CreArte
    ============================ */
 :root {
@@ -153,19 +153,45 @@ body.sidebar-collapsed .sidebar-title {
         .app-sidebar .nav-item.is-active i {
             color: black;
         }
-/* icono blanco cuando est· activo */
+/* icono blanco cuando est√° activo */
 
 
-/* ===== Subopciones: MISMO estilo base que .nav-item, solo agregamos sangrÌa ===== */
+/* ===== Subopciones: MISMO estilo base que .nav-item, solo agregamos sangr√≠a ===== */
 .nav-item--sub{
     /* hereda color, background, hover y active de .nav-item */
-    padding-left: 1rem;         /* sangrÌa adicional para diferenciar jerarquÌa */
+    padding-left: 1rem;         /* sangr√≠a adicional para diferenciar jerarqu√≠a */
     position: relative;
 }
 
-/* ÕCONO en subopciones: tamaÒo y separaciÛn acordes */
+/* √çCONO en subopciones: tama√±o y separaci√≥n acordes */
     .nav-item--sub > i {
-        font-size: 1rem; /* ligeramente menor si tus Ìtems superiores usan 1.1ñ1.2rem */
-        margin-right: .1rem; /* espacio entre Ìcono y texto */
+        font-size: 1rem; /* ligeramente menor si tus √≠tems superiores usan 1.1‚Äì1.2rem */
+        margin-right: .1rem; /* espacio entre √≠cono y texto */
         line-height: 1;
     }
+
+    /* Hover sutil para botones del header */
+.app-header .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.15); /* un blanco transl√∫cido */
+    border-radius: 8px;
+    transition: background 0.2s ease-in-out;
+}
+
+/* Evitar que el t√≠tulo se comprima demasiado */
+.app-title {
+    text-align: center;
+    margin: 0;
+    font-weight: 700;
+    min-width: 120px;   /* garantiza espacio m√≠nimo */
+    white-space: nowrap; /* evita salto de l√≠nea */
+    overflow: hidden;    /* evita overflow raro */
+    text-overflow: ellipsis; /* agrega "..." si fuera necesario */
+}
+
+/* Grupo de acciones de la izquierda */
+.app-actions {
+    display: flex; /* coloca los botones en fila */
+    flex-direction: row; /* asegura que est√©n lado a lado */
+    align-items: center; /* centrados verticalmente */
+    gap: 12px; /* espacio entre botones */
+}

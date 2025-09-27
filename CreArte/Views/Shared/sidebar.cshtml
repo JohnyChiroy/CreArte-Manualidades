@@ -18,8 +18,8 @@
     <!-- Items del menú -->
     <nav class="sidebar-nav">
         <!-- Caja -->
-        <a asp-controller="Home" asp-action="Index"
-           class="nav-item @(currentController == "home" ? "is-active" : "")">
+        <a asp-controller="Caja" asp-action="Index"
+           class="nav-item @(currentController == "Caja" ? "is-active" : "")">
             <i class="bi bi-cash-stack"></i> <span>Caja</span>
         </a>
 
@@ -132,7 +132,13 @@
             <!-- Categorías -->
             <a asp-controller="Categorias" asp-action="Index"
                class="nav-item nav-item--sub @(currentController == "categorias" ? "is-active" : "")">
-                <i class="bi bi-tags"></i> <span>Categorías</span>
+                <i class="bi bi-tag"></i> <span>Categorías</span>
+            </a>
+
+            <!-- Categorías -->
+            <a asp-controller="SubCategorias" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "subcategorías" ? "is-active" : "")">
+                <i class="bi bi-tags"></i> <span>SubCategorías</span>
             </a>
 
             <!-- Empresa -->

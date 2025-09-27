@@ -1,738 +1,584 @@
-﻿using CreArte.Data;
+﻿// ===============================================
+// RUTA: Controllers/UsuariosController.cs
+// DESCRIPCIÓN: CRUD de USUARIO con filtros, orden,
+// paginación y auditoría. Control de contraseñas
+// con PBKDF2 + SALT (USUARIO_CONTRASENA, USUARIO_SALT).
+// ===============================================
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial;
-
+using CreArte.Services.Auditoria; // IAuditoriaService
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Security.Cryptography; // <-- Para SALT + SHA-256
-using System.Text;
 
 namespace CreArte.Controllers
 {
     public class UsuariosController : Controller
     {
         private readonly CreArteDbContext _context;
+        private readonly IAuditoriaService _audit;
 
-        public UsuariosController(CreArteDbContext context)
+        public UsuariosController(CreArteDbContext context, IAuditoriaService audit)
         {
             _context = context;
+            _audit = audit;
         }
-        //public IActionResult Index()
-        //{
-        //    // Traemos de sesión el nombre que guardaste al hacer login
-        //    ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Usuario";
-        //    return View(); // Views/Home/Index.cshtml
-        //}
 
         // ============================================================
-        // LISTADO (queda como lo tenías, sólo se mantiene tal cual)
-        // Ruta: GET /Usuarios?Search=...&Rol=...&Estado=... etc.
+        // LISTADO – GET /Usuarios?Search=&Rol=&FechaInicio=&FechaFin=&Estado=&Sort=&Dir=&Page=&PageSize=
+        // ▸ Filtros: búsqueda global (ID/Usuario/Empleado/Correo), Rol, rango de fecha de registro, Estado
+        // ▸ Orden: id | usuario | fecha | rol | estado
+        // ▸ Paginación
         // ============================================================
-        public async Task<IActionResult> Index([FromQuery] UsuarioListaViewModels vm)
+        [HttpGet]
+        public async Task<IActionResult> Index(
+            string? Search,
+            string? Rol,
+            DateTime? FechaInicio,       // rango de USUARIO_FECHAREGISTRO (>=)
+            DateTime? FechaFin,          // rango de USUARIO_FECHAREGISTRO (<=)
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc",
+            int Page = 1,
+            int PageSize = 10)
         {
-            string usuarioFiltro = vm?.Usuario;
-            if (string.IsNullOrWhiteSpace(usuarioFiltro))
-                usuarioFiltro = HttpContext?.Request?.Query["Usuario"].ToString();
-
-            var q = _context.USUARIO
+            // 1) Base de consulta: usuarios no eliminados
+            IQueryable<USUARIO> q = _context.USUARIO
                 .AsNoTracking()
+                .Where(u => !u.ELIMINADO);
+
+            // 2) Búsqueda global
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+                q = q.Where(u =>
+                    EF.Functions.Like(u.USUARIO_ID, $"%{s}%") ||
+                    EF.Functions.Like(u.USUARIO_NOMBRE, $"%{s}%") ||
+                    EF.Functions.Like(u.USUARIO_CORREO ?? "", $"%{s}%") ||
+                    // Nombre de rol
+                    EF.Functions.Like(u.ROL.ROL_NOMBRE, $"%{s}%") ||
+                    // Nombre completo de empleado (concatenado)
+                    EF.Functions.Like(
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    )
+                );
+            }
+
+            // 3) Filtro por Rol (acepta ID o nombre parcial)
+            if (!string.IsNullOrWhiteSpace(Rol))
+            {
+                string r = Rol.Trim();
+                q = q.Where(u =>
+                    u.ROL_ID == r ||
+                    EF.Functions.Like(u.ROL.ROL_NOMBRE, $"%{r}%"));
+            }
+
+            // 4) Rango de fecha de registro (USUARIO_FECHAREGISTRO)
+            if (FechaInicio.HasValue)
+            {
+                var fi = FechaInicio.Value.Date;
+                q = q.Where(u => u.USUARIO_FECHAREGISTRO >= fi);
+            }
+            if (FechaFin.HasValue)
+            {
+                var ff = FechaFin.Value.Date.AddDays(1).AddTicks(-1); // hasta el final del día
+                q = q.Where(u => u.USUARIO_FECHAREGISTRO <= ff);
+            }
+
+            // 5) Estado
+            if (Estado.HasValue)
+                q = q.Where(u => u.ESTADO == Estado.Value);
+
+            // 6) Orden
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc ? q.OrderBy(u => u.USUARIO_ID) : q.OrderByDescending(u => u.USUARIO_ID),
+                "usuario" => asc ? q.OrderBy(u => u.USUARIO_NOMBRE) : q.OrderByDescending(u => u.USUARIO_NOMBRE),
+                "fecha" => asc ? q.OrderBy(u => u.USUARIO_FECHAREGISTRO) : q.OrderByDescending(u => u.USUARIO_FECHAREGISTRO),
+                "rol" => asc ? q.OrderBy(u => u.ROL.ROL_NOMBRE) : q.OrderByDescending(u => u.ROL.ROL_NOMBRE),
+                "estado" => asc ? q.OrderBy(u => u.ESTADO) : q.OrderByDescending(u => u.ESTADO),
+                _ => asc ? q.OrderBy(u => u.FECHA_CREACION) : q.OrderByDescending(u => u.FECHA_CREACION),
+            };
+
+            // 7) Paginación
+            int total = await q.CountAsync();
+            int totalPages = (int)Math.Ceiling(total / (double)PageSize);
+            if (Page < 1) Page = 1;
+            if (Page > totalPages && totalPages > 0) Page = totalPages;
+
+            // 8) Include para mostrar datos de rol y empleado(persona)
+            var items = await q
                 .Include(u => u.ROL)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(vm.Search))
-            {
-                var term = vm.Search.Trim();
-                q = q.Where(u => u.USUARIO_ID.Contains(term) ||
-                                 u.USUARIO_NOMBRE.Contains(term));
-            }
-
-            if (!string.IsNullOrEmpty(usuarioFiltro))
-            {
-                if (usuarioFiltro == "__BLANKS__")
-                    q = q.Where(u => string.IsNullOrEmpty(u.USUARIO_NOMBRE));
-                else if (usuarioFiltro == "__NONBLANKS__")
-                    q = q.Where(u => !string.IsNullOrEmpty(u.USUARIO_NOMBRE));
-                else
-                {
-                    var name = usuarioFiltro.Trim();
-                    q = q.Where(u => u.USUARIO_NOMBRE.Contains(name));
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(vm.Rol))
-            {
-                var rolTerm = vm.Rol.Trim();
-                q = q.Where(u => u.ROL_ID == rolTerm ||
-                                (u.ROL != null && u.ROL.ROL_NOMBRE == rolTerm));
-            }
-
-            if (vm.Estado.HasValue)
-                q = q.Where(u => u.ESTADO == vm.Estado.Value);
-
-            if (vm.FechaInicio.HasValue)
-            {
-                var desde = vm.FechaInicio.Value.Date;
-                q = q.Where(u => u.FECHA_CREACION >= desde);
-            }
-            if (vm.FechaFin.HasValue)
-            {
-                var hasta = vm.FechaFin.Value.Date.AddDays(1).AddTicks(-1);
-                q = q.Where(u => u.FECHA_CREACION <= hasta);
-            }
-
-            vm.TotalItems = await q.CountAsync();
-
-            var sort = (vm.Sort ?? "id").ToLower();
-            var dir = (vm.Dir ?? "desc").ToLower();
-            bool asc = dir == "asc";
-
-            IQueryable<USUARIO> ApplyOrder(IQueryable<USUARIO> src)
-            {
-                switch (sort)
-                {
-                    case "id": return asc ? src.OrderBy(u => u.USUARIO_ID) : src.OrderByDescending(u => u.USUARIO_ID);
-                    case "usuario": return asc ? src.OrderBy(u => u.USUARIO_NOMBRE) : src.OrderByDescending(u => u.USUARIO_NOMBRE);
-                    case "rol":
-                        return asc ? src.OrderBy(u => u.ROL != null ? u.ROL.ROL_NOMBRE : "")
-                                               : src.OrderByDescending(u => u.ROL != null ? u.ROL.ROL_NOMBRE : "");
-                    case "estado": return asc ? src.OrderBy(u => u.ESTADO) : src.OrderByDescending(u => u.ESTADO);
-                    case "fecha":
-                    default: return asc ? src.OrderBy(u => u.FECHA_CREACION) : src.OrderByDescending(u => u.FECHA_CREACION);
-                }
-            }
-            q = ApplyOrder(q);
-
-            vm.Page = vm.Page <= 0 ? 1 : vm.Page;
-            vm.PageSize = vm.PageSize <= 0 ? 10 : vm.PageSize;
-            var skip = (vm.Page - 1) * vm.PageSize;
-
-            vm.Items = await q.Skip(skip).Take(vm.PageSize).ToListAsync();
-            vm.TotalPages = (int)Math.Ceiling((double)vm.TotalItems / vm.PageSize);
-
-            ViewBag.Roles = await _context.ROL
-                .AsNoTracking()
-                .OrderBy(r => r.ROL_NOMBRE)
-                .Select(r => r.ROL_NOMBRE)
+                .Include(u => u.EMPLEADO).ThenInclude(e => e.EMPLEADONavigation)
+                .Skip((Page - 1) * PageSize)
+                .Take(PageSize)
                 .ToListAsync();
 
-            vm.Usuario = usuarioFiltro;
+            var vm = new UsuarioViewModels
+            {
+                Items = items,
+                Search = Search,
+                Rol = Rol,
+                FechaInicio = FechaInicio,
+                FechaFin = FechaFin,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = Page,
+                PageSize = PageSize,
+                TotalItems = total,
+                TotalPages = totalPages
+            };
+
             return View(vm);
         }
 
         // ============================================================
-        // DETALLES (sin cambios relevantes)
-        // Ruta: GET /Usuarios/Details/{id}
+        // DETAILS (Partial para modal) – GET /Usuarios/DetailsCard?id=...
+        // ▸ Devuelve datos del usuario + rol + empleado (nombre completo)
         // ============================================================
-        public async Task<IActionResult> Details(string id)
+        [HttpGet]
+        public async Task<IActionResult> DetailsCard(string id)
         {
-            if (id == null) return NotFound();
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest("Falta el id.");
 
-            var uSUARIO = await _context.USUARIO
-                .Include(u => u.EMPLEADO)
+            var vm = await _context.USUARIO
+                .AsNoTracking()
                 .Include(u => u.ROL)
-                .FirstOrDefaultAsync(m => m.USUARIO_ID == id);
+                .Include(u => u.EMPLEADO).ThenInclude(e => e.EMPLEADONavigation)
+                .Where(u => u.USUARIO_ID == id && !u.ELIMINADO)
+                .Select(u => new UsuarioDetailsVM
+                {
+                    USUARIO_ID = u.USUARIO_ID,
+                    USUARIO_NOMBRE = u.USUARIO_NOMBRE,
+                    USUARIO_CORREO = u.USUARIO_CORREO,
+                    USUARIO_FECHAREGISTRO = u.USUARIO_FECHAREGISTRO,
+                    USUARIO_CAMBIOINICIAL = u.USUARIO_CAMBIOINICIAL,
+                    ESTADO = u.ESTADO,
 
-            if (uSUARIO == null) return NotFound();
-            return View(uSUARIO);
+                    ROL_ID = u.ROL_ID,
+                    ROL_NOMBRE = u.ROL.ROL_NOMBRE,
+
+                    EMPLEADO_ID = u.EMPLEADO_ID,
+                    EMPLEADO_NOMBRE_COMPLETO =
+                        (
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                            (u.EMPLEADO.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? "")
+                        ).Trim(),
+
+                    // Auditoría
+                    FECHA_CREACION = u.FECHA_CREACION,
+                    USUARIO_CREACION = u.USUARIO_CREACION,
+                    FECHA_MODIFICACION = u.FECHA_MODIFICACION,
+                    USUARIO_MODIFICACION = u.USUARIO_MODIFICACION
+                })
+                .FirstOrDefaultAsync();
+
+            if (vm == null) return NotFound();
+            return PartialView("Details", vm); // Views/Usuarios/Details.cshtml (parcial)
         }
 
-        // =========================================================
-        // GET: /Usuarios/Create
-        // - Genera el USUARIO_ID (ej. U00001)
-        // - Pone ESTADO = true
-        // - Llena combos Rol/Empleado
-        // =========================================================
+        // ============================================================
+        // CREATE (GET) – GET /Usuarios/Create
+        // ▸ Genera ID (US + 8 dígitos) y carga combos Rol/Empleado
+        // ============================================================
+        [HttpGet]
         public async Task<IActionResult> Create()
         {
-            var model = new USUARIO
+            var nextId = await SiguienteUsuarioIdAsync();
+
+            var vm = new UsuarioCreateVM
             {
-                USUARIO_ID = await ObtenerSiguienteUsuarioIdAsync(),
+                USUARIO_ID = nextId,
                 ESTADO = true,
-                ELIMINADO = false
+                USUARIO_CAMBIOINICIAL = true, // por política: forzar cambio inicial
+
+                Roles = await CargarRolesAsync(),
+                Empleados = await CargarEmpleadosAsync()
             };
 
-            await CargarCombosAsync(null, null);
-            return View(model);
-        }
-
-        // =========================================================
-        // POST: /Usuarios/Create
-        // - Recibe: USUARIO (campos visibles) + PwdPlain + PwdPlainConfirm
-        // - Valida reglas de contraseña (mismas que en tu JS)
-        // - Calcula SALT + SHA-256(SALT||UTF8(password))
-        // - Completa auditoría y guarda
-        // =========================================================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(
-            // Bindea solo los campos visibles/seguros de la vista
-            [Bind("USUARIO_ID,USUARIO_NOMBRE,ROL_ID,EMPLEADO_ID,ESTADO")] USUARIO usuario,
-            string PwdPlain,
-            string PwdPlainConfirm)
-        {
-            // 1) Validaciones básicas del modelo
-            if (string.IsNullOrWhiteSpace(usuario.USUARIO_ID))
-                ModelState.AddModelError(nameof(usuario.USUARIO_ID), "El código es requerido.");
-            if (string.IsNullOrWhiteSpace(usuario.USUARIO_NOMBRE))
-                ModelState.AddModelError(nameof(usuario.USUARIO_NOMBRE), "El nombre de usuario es requerido.");
-
-            // 2) Validación de contraseña (servidor)
-            if (string.IsNullOrWhiteSpace(PwdPlain) || string.IsNullOrWhiteSpace(PwdPlainConfirm))
-                ModelState.AddModelError("", "Debe ingresar y confirmar la contraseña.");
-            if (PwdPlain != PwdPlainConfirm)
-                ModelState.AddModelError("", "Las contraseñas no coinciden.");
-            if (!ValidaReglasPassword(PwdPlain))
-                ModelState.AddModelError("", "La contraseña no cumple: minúscula, mayúscula, número y longitud 8–15.");
-
-            // 3) Unicidad de nombre de usuario (opcional pero recomendado)
-            bool nombreDuplicado = await _context.USUARIO
-                .AnyAsync(u => u.USUARIO_NOMBRE == usuario.USUARIO_NOMBRE && !u.ELIMINADO);
-            if (nombreDuplicado)
-                ModelState.AddModelError(nameof(usuario.USUARIO_NOMBRE), "Ya existe un usuario con ese nombre.");
-
-            if (!ModelState.IsValid)
-            {
-                await CargarCombosAsync(usuario.ROL_ID, usuario.EMPLEADO_ID);
-                return View(usuario);
-            }
-
-            // 4) Generar SALT + HASH
-            (byte[] salt, byte[] hash) = GenerarSaltYHash(PwdPlain);
-
-            // 5) Completar campos no visibles (auditoría)
-            usuario.USUARIO_SALT = salt;
-            usuario.USUARIO_CONTRASENA = hash;
-            usuario.ELIMINADO = false;
-            usuario.USUARIO_CREACION = "SYSTEM";      // TODO: reemplaza por usuario logueado
-            usuario.FECHA_CREACION = DateTime.Now;
-            usuario.USUARIO_MODIFICACION = null;
-            usuario.FECHA_MODIFICACION = null;
-            usuario.USUARIO_ELIMINACION = null;
-            usuario.FECHA_ELIMINACION = null;
-            // usuario.USUARIO_CORREO -> si no lo manejas aquí, déjalo null o string.Empty
-
-            // 6) Guardar
-            try
-            {
-                _context.Add(usuario);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            catch (DbUpdateException ex)
-            {
-                ModelState.AddModelError("", $"No se pudo crear el usuario. Detalle: {ex.Message}");
-                await CargarCombosAsync(usuario.ROL_ID, usuario.EMPLEADO_ID);
-                return View(usuario);
-            }
-        }
-
-        // =========================================================
-        // ===================== HELPERS ===========================
-        // =========================================================
-
-        /// Genera el siguiente ID con formato U00001, U00002, ...
-        private async Task<string> ObtenerSiguienteUsuarioIdAsyncHelper()
-        {
-            var last = await _context.USUARIO
-                                     .OrderByDescending(u => u.USUARIO_ID)
-                                     .Select(u => u.USUARIO_ID)
-                                     .FirstOrDefaultAsync();
-            int n = 0;
-            if (!string.IsNullOrEmpty(last) && last.Length >= 6 && last.StartsWith("U"))
-                int.TryParse(last.Substring(1), out n);
-            return $"U{(n + 1).ToString("D5")}";
-        }
-
-        /// Llena combos de Rol y Empleado (seguro).
-        private async Task CargarCombosAsyncHelper(string? rolSeleccionado, string? empleadoSeleccionado)
-        {
-            var roles = await _context.ROL
-                .AsNoTracking()
-                .OrderBy(r => r.ROL_NOMBRE) // si no existe, usa .OrderBy(r => r.ROL_ID)
-                .Select(r => new { Value = r.ROL_ID, Text = r.ROL_NOMBRE ?? r.ROL_ID })
-                .ToListAsync();
-            ViewData["ROL_ID"] = new SelectList(roles, "Value", "Text", rolSeleccionado);
-
-            var empleados = await _context.EMPLEADO
-                .AsNoTracking()
-                .OrderBy(e => e.EMPLEADO_ID)
-                .Select(e => new { Value = e.EMPLEADO_ID, Text = e.EMPLEADO_ID }) // cambia Text si luego tienes nombre
-                .ToListAsync();
-            ViewData["EMPLEADO_ID"] = new SelectList(empleados, "Value", "Text", empleadoSeleccionado);
-        }
-
-        /// Reglas de contraseña: 1 minúscula, 1 mayúscula, 1 número, longitud [8..15].
-        private bool ValidaReglasPasswordHelper(string pwd)
-        {
-            if (string.IsNullOrEmpty(pwd)) return false;
-            bool hasLower = pwd.Any(char.IsLower);
-            bool hasUpper = pwd.Any(char.IsUpper);
-            bool hasDigit = pwd.Any(char.IsDigit);
-            bool okLen = pwd.Length >= 8 && pwd.Length <= 15;
-            return hasLower && hasUpper && hasDigit && okLen;
-        }
-
-        /// SALT(64) + SHA256(SALT || UTF8(password))
-        private (byte[] salt, byte[] hash) GenerarSaltYHashHelper(string password)
-        {
-            using var rng = RandomNumberGenerator.Create();
-            byte[] salt = new byte[64];
-            rng.GetBytes(salt);
-
-            using var sha = SHA256.Create();
-            byte[] pwdBytes = Encoding.UTF8.GetBytes(password);
-            byte[] toHash = new byte[salt.Length + pwdBytes.Length];
-            Buffer.BlockCopy(salt, 0, toHash, 0, salt.Length);
-            Buffer.BlockCopy(pwdBytes, 0, toHash, salt.Length, pwdBytes.Length);
-            byte[] hash = sha.ComputeHash(toHash);
-            return (salt, hash);
+            return View(vm);
         }
 
         // ============================================================
-        // EDIT (POST) – sin tocar contraseñas aquí (opcional agregar cambio de pwd)
-        // Ruta: POST /Usuarios/Edit/{id}
+        // CREATE (POST) – POST /Usuarios/Create
+        // ▸ Valida: unicidad de USUARIO_NOMBRE, FKs activos/no eliminados,
+        //   contraseña con política y confirmación, correo válido (si viene).
+        // ▸ Genera SALT y HASH PBKDF2 (HMACSHA256).
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(string id, [Bind("USUARIO_ID,USUARIO_NOMBRE,ROL_ID,EMPLEADO_ID,ESTADO")] USUARIO uSUARIO)
+        public async Task<IActionResult> Create(UsuarioCreateVM vm)
         {
-            if (id != uSUARIO.USUARIO_ID) return NotFound();
+            // Recalcular/asegurar ID del servidor
+            vm.USUARIO_ID = await SiguienteUsuarioIdAsync();
+
+            // ---------- VALIDACIONES ----------
+            if (string.IsNullOrWhiteSpace(vm.USUARIO_NOMBRE))
+                ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "El nombre de usuario es obligatorio.");
+            else if (!Regex.IsMatch(vm.USUARIO_NOMBRE, @"^[a-zA-Z0-9_.-]{3,50}$"))
+                ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "El usuario debe tener de 3 a 50 caracteres y usar solo letras, números, punto, guion o guion bajo.");
+
+            // Unicidad de usuario
+            if (!string.IsNullOrWhiteSpace(vm.USUARIO_NOMBRE))
+            {
+                bool dup = await _context.USUARIO.AnyAsync(u => !u.ELIMINADO && u.USUARIO_NOMBRE == vm.USUARIO_NOMBRE.Trim());
+                if (dup) ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "Ya existe un usuario con ese nombre.");
+            }
+
+            // Contraseña + confirmación
+            if (string.IsNullOrWhiteSpace(vm.Password))
+                ModelState.AddModelError(nameof(vm.Password), "La contraseña es obligatoria.");
+            else
+            {
+                var pwdErr = ValidatePasswordPolicy(vm.Password);
+                if (!string.IsNullOrEmpty(pwdErr))
+                    ModelState.AddModelError(nameof(vm.Password), pwdErr);
+            }
+
+            if (vm.Password != vm.ConfirmPassword)
+                ModelState.AddModelError(nameof(vm.ConfirmPassword), "La confirmación no coincide.");
+
+            // Validar FK Rol (activo y no eliminado)
+            bool rolOk = !string.IsNullOrWhiteSpace(vm.ROL_ID)
+                         && await _context.ROL.AnyAsync(r => r.ROL_ID == vm.ROL_ID && !r.ELIMINADO && r.ESTADO);
+            if (!rolOk)
+                ModelState.AddModelError(nameof(vm.ROL_ID), "El rol seleccionado no existe o no está activo.");
+
+            // Validar FK Empleado (activo y no eliminado)
+            bool empOk = !string.IsNullOrWhiteSpace(vm.EMPLEADO_ID)
+                         && await _context.EMPLEADO.AnyAsync(e => e.EMPLEADO_ID == vm.EMPLEADO_ID && !e.ELIMINADO && e.ESTADO);
+            if (!empOk)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_ID), "El empleado seleccionado no existe o no está activo.");
+
+            // Correo (opcional, si viene validar formato básico)
+            if (!string.IsNullOrWhiteSpace(vm.USUARIO_CORREO))
+            {
+                if (!Regex.IsMatch(vm.USUARIO_CORREO.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                    ModelState.AddModelError(nameof(vm.USUARIO_CORREO), "Formato de correo no válido.");
+            }
 
             if (!ModelState.IsValid)
             {
-                await CargarCombosAsync(uSUARIO.ROL_ID, uSUARIO.EMPLEADO_ID);
-                return View(uSUARIO);
+                vm.Roles = await CargarRolesAsync();
+                vm.Empleados = await CargarEmpleadosAsync();
+                return View(vm);
             }
+
+            // Normalización
+            string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
+
+            // Generar salt + hash PBKDF2
+            var (hash, salt) = HashPasswordPBKDF2(vm.Password!);
 
             try
             {
-                var dbUser = await _context.USUARIO.FirstOrDefaultAsync(u => u.USUARIO_ID == id);
-                if (dbUser == null) return NotFound();
+                var u = new USUARIO
+                {
+                    USUARIO_ID = vm.USUARIO_ID!,
+                    USUARIO_NOMBRE = vm.USUARIO_NOMBRE!.Trim(),
+                    USUARIO_CONTRASENA = hash,
+                    USUARIO_SALT = salt,
+                    USUARIO_FECHAREGISTRO = DateTime.Now,
+                    USUARIO_CAMBIOINICIAL = vm.USUARIO_CAMBIOINICIAL,
+                    ROL_ID = vm.ROL_ID!,
+                    EMPLEADO_ID = vm.EMPLEADO_ID!,
+                    USUARIO_CORREO = s2(vm.USUARIO_CORREO),
+                    ESTADO = vm.ESTADO,
+                    ELIMINADO = false
+                };
+                _audit.StampCreate(u);
 
-                dbUser.USUARIO_NOMBRE = uSUARIO.USUARIO_NOMBRE;
-                dbUser.ROL_ID = uSUARIO.ROL_ID;
-                dbUser.EMPLEADO_ID = uSUARIO.EMPLEADO_ID;
-                dbUser.ESTADO = uSUARIO.ESTADO;
-                dbUser.USUARIO_MODIFICACION = "SYSTEM";
-                dbUser.FECHA_MODIFICACION = DateTime.Now;
-
+                _context.USUARIO.Add(u);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+
+                TempData["SwalTitle"] = "¡Usuario creado!";
+                TempData["SwalText"] = $"El usuario \"{u.USUARIO_NOMBRE}\" se creó correctamente.";
+                TempData["SwalIndexUrl"] = Url.Action("Index", "Usuarios");
+                TempData["SwalCreateUrl"] = Url.Action("Create", "Usuarios");
+                return RedirectToAction(nameof(Create));
             }
-            catch (DbUpdateConcurrencyException)
+            catch
             {
-                if (!USUARIOExists(uSUARIO.USUARIO_ID)) return NotFound();
-                else throw;
+                ModelState.AddModelError("", "Ocurrió un error al crear el usuario. Intenta nuevamente.");
+                vm.Roles = await CargarRolesAsync();
+                vm.Empleados = await CargarEmpleadosAsync();
+                return View(vm);
             }
         }
 
         // ============================================================
-        // DELETE (GET/POST) – igual que lo tenías (borrado duro)
+        // EDIT (GET) – GET /Usuarios/Edit/{id}
+        // ▸ Carga el usuario y combos. (La contraseña no se muestra)
         // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> Edit(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return NotFound();
+
+            var u = await _context.USUARIO
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.USUARIO_ID == id && !x.ELIMINADO);
+
+            if (u == null) return NotFound();
+
+            var vm = new UsuarioCreateVM
+            {
+                USUARIO_ID = u.USUARIO_ID,
+                USUARIO_NOMBRE = u.USUARIO_NOMBRE,
+                USUARIO_CORREO = u.USUARIO_CORREO,
+                USUARIO_CAMBIOINICIAL = u.USUARIO_CAMBIOINICIAL,
+                ROL_ID = u.ROL_ID,
+                EMPLEADO_ID = u.EMPLEADO_ID,
+                ESTADO = u.ESTADO,
+
+                Roles = await CargarRolesAsync(),
+                Empleados = await CargarEmpleadosAsync()
+            };
+
+            return View(vm);
+        }
+
+        // ============================================================
+        // EDIT (POST) – POST /Usuarios/Edit/{id}
+        // ▸ Actualiza datos generales, rol, empleado, correo, estado.
+        // ▸ Si viene nueva contraseña, la valida y re-hashea.
+        // ============================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(string id, UsuarioCreateVM vm)
+        {
+            if (id != vm.USUARIO_ID) return NotFound();
+
+            var u = await _context.USUARIO.FirstOrDefaultAsync(x => x.USUARIO_ID == id && !x.ELIMINADO);
+            if (u == null) return NotFound();
+
+            // Validar usuario (puede cambiar USUARIO_NOMBRE si lo permites; aquí lo permitimos)
+            if (string.IsNullOrWhiteSpace(vm.USUARIO_NOMBRE))
+                ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "El nombre de usuario es obligatorio.");
+            else if (!Regex.IsMatch(vm.USUARIO_NOMBRE, @"^[a-zA-Z0-9_.-]{3,50}$"))
+                ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "El usuario debe tener de 3 a 50 caracteres y usar solo letras, números, punto, guion o guion bajo.");
+
+            // Unicidad excluyendo el propio
+            if (!string.IsNullOrWhiteSpace(vm.USUARIO_NOMBRE))
+            {
+                bool dup = await _context.USUARIO.AnyAsync(x =>
+                    !x.ELIMINADO &&
+                    x.USUARIO_NOMBRE == vm.USUARIO_NOMBRE.Trim() &&
+                    x.USUARIO_ID != id);
+                if (dup) ModelState.AddModelError(nameof(vm.USUARIO_NOMBRE), "Ya existe un usuario con ese nombre.");
+            }
+
+            // Correo opcional
+            if (!string.IsNullOrWhiteSpace(vm.USUARIO_CORREO))
+            {
+                if (!Regex.IsMatch(vm.USUARIO_CORREO.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                    ModelState.AddModelError(nameof(vm.USUARIO_CORREO), "Formato de correo no válido.");
+            }
+
+            // Rol
+            bool rolOk = !string.IsNullOrWhiteSpace(vm.ROL_ID)
+                         && await _context.ROL.AnyAsync(r => r.ROL_ID == vm.ROL_ID && !r.ELIMINADO && r.ESTADO);
+            if (!rolOk)
+                ModelState.AddModelError(nameof(vm.ROL_ID), "El rol seleccionado no existe o no está activo.");
+
+            // Empleado
+            bool empOk = !string.IsNullOrWhiteSpace(vm.EMPLEADO_ID)
+                         && await _context.EMPLEADO.AnyAsync(e => e.EMPLEADO_ID == vm.EMPLEADO_ID && !e.ELIMINADO && e.ESTADO);
+            if (!empOk)
+                ModelState.AddModelError(nameof(vm.EMPLEADO_ID), "El empleado seleccionado no existe o no está activo.");
+
+            // Si trae nueva contraseña, validar política y confirmación
+            bool willChangePwd = !string.IsNullOrWhiteSpace(vm.Password) || !string.IsNullOrWhiteSpace(vm.ConfirmPassword);
+            if (willChangePwd)
+            {
+                if (string.IsNullOrWhiteSpace(vm.Password))
+                    ModelState.AddModelError(nameof(vm.Password), "La contraseña es obligatoria si desea cambiarla.");
+                else
+                {
+                    var pwdErr = ValidatePasswordPolicy(vm.Password!);
+                    if (!string.IsNullOrEmpty(pwdErr))
+                        ModelState.AddModelError(nameof(vm.Password), pwdErr);
+                }
+
+                if (vm.Password != vm.ConfirmPassword)
+                    ModelState.AddModelError(nameof(vm.ConfirmPassword), "La confirmación no coincide.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                vm.Roles = await CargarRolesAsync();
+                vm.Empleados = await CargarEmpleadosAsync();
+                return View(vm);
+            }
+
+            // Normalización
+            string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
+
+            // Aplicar cambios
+            u.USUARIO_NOMBRE = vm.USUARIO_NOMBRE!.Trim();
+            u.USUARIO_CORREO = s2(vm.USUARIO_CORREO);
+            u.ROL_ID = vm.ROL_ID!;
+            u.EMPLEADO_ID = vm.EMPLEADO_ID!;
+            u.ESTADO = vm.ESTADO;
+            u.USUARIO_CAMBIOINICIAL = vm.USUARIO_CAMBIOINICIAL;
+
+            // Cambio de contraseña (opcional)
+            if (willChangePwd && !string.IsNullOrWhiteSpace(vm.Password))
+            {
+                var (hash, salt) = HashPasswordPBKDF2(vm.Password!);
+                u.USUARIO_CONTRASENA = hash;
+                u.USUARIO_SALT = salt;
+                // Al cambiar contraseña desde admin podrías forzar CAMBIOINICIAL=true si así lo deseas
+                // u.USUARIO_CAMBIOINICIAL = true;
+            }
+
+            _audit.StampUpdate(u);
+            await _context.SaveChangesAsync();
+
+            TempData["SwalOneBtnFlag"] = "updated";
+            TempData["SwalTitle"] = "¡Usuario actualizado!";
+            TempData["SwalText"] = $"\"{u.USUARIO_NOMBRE}\" se actualizó correctamente.";
+            return RedirectToAction(nameof(Edit), new { id = u.USUARIO_ID });
+        }
+
+        // ============================================================
+        // DELETE – GET /Usuarios/Delete/{id}  y  POST /Usuarios/Delete/{id}
+        // ▸ Borrado lógico (no se elimina físicamente)
+        // ============================================================
+        [HttpGet]
         public async Task<IActionResult> Delete(string id)
         {
-            if (id == null) return NotFound();
+            if (string.IsNullOrWhiteSpace(id)) return NotFound();
 
-            var uSUARIO = await _context.USUARIO
-                .Include(u => u.EMPLEADO)
-                .Include(u => u.ROL)
-                .FirstOrDefaultAsync(m => m.USUARIO_ID == id);
+            var u = await _context.USUARIO
+                .AsNoTracking()
+                .Include(x => x.ROL)
+                .Include(x => x.EMPLEADO).ThenInclude(e => e.EMPLEADONavigation)
+                .FirstOrDefaultAsync(x => x.USUARIO_ID == id);
 
-            if (uSUARIO == null) return NotFound();
-            return View(uSUARIO);
+            if (u == null) return NotFound();
+
+            return View(u);
         }
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(string id)
         {
-            var uSUARIO = await _context.USUARIO.FindAsync(id);
-            if (uSUARIO != null) _context.USUARIO.Remove(uSUARIO);
+            var u = await _context.USUARIO.FindAsync(id);
+            if (u == null) return NotFound();
+
+            // 1) Borrado lógico + auditoría
+            _audit.StampSoftDelete(u);
             await _context.SaveChangesAsync();
+
+            // 2) PRG: marcar TempData para que el Index muestre SweetAlert
+            TempData["SwalOneBtnFlag"] = "deleted";                      // <- bandera para el Index
+            TempData["SwalTitle"] = "¡Usuario eliminado!";               // título del swal
+            TempData["SwalText"] = $"\"{u.USUARIO_NOMBRE}\" se eliminó correctamente."; // texto
+
+            // 3) Volver al listado (PRG)
             return RedirectToAction(nameof(Index));
         }
 
-        private bool USUARIOExists(string id)
+        // ===================== HELPERS ==============================
+
+        // Genera IDs tipo US00000001 para USUARIO
+        private async Task<string> SiguienteUsuarioIdAsync()
         {
-            return _context.USUARIO.Any(e => e.USUARIO_ID == id);
-        }
+            const string prefijo = "US";
+            const int ancho = 8;
 
-        // ============================================================
-        // =====================  HELPERS  ============================
-        // ============================================================
-
-        /// <summary>
-        /// Genera el siguiente código con formato U00001, U00002, ...
-        /// Busca el mayor USUARIO_ID existente y suma 1.
-        /// </summary>
-        private async Task<string> ObtenerSiguienteUsuarioIdAsync()
-        {
-            var last = await _context.USUARIO
-                                     .OrderByDescending(u => u.USUARIO_ID)
-                                     .Select(u => u.USUARIO_ID)
-                                     .FirstOrDefaultAsync();
-
-            int n = 0;
-            if (!string.IsNullOrEmpty(last) && last.Length >= 6 && last.StartsWith("U"))
-                int.TryParse(last.Substring(1), out n);
-
-            return $"U{(n + 1).ToString("D5")}";
-        }
-
-        /// <summary>
-        /// Llena los combos de Rol y Empleado. 
-        /// - Value = IDs reales
-        /// - Text  = nombres legibles (ROL_NOMBRE y, si no tienes nombre de persona, usa EMPLEADO_ID)
-        /// </summary>
-        // Helper seguro: usa EMPLEADO_ID como texto (no asume PERSONA_NOMBRE)
-        private async Task CargarCombosAsync(string? rolSeleccionado, string? empleadoSeleccionado)
-        {
-            // Roles (ID -> Nombre)
-            var roles = await _context.ROL
-                .AsNoTracking()
-                .OrderBy(r => r.ROL_NOMBRE)
-                .Select(r => new { Value = r.ROL_ID, Text = r.ROL_NOMBRE })
+            var ids = await _context.USUARIO
+                .Select(x => x.USUARIO_ID)
+                .Where(id => id.StartsWith(prefijo))
                 .ToListAsync();
-            ViewData["ROL_ID"] = new SelectList(roles, "Value", "Text", rolSeleccionado);
 
-            // Empleados: mostramos el ID mientras confirmamos campo de nombre
-            var empleados = await _context.EMPLEADO
-                .AsNoTracking()
-                .OrderBy(e => e.EMPLEADO_ID)
-                .Select(e => new
+            int maxNum = 0;
+            var rx = new Regex(@"^" + prefijo + @"(?<n>\d+)$");
+            foreach (var id in ids)
+            {
+                var m = rx.Match(id);
+                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n))
+                    if (n > maxNum) maxNum = n;
+            }
+
+            var siguiente = maxNum + 1;
+            return prefijo + siguiente.ToString(new string('0', ancho));
+        }
+
+        // Carga de Roles activos y no eliminados (para combo)
+        private async Task<List<SelectListItem>> CargarRolesAsync()
+        {
+            return await _context.ROL
+                .Where(r => !r.ELIMINADO && r.ESTADO)
+                .OrderBy(r => r.ROL_NOMBRE)
+                .Select(r => new SelectListItem
                 {
-                    Value = e.EMPLEADO_ID,
-                    Text = e.EMPLEADO_ID   // <- evita EF.Property("PERSONA_NOMBRE")
+                    Text = r.ROL_NOMBRE,
+                    Value = r.ROL_ID
                 })
                 .ToListAsync();
-            ViewData["EMPLEADO_ID"] = new SelectList(empleados, "Value", "Text", empleadoSeleccionado);
         }
 
-
-        /// <summary>
-        /// Valida reglas de contraseña: minúscula, mayúscula, número y longitud [8..15].
-        /// </summary>
-        private bool ValidaReglasPassword(string pwd)
+        // Carga de Empleados activos y no eliminados (para combo)
+        // ▸ La opción Text será el nombre completo (6 partes)
+        private async Task<List<SelectListItem>> CargarEmpleadosAsync()
         {
-            if (string.IsNullOrEmpty(pwd)) return false;
-            bool hasLower = pwd.Any(char.IsLower);
-            bool hasUpper = pwd.Any(char.IsUpper);
-            bool hasDigit = pwd.Any(char.IsDigit);
-            bool okLen = pwd.Length >= 8 && pwd.Length <= 15;
-            return hasLower && hasUpper && hasDigit && okLen;
+            return await _context.EMPLEADO
+                .Where(e => !e.ELIMINADO && e.ESTADO)
+                .OrderBy(e => e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE)
+                .Select(e => new SelectListItem
+                {
+                    Text =
+                        (
+                            (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                            (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? "")
+                        ).Trim(),
+                    Value = e.EMPLEADO_ID
+                })
+                .ToListAsync();
         }
 
-        /// <summary>
-        /// Genera SALT (64 bytes) y HASH = SHA256(SALT || UTF8(password)).
-        /// Devuelve (salt, hash).
-        /// </summary>
-        private (byte[] salt, byte[] hash) GenerarSaltYHash(string password)
+        // Política de contraseñas (mín. 8: mayúscula, minúscula, dígito, símbolo)
+        private string? ValidatePasswordPolicy(string pwd)
         {
-            // 1) SALT aleatorio de 64 bytes
-            using var rng = RandomNumberGenerator.Create();
-            byte[] salt = new byte[64];
-            rng.GetBytes(salt);
+            if (pwd.Length < 8) return "La contraseña debe tener al menos 8 caracteres.";
+            if (!pwd.Any(char.IsUpper)) return "La contraseña debe incluir al menos una letra mayúscula.";
+            if (!pwd.Any(char.IsLower)) return "La contraseña debe incluir al menos una letra minúscula.";
+            if (!pwd.Any(char.IsDigit)) return "La contraseña debe incluir al menos un dígito.";
+            if (!Regex.IsMatch(pwd, @"[^a-zA-Z0-9]")) return "La contraseña debe incluir al menos un símbolo.";
+            return null;
+        }
 
-            // 2) HASH SHA-256(SALT || UTF8(password))
-            using var sha = SHA256.Create();
-            byte[] pwdBytes = Encoding.UTF8.GetBytes(password);
-            byte[] toHash = new byte[salt.Length + pwdBytes.Length];
-            Buffer.BlockCopy(salt, 0, toHash, 0, salt.Length);
-            Buffer.BlockCopy(pwdBytes, 0, toHash, salt.Length, pwdBytes.Length);
-            byte[] hash = sha.ComputeHash(toHash);
-
-            return (salt, hash);
+        // Hash PBKDF2 con HMACSHA256 + SALT (64 bytes) y 100,000 iteraciones
+        private (byte[] hash, byte[] salt) HashPasswordPBKDF2(string password, byte[]? existingSalt = null)
+        {
+            byte[] salt = existingSalt ?? RandomNumberGenerator.GetBytes(64); // 64 bytes
+            // Derivación de clave (hash) con 100k iteraciones
+            using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
+            byte[] hash = pbkdf2.GetBytes(32); // 256 bits
+            return (hash, salt);
         }
     }
 }
-
-
-//using CreArte.Data;
-//using CreArte.Models;
-//using CreArte.ModelsPartial;
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.AspNetCore.Mvc.Rendering;
-//using Microsoft.EntityFrameworkCore;
-//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Threading.Tasks;
-
-//namespace CreArte.Controllers
-//{
-//    public class UsuariosController : Controller
-//    {
-//        private readonly CreArteDbContext _context;
-
-//        public UsuariosController(CreArteDbContext context)
-//        {
-//            _context = context;
-//        }
-
-//        public async Task<IActionResult> Index([FromQuery] UsuarioListaViewModels vm)
-//        {
-//            // -------- 0) Lee también "Usuario" desde la QueryString por compatibilidad
-//            string usuarioFiltro = vm?.Usuario;
-//            if (string.IsNullOrWhiteSpace(usuarioFiltro))
-//                usuarioFiltro = HttpContext?.Request?.Query["Usuario"].ToString();
-
-//            // -------- 1) Query base con navegación de ROL (solo lectura)
-//            var q = _context.USUARIO
-//                .AsNoTracking()
-//                .Include(u => u.ROL) // para poder filtrar/ordenar por nombre de rol
-//                .AsQueryable();
-
-//            // -------- 2) Búsqueda global (input de la derecha)
-//            if (!string.IsNullOrWhiteSpace(vm.Search))
-//            {
-//                var term = vm.Search.Trim();
-//                q = q.Where(u =>
-//                    u.USUARIO_ID.Contains(term) ||
-//                    u.USUARIO_NOMBRE.Contains(term));
-//            }
-
-//            // -------- 3) Filtro “USUARIO” del popover (texto, (Blanks), (Non blanks))
-//            if (!string.IsNullOrEmpty(usuarioFiltro))
-//            {
-//                if (usuarioFiltro == "__BLANKS__")
-//                    q = q.Where(u => string.IsNullOrEmpty(u.USUARIO_NOMBRE));
-//                else if (usuarioFiltro == "__NONBLANKS__")
-//                    q = q.Where(u => !string.IsNullOrEmpty(u.USUARIO_NOMBRE));
-//                else
-//                {
-//                    var name = usuarioFiltro.Trim();
-//                    q = q.Where(u => u.USUARIO_NOMBRE.Contains(name));
-//                }
-//            }
-
-//            // -------- 4) Filtro por ROL (acepta ID o nombre)
-//            if (!string.IsNullOrWhiteSpace(vm.Rol))
-//            {
-//                var rolTerm = vm.Rol.Trim();
-//                q = q.Where(u =>
-//                    u.ROL_ID == rolTerm ||
-//                    (u.ROL != null && u.ROL.ROL_NOMBRE == rolTerm));
-//            }
-
-//            // -------- 5) Filtro por ESTADO
-//            if (vm.Estado.HasValue)
-//            {
-//                q = q.Where(u => u.ESTADO == vm.Estado.Value);
-//            }
-
-//            // -------- 6) Filtro por RANGO DE FECHAS (FECHA_CREACION)
-//            if (vm.FechaInicio.HasValue)
-//            {
-//                var desde = vm.FechaInicio.Value.Date; // 00:00
-//                q = q.Where(u => u.FECHA_CREACION >= desde);
-//            }
-//            if (vm.FechaFin.HasValue)
-//            {
-//                var hasta = vm.FechaFin.Value.Date.AddDays(1).AddTicks(-1); // 23:59:59.9999999
-//                q = q.Where(u => u.FECHA_CREACION <= hasta);
-//            }
-
-//            // -------- 7) Total + ORDENAMIENTO (por defecto: fecha desc)
-//            vm.TotalItems = await q.CountAsync();
-
-//            var sort = (vm.Sort ?? "id").ToLower();
-//            var dir = (vm.Dir ?? "desc").ToLower();
-//            bool asc = dir == "asc";
-
-//            IQueryable<USUARIO> ApplyOrder(IQueryable<USUARIO> src)
-//            {
-//                switch (sort)
-//                {
-//                    case "id":
-//                        return asc ? src.OrderBy(u => u.USUARIO_ID)
-//                                   : src.OrderByDescending(u => u.USUARIO_ID);
-//                    case "usuario":
-//                        return asc ? src.OrderBy(u => u.USUARIO_NOMBRE)
-//                                   : src.OrderByDescending(u => u.USUARIO_NOMBRE);
-//                    case "rol":
-//                        return asc ? src.OrderBy(u => u.ROL != null ? u.ROL.ROL_NOMBRE : "")
-//                                   : src.OrderByDescending(u => u.ROL != null ? u.ROL.ROL_NOMBRE : "");
-//                    case "estado":
-//                        // Asc: Inactivo(false) -> Activo(true)
-//                        return asc ? src.OrderBy(u => u.ESTADO)
-//                                   : src.OrderByDescending(u => u.ESTADO);
-//                    case "fecha":
-//                    default:
-//                        return asc ? src.OrderBy(u => u.FECHA_CREACION)
-//                                   : src.OrderByDescending(u => u.FECHA_CREACION);
-//                }
-//            }
-//            q = ApplyOrder(q);
-
-//            // -------- 8) Paginación segura
-//            vm.Page = vm.Page <= 0 ? 1 : vm.Page;
-//            vm.PageSize = vm.PageSize <= 0 ? 10 : vm.PageSize;
-//            var skip = (vm.Page - 1) * vm.PageSize;
-
-//            vm.Items = await q.Skip(skip).Take(vm.PageSize).ToListAsync();
-
-//            // -------- 9) TotalPages (para la vista)
-//            vm.TotalPages = (int)Math.Ceiling((double)vm.TotalItems / vm.PageSize);
-
-//            // -------- 10) Combo de roles (nombres legibles)
-//            ViewBag.Roles = await _context.ROL
-//                .AsNoTracking()
-//                .OrderBy(r => r.ROL_NOMBRE)
-//                .Select(r => r.ROL_NOMBRE)
-//                .ToListAsync();
-
-//            // -------- 11) Devolvemos la vista
-//            vm.Usuario = usuarioFiltro; // por si tu VM lo necesita en la vista
-//            return View(vm);
-//        }
-
-
-
-//        // GET: Usuarios/Details/5
-//        public async Task<IActionResult> Details(string id)
-//        {
-//            if (id == null)
-//            {
-//                return NotFound();
-//            }
-
-//            var uSUARIO = await _context.USUARIO
-//                .Include(u => u.EMPLEADO)
-//                .Include(u => u.ROL)
-//                .FirstOrDefaultAsync(m => m.USUARIO_ID == id);
-//            if (uSUARIO == null)
-//            {
-//                return NotFound();
-//            }
-
-//            return View(uSUARIO);
-//        }
-
-//        // GET: Usuarios/Create
-//        public IActionResult Create()
-//        {
-//            ViewData["EMPLEADO_ID"] = new SelectList(_context.EMPLEADO, "EMPLEADO_ID", "EMPLEADO_ID");
-//            ViewData["ROL_ID"] = new SelectList(_context.ROL, "ROL_ID", "ROL_ID");
-//            return View();
-//        }
-
-//        // POST: Usuarios/Create
-//        // To protect from overposting attacks, enable the specific properties you want to bind to.
-//        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-//        [HttpPost]
-//        [ValidateAntiForgeryToken]
-//        public async Task<IActionResult> Create([Bind("USUARIO_ID,USUARIO_NOMBRE,USUARIO_CONTRASENA,USUARIO_SALT,USUARIO_FECHAREGISTRO,USUARIO_CAMBIOINICIAL,ROL_ID,EMPLEADO_ID,USUARIO_CORREO,USUARIO_CREACION,FECHA_CREACION,USUARIO_MODIFICACION,FECHA_MODIFICACION,ELIMINADO,USUARIO_ELIMINACION,FECHA_ELIMINACION,ESTADO")] USUARIO uSUARIO)
-//        {
-//            if (ModelState.IsValid)
-//            {
-//                _context.Add(uSUARIO);
-//                await _context.SaveChangesAsync();
-//                return RedirectToAction(nameof(Index));
-//            }
-//            ViewData["EMPLEADO_ID"] = new SelectList(_context.EMPLEADO, "EMPLEADO_ID", "EMPLEADO_ID", uSUARIO.EMPLEADO_ID);
-//            ViewData["ROL_ID"] = new SelectList(_context.ROL, "ROL_ID", "ROL_ID", uSUARIO.ROL_ID);
-//            return View(uSUARIO);
-//        }
-
-//        // GET: Usuarios/Edit/5
-//        public async Task<IActionResult> Edit(string id)
-//        {
-//            if (id == null)
-//            {
-//                return NotFound();
-//            }
-
-//            var uSUARIO = await _context.USUARIO.FindAsync(id);
-//            if (uSUARIO == null)
-//            {
-//                return NotFound();
-//            }
-//            ViewData["EMPLEADO_ID"] = new SelectList(_context.EMPLEADO, "EMPLEADO_ID", "EMPLEADO_ID", uSUARIO.EMPLEADO_ID);
-//            ViewData["ROL_ID"] = new SelectList(_context.ROL, "ROL_ID", "ROL_ID", uSUARIO.ROL_ID);
-//            return View(uSUARIO);
-//        }
-
-//        // POST: Usuarios/Edit/5
-//        // To protect from overposting attacks, enable the specific properties you want to bind to.
-//        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-//        [HttpPost]
-//        [ValidateAntiForgeryToken]
-//        public async Task<IActionResult> Edit(string id, [Bind("USUARIO_ID,USUARIO_NOMBRE,USUARIO_CONTRASENA,USUARIO_SALT,USUARIO_FECHAREGISTRO,USUARIO_CAMBIOINICIAL,ROL_ID,EMPLEADO_ID,USUARIO_CORREO,USUARIO_CREACION,FECHA_CREACION,USUARIO_MODIFICACION,FECHA_MODIFICACION,ELIMINADO,USUARIO_ELIMINACION,FECHA_ELIMINACION,ESTADO")] USUARIO uSUARIO)
-//        {
-//            if (id != uSUARIO.USUARIO_ID)
-//            {
-//                return NotFound();
-//            }
-
-//            if (ModelState.IsValid)
-//            {
-//                try
-//                {
-//                    _context.Update(uSUARIO);
-//                    await _context.SaveChangesAsync();
-//                }
-//                catch (DbUpdateConcurrencyException)
-//                {
-//                    if (!USUARIOExists(uSUARIO.USUARIO_ID))
-//                    {
-//                        return NotFound();
-//                    }
-//                    else
-//                    {
-//                        throw;
-//                    }
-//                }
-//                return RedirectToAction(nameof(Index));
-//            }
-//            ViewData["EMPLEADO_ID"] = new SelectList(_context.EMPLEADO, "EMPLEADO_ID", "EMPLEADO_ID", uSUARIO.EMPLEADO_ID);
-//            ViewData["ROL_ID"] = new SelectList(_context.ROL, "ROL_ID", "ROL_ID", uSUARIO.ROL_ID);
-//            return View(uSUARIO);
-//        }
-
-//        // GET: Usuarios/Delete/5
-//        public async Task<IActionResult> Delete(string id)
-//        {
-//            if (id == null)
-//            {
-//                return NotFound();
-//            }
-
-//            var uSUARIO = await _context.USUARIO
-//                .Include(u => u.EMPLEADO)
-//                .Include(u => u.ROL)
-//                .FirstOrDefaultAsync(m => m.USUARIO_ID == id);
-//            if (uSUARIO == null)
-//            {
-//                return NotFound();
-//            }
-
-//            return View(uSUARIO);
-//        }
-
-//        // POST: Usuarios/Delete/5
-//        [HttpPost, ActionName("Delete")]
-//        [ValidateAntiForgeryToken]
-//        public async Task<IActionResult> DeleteConfirmed(string id)
-//        {
-//            var uSUARIO = await _context.USUARIO.FindAsync(id);
-//            if (uSUARIO != null)
-//            {
-//                _context.USUARIO.Remove(uSUARIO);
-//            }
-
-//            await _context.SaveChangesAsync();
-//            return RedirectToAction(nameof(Index));
-//        }
-
-//        private bool USUARIOExists(string id)
-//        {
-//            return _context.USUARIO.Any(e => e.USUARIO_ID == id);
-//        }
-//    }
-//}

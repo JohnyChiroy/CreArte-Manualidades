@@ -1,123 +1,96 @@
-﻿@model CreArte.Models.USUARIO
-
+﻿@* ===============================================
+   RUTA: Views/Usuarios/Details.cshtml
+   DESCRIPCIÓN: PartialView (Layout = null) para inyectar en SweetAlert2
+   - Muestra datos de Usuario + Rol + Empleado
+   - Incluye auditoría y acciones (Volver / Editar)
+   =============================================== *@
+@model CreArte.ModelsPartial.UsuarioDetailsVM
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle de Usuario";
+    Layout = null; // <- importante para render en modal
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <!-- Fila superior: Código + Estado -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código Usuario:</strong></label>
+                <input value="@Model.USUARIO_ID" class="form-control" readonly />
+            </div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+    <!-- Usuario + Correo -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 50%;">
+            <label><strong>Usuario:</strong></label>
+            <input value="@Model.USUARIO_NOMBRE" class="form-control" readonly />
+        </div>
+        <div class="ua-field" style="flex:1 1 50%;">
+            <label><strong>Correo:</strong></label>
+            <input value="@(Model.USUARIO_CORREO ?? "")" class="form-control" readonly />
+        </div>
+    </div>
 
-<div>
-    <h4>USUARIO</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_NOMBRE)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_NOMBRE)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CONTRASENA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CONTRASENA)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_SALT)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_SALT)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_FECHAREGISTRO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_FECHAREGISTRO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CAMBIOINICIAL)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CAMBIOINICIAL)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CORREO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CORREO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.EMPLEADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.EMPLEADO.EMPLEADO_ID)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ROL)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ROL.ROL_ID)
-        </dd>
-    </dl>
+    <!-- Rol -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <label><strong>Rol:</strong></label>
+            <input value="@($"{Model.ROL_NOMBRE} ({Model.ROL_ID})")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Empleado asignado -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <label><strong>Empleado asignado:</strong></label>
+            <input value="@($"{Model.EMPLEADO_NOMBRE_COMPLETO} ({Model.EMPLEADO_ID})")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Fecha de registro + Cambio inicial -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Fecha de registro:</strong></label>
+            <input value="@Model.USUARIO_FECHAREGISTRO.ToString("dd/MM/yyyy HH:mm")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Cambio inicial requerido:</strong></label>
+            <input value="@(Model.USUARIO_CAMBIOINICIAL ? "Sí" : "No")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Auditoría -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+        </div>
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- Acciones -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Usuarios">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-controller="Usuarios" asp-route-id="@Model.USUARIO_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.USUARIO_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>

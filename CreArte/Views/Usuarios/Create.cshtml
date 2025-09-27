@@ -1,31 +1,32 @@
-﻿@model CreArte.Models.USUARIO
+﻿@* ===============================================
+   RUTA: Views/Usuarios/Create.cshtml
+   DESCRIPCIÓN: Formulario de creación de USUARIO.
+   - IDs autogenerados por el Controller (US########)
+   - Política de contraseñas (8+ con mayúscula, minúscula, dígito, símbolo)
+   - Validaciones cliente + server consistentes
+   - ESTADO con "pill" + switch
+   - PRG con SweetAlert2 (TempData["Swal*"])
+   =============================================== *@
+@model CreArte.ModelsPartial.UsuarioCreateVM
 @{
-    // Vista Create de Usuarios
-    ViewData["Title"] = "Crear usuario";
-    Layout = "~/Views/Shared/_Layout.cshtml"; // Asegúrate que tu _Layout renderiza @RenderSection("Styles"/"Scripts", false)
+    ViewData["Title"] = "Crear Usuario";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!--
-    Vista: Create de Usuarios
-    - USUARIO_ID llega desde el GET (solo lectura).
-    - ESTADO se muestra como “Activo” si es true.
-    - La contraseña se envía en campos PwdPlain / PwdPlainConfirm (texto);
-      el hash SALT+SHA-256 se calcula en el POST del controlador.
--->
-
 <div class="ua-card">
-    <h2 style="margin:0 0 12px 0;">Nuevo usuario</h2>
+    <h2 style="margin:0 0 12px 0;">Nuevo Usuario</h2>
 
-    <form asp-action="Create" method="post" id="frmUsuario" autocomplete="off">
-        @Html.AntiForgeryToken() <!-- Seguridad contra CSRF -->
-        <!-- Resumen de validación MVC -->
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <!-- El Controller reasigna USUARIO_ID en servidor -->
+    <form asp-action="Create" asp-controller="Usuarios" method="post" id="frmUsuario" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
 
-        <!-- Fila superior: Código y Estado (solo lectura) -->
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
         <div class="ua-row">
             <div class="ua-field">
                 <div class="ua-kv">
-                    <label for="USUARIO_ID"><strong>Código:</strong></label>
+                    <label asp-for="USUARIO_ID"><strong>Código Usuario:</strong></label>
                     <input asp-for="USUARIO_ID" class="form-control" readonly />
                 </div>
                 <span asp-validation-for="USUARIO_ID" class="text-danger"></span>
@@ -34,185 +35,261 @@
             <div class="ua-field">
                 <div class="ua-kv">
                     <label><strong>Estado:</strong></label>
-                    <!-- Agrego espacio condicional para no pegar las clases -->
-                    <span class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
                         @(Model?.ESTADO == true ? "Activo" : "Inactivo")
                     </span>
-                    <input type="hidden" asp-for="ESTADO" />
                 </div>
+                <div class="ua-switch" style="margin-top:2px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
             </div>
         </div>
 
-        <!-- Nombre de usuario -->
-        <div class="ua-field" style="margin-top:12px;">
-            <label asp-for="USUARIO_NOMBRE"><strong>Nombre:</strong></label>
-            <input asp-for="USUARIO_NOMBRE" class="form-control" placeholder="Ingrese el nombre de usuario..." />
-            <span asp-validation-for="USUARIO_NOMBRE" class="text-danger"></span>
-        </div>
-
-        <!-- Nota / Reglas de contraseña -->
-        <div class="ua-note" aria-live="polite">
-            <strong>Nota:</strong> La contraseña debe cumplir:
-            <ul class="ua-checklist" id="pwdChecklist">
-                <li><span id="chkLower" class="ua-check">✔</span> Tener al menos una letra minúscula.</li>
-                <li><span id="chkUpper" class="ua-check">✔</span> Tener al menos una letra mayúscula.</li>
-                <li><span id="chkDigit" class="ua-check">✔</span> Tener al menos un número.</li>
-                <li><span id="chkLen" class="ua-check">✔</span> Tener una longitud entre 8 y 15 caracteres.</li>
-            </ul>
-        </div>
-
-        <!-- Contraseña y Confirmación -->
-        <div class="ua-row">
-            <div class="ua-field">
-                <label for="pwd"><strong>Contraseña:</strong></label>
-                <!-- Estos campos NO bindean a USUARIO_CONTRASENA (byte[]) -->
-                <input id="pwd" name="PwdPlain" type="password" class="form-control" placeholder="Ingrese la contraseña" />
-                <div class="small-hint" id="pwdMsg"></div>
-            </div>
-            <div class="ua-field">
-                <label for="pwd2"><strong>Confirmar contraseña:</strong></label>
-                <input id="pwd2" name="PwdPlainConfirm" type="password" class="form-control" placeholder="Confirme su contraseña" />
-                <div class="small-hint" id="pwd2Msg"></div>
-            </div>
-        </div>
-
-        <!-- Selects: Rol y Empleado -->
+        @* ==============================
+           Datos de Usuario
+           ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field">
-                <label asp-for="ROL_ID"><strong>Rol:</strong></label>
-                <select asp-for="ROL_ID" class="form-control" asp-items="ViewBag.ROL_ID">
-                    <option value="">Seleccione el rol...</option>
+                <label asp-for="USUARIO_NOMBRE"><strong>Nombre de Usuario:*</strong></label>
+                <input asp-for="USUARIO_NOMBRE"
+                       class="form-control"
+                       maxlength="50"
+                       required
+                       pattern="^[a-zA-Z0-9_.-]{3,50}$"
+                       title="De 3 a 50 caracteres: letras, números, punto, guion y guion bajo." />
+                <span asp-validation-for="USUARIO_NOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntUsuario">0</span>/50</div> *@
+            </div>
+
+            <div class="ua-field">
+                <label asp-for="USUARIO_CORREO"><strong>Correo:</strong></label>
+                <input asp-for="USUARIO_CORREO"
+                       class="form-control"
+                       maxlength="150"
+                       type="email"
+                       placeholder="opcional"
+                       title="Si ingresa un correo, debe tener formato válido." />
+                <span asp-validation-for="USUARIO_CORREO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           Relaciones: Rol / Empleado
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="ROL_ID"><strong>Rol:*</strong></label>
+                <select asp-for="ROL_ID" class="form-control" asp-items="Model.Roles" required>
+                    <option value="">Seleccione un rol ↓</option>
                 </select>
                 <span asp-validation-for="ROL_ID" class="text-danger"></span>
             </div>
             <div class="ua-field">
-                <label asp-for="EMPLEADO_ID"><strong>Empleado:</strong></label>
-                <select asp-for="EMPLEADO_ID" class="form-control" asp-items="ViewBag.EMPLEADO_ID">
-                    <option value="">Seleccione al empleado...</option>
+                <label asp-for="EMPLEADO_ID"><strong>Empleado:*</strong></label>
+                <select asp-for="EMPLEADO_ID" class="form-control" asp-items="Model.Empleados" required>
+                    <option value="">Seleccione un empleado ↓</option>
                 </select>
                 <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
             </div>
         </div>
 
-        <!-- Acciones -->
-        <div class="ua-actions">
-            <a class="btn-cancel" asp-action="Index" asp-controller="Usuarios"> <i class="bi bi-x-circle"></i> <span>Cancelar</span></a>
-            <button id="btnSave" type="submit" class="btn-save" disabled> <i class="bi bi-save"></i> <span>Guardar</span></button>
+        @* ==============================
+           Seguridad: Contraseña y confirmación
+           - En CREATE es obligatoria
+           - Política: 8+ con Mayúscula, Minúscula, Dígito, Símbolo
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Password"><strong>Contraseña:*</strong></label>
+                <input asp-for="Password"
+                       class="form-control"
+                       type="password"
+                       required
+                       minlength="8"
+                       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$"
+                       title="Mínimo 8, incluir mayúscula, minúscula, dígito y símbolo." />
+                <span asp-validation-for="Password" class="text-danger"></span>
+                <div class="ua-help">Consejo: usa una frase con símbolos y números.</div>
+            </div>
+            <div class="ua-field">
+                <label asp-for="ConfirmPassword"><strong>Confirmar Contraseña:*</strong></label>
+                <input asp-for="ConfirmPassword"
+                       class="form-control"
+                       type="password"
+                       required
+                       minlength="8" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                <div class="ua-help">Debe coincidir con la contraseña.</div>
+            </div>
         </div>
 
-        <!-- Campos ocultos de auditoría (si aplica) -->
-        <input type="hidden" asp-for="ELIMINADO" />
-        <input type="hidden" asp-for="USUARIO_CORREO" />
-        <input type="hidden" asp-for="USUARIO_CREACION" />
-        <input type="hidden" asp-for="USUARIO_MODIFICACION" />
-        <input type="hidden" asp-for="FECHA_MODIFICACION" />
-        <input type="hidden" asp-for="USUARIO_ELIMINACION" />
-        <input type="hidden" asp-for="FECHA_ELIMINACION" />
-        <!-- USUARIO_SALT y USUARIO_CONTRASENA se calculan en el POST -->
+        @* ==============================
+           Política: Forzar cambio al primer inicio
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label><strong>Cambio inicial de contraseña:</strong></label>
+                <div class="form-check">
+                    <input asp-for="USUARIO_CAMBIOINICIAL" class="form-check-input" type="checkbox" id="chkCambioInicial" />
+                    <label class="form-check-label" for="chkCambioInicial">Requerir cambio de contraseña en el primer inicio de sesión</label>
+                </div>
+                <span asp-validation-for="USUARIO_CAMBIOINICIAL" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Usuarios">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
     </form>
 </div>
 
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-@* @model CreArte.Models.USUARIO
+    <script>
+        // ==============================
+        // (Opcional) Contador de caracteres
+        // ==============================
+        (function () {
+            const bindCount = (inputId, max) => {
+                const i = document.getElementById(inputId);
+                if (!i) return;
+                const help = document.createElement('div');
+                help.className = 'ua-help';
+                i.insertAdjacentElement('afterend', help);
+                const upd = () => help.textContent = (i.value || '').length + '/' + max;
+                upd(); i.addEventListener('input', upd);
+            };
+            //bindCount('USUARIO_NOMBRE', 50);
+        })();
 
-@{
-    Layout = null;
+        // ==============================
+        // Pill Estado (igual que Empleados)
+        // ==============================
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent = 'Activo')
+                                               : (pill.classList.remove('active'), pill.textContent = 'Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // ==============================
+        // Validación de confirmación de contraseña (cliente)
+        // ==============================
+        (function () {
+            const pwd = document.getElementById('Password');
+            const cpw = document.getElementById('ConfirmPassword');
+            if (!pwd || !cpw) return;
+
+            function checkMatch() {
+                if (cpw.value && pwd.value !== cpw.value) {
+                    cpw.setCustomValidity('La confirmación no coincide.');
+                } else {
+                    cpw.setCustomValidity('');
+                }
+            }
+            pwd.addEventListener('input', checkMatch);
+            cpw.addEventListener('input', checkMatch);
+        })();
+
+        // ==============================
+        // Habilitar botón Guardar
+        // Reglas:
+        //  - Usuario (requerido y patrón)
+        //  - Rol (requerido)
+        //  - Empleado (requerido)
+        //  - Password y ConfirmPassword (requeridos, política y coincidencia)
+        //  - Correo: opcional; si existe, el input type=email valida formato
+        //  - form.checkValidity()
+        // ==============================
+        (function () {
+            const btn = document.getElementById('btnGuardar');
+            const form = document.getElementById('frmUsuario');
+            const reqIds = [
+                'USUARIO_NOMBRE',
+                'ROL_ID',
+                'EMPLEADO_ID',
+                'Password',
+                'ConfirmPassword'
+            ];
+            const els = reqIds.map(id => document.getElementById(id));
+            const pwd = document.getElementById('Password');
+            const cpw = document.getElementById('ConfirmPassword');
+
+            // Política en cliente (misma que en servidor)
+            function passwordPolicyOk(v) {
+                if (!v || v.length < 8) return false;
+                if (!/[A-Z]/.test(v)) return false;
+                if (!/[a-z]/.test(v)) return false;
+                if (!/[0-9]/.test(v)) return false;
+                if (!/[^a-zA-Z0-9]/.test(v)) return false;
+                return true;
+            }
+
+            function ready() {
+                // Campos base
+                const baseOk = els.every(el => el && (el.value || '').trim().length > 0);
+
+                // Usuario respeta el pattern del input
+                const usuario = document.getElementById('USUARIO_NOMBRE');
+                let userOk = true;
+                if (usuario) userOk = usuario.checkValidity();
+
+                // Password policy + confirmación
+                let pwdOk = true, matchOk = true;
+                if (pwd) pwdOk = passwordPolicyOk(pwd.value);
+                if (pwd && cpw) matchOk = (pwd.value === cpw.value) && cpw.value.length > 0;
+
+                // Validación global del formulario
+                const ok = baseOk && userOk && pwdOk && matchOk && (form ? form.checkValidity() : true);
+
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            const hook = (el) => el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', ready);
+            els.forEach(hook);
+            if (pwd) pwd.addEventListener('input', ready);
+            if (cpw) cpw.addEventListener('input', ready);
+            ready();
+        })();
+
+        // ==============================
+        // Prevenir doble submit
+        // ==============================
+        (function () {
+            const frm = document.getElementById('frmUsuario');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true; btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // ==============================
+        // PRG (SweetAlert2) con TempData
+        // ==============================
+        (function () {
+            if (!window.Swal) return;
+            const title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            const urlIndex='@(TempData["SwalIndexUrl"] ?? "")', urlCreate='@(TempData["SwalCreateUrl"] ?? "")';
+            if (!title && !text) return;
+            Swal.fire({ icon:'success', title:title||'Guardado', text:text||'El registro se creó correctamente.',
+                showDenyButton:true, confirmButtonText:'Volver al listado', denyButtonText:'Crear otro',
+                allowOutsideClick:false, allowEscapeKey:false
+            }).then(r=>{ if (r.isConfirmed && urlIndex) location.href=urlIndex; else if (r.isDenied && urlCreate) location.href=urlCreate; });
+        })();
+    </script>
 }
-
-<!DOCTYPE html>
-
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Create</title>
-</head>
-<body>
-
-<h4>USUARIO</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ID" class="control-label"></label>
-                <input asp-for="USUARIO_ID" class="form-control" />
-                <span asp-validation-for="USUARIO_ID" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_NOMBRE" class="control-label"></label>
-                <input asp-for="USUARIO_NOMBRE" class="form-control" />
-                <span asp-validation-for="USUARIO_NOMBRE" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CONTRASENA" class="control-label"></label>
-                <input asp-for="USUARIO_CONTRASENA" class="form-control" />
-                <span asp-validation-for="USUARIO_CONTRASENA" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_SALT" class="control-label"></label>
-                <input asp-for="USUARIO_SALT" class="form-control" />
-                <span asp-validation-for="USUARIO_SALT" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ROL_ID" class="control-label"></label>
-                <select asp-for="ROL_ID" class ="form-control" asp-items="ViewBag.ROL_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="EMPLEADO_ID" class="control-label"></label>
-                <select asp-for="EMPLEADO_ID" class ="form-control" asp-items="ViewBag.EMPLEADO_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CORREO" class="control-label"></label>
-                <input asp-for="USUARIO_CORREO" class="form-control" />
-                <span asp-validation-for="USUARIO_CORREO" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
-</div>
-
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
-</body>
-</html>
- *@

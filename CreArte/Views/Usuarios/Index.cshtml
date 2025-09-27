@@ -1,107 +1,133 @@
-﻿@model CreArte.ModelsPartial.UsuarioListaViewModels
+﻿@* ===============================================
+   RUTA: Views/Usuarios/Index.cshtml
+   DESCRIPCIÓN: Listado USUARIOS con filtros popover
+   (ROL / FECHA REGISTRO / ESTADO), buscador global,
+   orden, paginación, selección de fila, Details en modal.
+   Columnas: NO., USUARIO, EMPLEADO, ROL, FECHA REGISTRO, ESTADO
+   =============================================== *@
+@model CreArte.ModelsPartial.UsuarioViewModels
 
 @{
     ViewData["Title"] = "Usuarios";
-    Layout = "~/Views/Shared/_Layout.cshtml"; // Ruta del layout principal
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 @functions{
-    // Alterna dirección: si cambia de columna -> asc; si repite -> invierte
+    // Alterna dirección para la columna solicitada
     string NextDir(string col, string currentSort, string currentDir)
     {
-        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase))
-            return "asc";
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
         return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
     }
-    // Flecha ▲/▼ solo para la columna activa
+    // Muestra flecha de dirección si la columna está activa
     string Arrow(string col, string currentSort, string currentDir)
     {
         if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
         return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
     }
+    // Concatena 6 partes del nombre de PERSONA
+    string FullName6(string? n1, string? n2, string? n3, string? a1, string? a2, string? ac)
+    {
+        var parts = new List<string>(6);
+        if (!string.IsNullOrWhiteSpace(n1)) parts.Add(n1.Trim());
+        if (!string.IsNullOrWhiteSpace(n2)) parts.Add(n2.Trim());
+        if (!string.IsNullOrWhiteSpace(n3)) parts.Add(n3.Trim());
+        if (!string.IsNullOrWhiteSpace(a1)) parts.Add(a1.Trim());
+        if (!string.IsNullOrWhiteSpace(a2)) parts.Add(a2.Trim());
+        if (!string.IsNullOrWhiteSpace(ac)) parts.Add(ac.Trim());
+        return string.Join(" ", parts);
+    }
+}
+
+@section Styles{
+<style>
+.ua-popover-wrap{ position:relative; }
+.ua-popover{
+    display:none; position:absolute; top:100%; left:0; z-index:3000; background:#fff;
+    border:1px solid var(--ua-border, #e5e7eb); border-radius:8px; padding:12px; min-width:260px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.ua-popover.open{ display:block; }
+.table-responsive{ overflow:visible; }
+.ua-popover .ua-input{ width:100%; border:1px solid #F2B90F; border-radius:6px; padding:8px 10px; }
+.ua-pop-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.ua-btn-sm{ border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
+.ua-btn-sm.primary{ background:#C5D930; color:#000; }
+.ua-option{ display:block; margin-top:4px; }
+</style>
 }
 
 <div class="container-fluid py-3">
 
-    <!-- =========================
-         BARRA SUPERIOR
-         ========================= -->
+    <!-- Toolbar -->
     <div class="ua-toolbar">
         <h2 class="m-0"></h2>
 
         <div class="d-flex align-items-center gap-2">
-            <!-- Rutas de acción -->
-            <a asp-action="Create" class="ua-btn ua-btn-new">
+            <a asp-controller="Usuarios" asp-action="Create" class="ua-btn ua-btn-new">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 NUEVO
             </a>
-            <a asp-action="Details" class="ua-btn ua-btn-view">
+
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
                 VER
             </a>
-            <a asp-action="Edit" class="ua-btn ua-btn-edit">
+
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
                 MODIFICAR
             </a>
         </div>
 
-        <!-- Buscador (conserva Sort/Dir) -->
-        <form method="get" asp-action="Index" class="ua-search d-flex align-items-center">
+        <!-- Buscador global (conserva Sort/Dir) -->
+        <form method="get" asp-controller="Usuarios" asp-action="Index" class="ua-search d-flex align-items-center">
             <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
             <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
-            <input name="Search" value="@Model.Search" placeholder="Ingrese el texto a buscar..." />
+            <input name="Search" value="@Model.Search" placeholder="Buscar ID, Usuario, Rol, Empleado, Correo" />
             <button title="Buscar" type="submit">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             </button>
         </form>
     </div>
 
-    <!-- =========================
-         FORM OCULTO PARA FILTROS/ESTADO
-         ========================= -->
-    <form id="uaFilterForm" method="get" asp-action="Index">
+    <!-- Form oculto para recordar filtros actuales -->
+    <form id="uaFilterForm" method="get" asp-controller="Usuarios" asp-action="Index">
         <input type="hidden" name="Search" value="@Model.Search" />
         <input type="hidden" name="Page" value="1" />
         <input type="hidden" name="PageSize" value="@Model.PageSize" />
-        <!-- Mantener orden actual -->
         <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
         <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
-        <!-- Valores actuales para activar iconos -->
-        <input type="hidden" id="ua_val_usuario" value="@(Context.Request.Query["Usuario"])" />
-        <input type="hidden" id="ua_val_fi" value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" />
-        <input type="hidden" id="ua_val_ff" value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" />
-        <input type="hidden" id="ua_val_rol" value="@Model.Rol" />
+
+        <!-- Valores actuales -->
+        <input type="hidden" id="ua_val_rol"    value="@(Context.Request.Query["Rol"])" />
+        <input type="hidden" id="ua_val_fi"     value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" id="ua_val_ff"     value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" />
         <input type="hidden" id="ua_val_estado" value="@(Model.Estado?.ToString().ToLower())" />
     </form>
 
-    <!-- =========================
-         TABLA
-         ========================= -->
+    <!-- Tabla -->
     <div class="table-responsive mt-3">
         <table class="table ua-table align-middle">
             <thead>
                 <tr>
                     <th class="ua-col-check text-center align-middle">
                         <input type="checkbox" class="form-check-input" id="chkAll"
-                               onclick="document.querySelectorAll('.row-chk').forEach(c=>c.checked=this.checked);" />
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
                     </th>
 
-                    <!-- NO. (ordenable) -->
+                    <!-- NO. (USUARIO_ID) -->
                     <th class="ua-col-no">
                         <div class="ua-th">
                             @{
                                 var next_id = NextDir("id", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_id = Url.Action("Index", new {
+                                var href_id = Url.Action("Index", "Usuarios", new {
                                     Search = Model.Search,
-                                    Usuario = Context.Request.Query["Usuario"].ToString(),
+                                    Rol = Context.Request.Query["Rol"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                                    Rol = Model.Rol,
+                                    FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "id",
-                                    Dir  = next_id,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "id", Dir = next_id, Page = 1, PageSize = Model.PageSize
                                 });
                                 var isActive_id = (Model.Sort ?? "fecha").Equals("id", StringComparison.OrdinalIgnoreCase);
                             }
@@ -112,77 +138,94 @@
                         </div>
                     </th>
 
-                    <!-- USUARIO (ordenable + popover filtro) -->
+                    <!-- USUARIO (orden + filtro ROL al lado en popover independiente) -->
                     <th>
-                        <div class="ua-th ua-popover-wrap">
+                        <div class="ua-th">
                             @{
-                                var next_usr = NextDir("usuario", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_usr = Url.Action("Index", new {
+                                var next_user = NextDir("usuario", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_user = Url.Action("Index", "Usuarios", new {
                                     Search = Model.Search,
-                                    Usuario = Context.Request.Query["Usuario"].ToString(),
+                                    Rol = Context.Request.Query["Rol"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                                    Rol = Model.Rol,
+                                    FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "usuario",
-                                    Dir  = next_usr,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "usuario", Dir = next_user, Page = 1, PageSize = Model.PageSize
                                 });
-                                var isActive_usr = (Model.Sort ?? "fecha").Equals("usuario", StringComparison.OrdinalIgnoreCase);
+                                var isActive_user = (Model.Sort ?? "fecha").Equals("usuario", StringComparison.OrdinalIgnoreCase);
                             }
-                            <a class="ua-sort @(isActive_usr ? "" : "inactive")" href="@href_usr">
+                            <a class="ua-sort @(isActive_user ? "" : "inactive")" href="@href_user">
                                 <span class="ua-title">USUARIO</span>
                                 <span class="ua-arrow">@Arrow("usuario", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
                             </a>
+                        </div>
+                    </th>
 
-                            <button type="button" class="ua-filter-btn" data-pop="popUsuario" title="Filtrar Usuario">
+                    <!-- EMPLEADO (solo visual) -->
+                    <th>
+                        <div class="ua-th">
+                            <span class="ua-title">EMPLEADO</span>
+                        </div>
+                    </th>
+
+                    <!-- ROL (orden + filtro texto) -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_rol = NextDir("rol", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_rol = Url.Action("Index", "Usuarios", new {
+                                    Search = Model.Search,
+                                    Rol = Context.Request.Query["Rol"].ToString(),
+                                    FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
+                                    FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
+                                    Estado = Model.Estado,
+                                    Sort = "rol", Dir = next_rol, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_rol = (Model.Sort ?? "fecha").Equals("rol", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_rol ? "" : "inactive")" href="@href_rol">
+                                <span class="ua-title">ROL</span>
+                                <span class="ua-arrow">@Arrow("rol", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popRol" title="Filtrar rol">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             </button>
-                            <div id="popUsuario" class="ua-popover" aria-hidden="true">
-                                <input class="ua-input" type="text" id="fUsuario" placeholder="Ingrese el texto a filtrar..."
-                                       value="@(Context.Request.Query["Usuario"])" />
-                                <div class="ua-options" style="margin-top:8px;">
-                                    <label class="ua-option"><input type="radio" name="optU" value="all" checked> (Todos)</label>
-                                    <label class="ua-option"><input type="radio" name="optU" value="blanks"> (Vacíos)</label>
-                                    <label class="ua-option"><input type="radio" name="optU" value="nonblanks"> (No Vacíos)</label>
-                                </div>
+
+                            <div id="popRol" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fRol" placeholder="Nombre o ID de rol..."
+                                       value="@(Context.Request.Query["Rol"])" />
                                 <div class="ua-pop-actions">
-                                    <button type="button" class="ua-btn-sm" onclick="uaClearUsuario()">Limpiar</button>
-                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyUsuario()">Aplicar</button>
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearRol()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyRol()">Aplicar</button>
                                 </div>
                             </div>
                         </div>
                     </th>
 
-                    <!-- FECHA CREACION (ordenable + popover rango) -->
+                    <!-- FECHA REGISTRO (orden + rango) -->
                     <th style="width:260px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
-                                var next_fecha = NextDir("fecha", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_fecha = Url.Action("Index", new {
+                                var next_fec = NextDir("fecha", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_fec = Url.Action("Index", "Usuarios", new {
                                     Search = Model.Search,
-                                    Usuario = Context.Request.Query["Usuario"].ToString(),
+                                    Rol = Context.Request.Query["Rol"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                                    Rol = Model.Rol,
+                                    FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "fecha",
-                                    Dir  = next_fecha,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "fecha", Dir = next_fec, Page = 1, PageSize = Model.PageSize
                                 });
-                                var isActive_fecha = (Model.Sort ?? "fecha").Equals("fecha", StringComparison.OrdinalIgnoreCase);
+                                var isActive_fec = (Model.Sort ?? "fecha").Equals("fecha", StringComparison.OrdinalIgnoreCase);
                             }
-                            <a class="ua-sort @(isActive_fecha ? "" : "inactive")" href="@href_fecha">
-                                <span class="ua-title">FECHA CREACION</span>
+                            <a class="ua-sort @(isActive_fec ? "" : "inactive")" href="@href_fec">
+                                <span class="ua-title">FECHA REGISTRO</span>
                                 <span class="ua-arrow">@Arrow("fecha", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
                             </a>
 
-                            <button type="button" class="ua-filter-btn" data-pop="popFecha" title="Filtrar fecha">
+                            <button type="button" class="ua-filter-btn" data-pop="popFecha" title="Filtrar fecha registro">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             </button>
-                            <div id="popFecha" class="ua-popover" aria-hidden="true">
+                            <div id="popFecha" class="ua-popover" aria-hidden="true" tabindex="-1">
                                 <div class="ua-dates">
                                     <div><small>Desde</small><input type="date" id="fIni" value="@(Model.FechaInicio?.ToString("yyyy-MM-dd"))" /></div>
                                     <div><small>Hasta</small><input type="date" id="fFin" value="@(Model.FechaFin?.ToString("yyyy-MM-dd"))" /></div>
@@ -195,73 +238,18 @@
                         </div>
                     </th>
 
-                    <!-- ROL (ordenable + popover select) -->
-                    <th style="width:190px;">
-                        <div class="ua-th ua-popover-wrap">
-                            @{
-                                var next_rol = NextDir("rol", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_rol = Url.Action("Index", new {
-                                    Search = Model.Search,
-                                    Usuario = Context.Request.Query["Usuario"].ToString(),
-                                    FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                                    Rol = Model.Rol,
-                                    Estado = Model.Estado,
-                                    Sort = "rol",
-                                    Dir  = next_rol,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
-                                });
-                                var isActive_rol = (Model.Sort ?? "fecha").Equals("rol", StringComparison.OrdinalIgnoreCase);
-                            }
-                            <a class="ua-sort @(isActive_rol ? "" : "inactive")" href="@href_rol">
-                                <span class="ua-title">ROL</span>
-                                <span class="ua-arrow">@Arrow("rol", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
-                            </a>
-
-                            <button type="button" class="ua-filter-btn" data-pop="popRol" title="Filtrar rol">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
-                            </button>
-                            <div id="popRol" class="ua-popover" aria-hidden="true">
-                                <select id="fRol" class="ua-input">
-                                    <option value="">(Todos)</option>
-                                    @if (ViewBag.Roles is IEnumerable<string> roles && roles.Any())
-                                    {
-                                        foreach (var r in roles)
-                                        {
-                                            <option value="@r" selected="@(Model.Rol == r ? "selected" : null)">@r</option>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <option value="Administrador" selected="@(Model.Rol == "Administrador" ? "selected" : null)">Administrador</option>
-                                        <option value="Vendedor" selected="@(Model.Rol == "Vendedor" ? "selected" : null)">Vendedor</option>
-                                    }
-                                </select>
-                                <div class="ua-pop-actions">
-                                    <button type="button" class="ua-btn-sm" onclick="uaClearRol()">Limpiar</button>
-                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyRol()">Aplicar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </th>
-
-                    <!-- ESTADO (ordenable + popover select) -->
+                    <!-- ESTADO (orden + filtro select) -->
                     <th style="width:150px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_estado = Url.Action("Index", new {
+                                var href_estado = Url.Action("Index", "Usuarios", new {
                                     Search = Model.Search,
-                                    Usuario = Context.Request.Query["Usuario"].ToString(),
+                                    Rol = Context.Request.Query["Rol"].ToString(),
                                     FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                                    FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                                    Rol = Model.Rol,
+                                    FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                     Estado = Model.Estado,
-                                    Sort = "estado",
-                                    Dir  = next_estado,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
+                                    Sort = "estado", Dir = next_estado, Page = 1, PageSize = Model.PageSize
                                 });
                                 var isActive_estado = (Model.Sort ?? "fecha").Equals("estado", StringComparison.OrdinalIgnoreCase);
                             }
@@ -273,7 +261,7 @@
                             <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             </button>
-                            <div id="popEstado" class="ua-popover" aria-hidden="true">
+                            <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
                                 <select id="fEstado" class="ua-input">
                                     <option value="">(Todos)</option>
                                     <option value="true"  selected="@(Model.Estado == true  ? "selected" : null)">Activo</option>
@@ -294,12 +282,24 @@
                 {
                     foreach (var u in Model.Items)
                     {
-                        <tr>
-                            <td><input type="checkbox" class="form-check-input row-chk" value="@u.USUARIO_ID" /></td>
+                        // Preparar nombre completo del empleado (6 partes, con fallback)
+                        var emp = u?.EMPLEADO?.EMPLEADONavigation;
+                        string nombreCompleto = FullName6(
+                            emp?.PERSONA_PRIMERNOMBRE,
+                            emp?.PERSONA_SEGUNDONOMBRE,
+                            emp?.PERSONA_TERCERNOMBRE,
+                            emp?.PERSONA_PRIMERAPELLIDO,
+                            emp?.PERSONA_SEGUNDOAPELLIDO,
+                            emp?.PERSONA_APELLIDOCASADA
+                        );
+
+                        <tr class="ua-rowitem" data-id="@u.USUARIO_ID">
+                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@u.USUARIO_ID" /></td>
                             <td>@u.USUARIO_ID</td>
                             <td>@u.USUARIO_NOMBRE</td>
-                            <td>@u.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
-                            <td>@(u.ROL?.ROL_NOMBRE ?? u.ROL_ID)</td>
+                            <td>@(string.IsNullOrWhiteSpace(nombreCompleto) ? "-" : nombreCompleto)</td>
+                            <td>@u.ROL?.ROL_NOMBRE</td>
+                            <td>@u.USUARIO_FECHAREGISTRO.ToString("dd/MM/yyyy HH:mm")</td>
                             <td>
                                 @if (u.ESTADO) { <span class="ua-badge-activo">Activo</span> }
                                 else { <span class="ua-badge-inactivo">Inactivo</span> }
@@ -309,15 +309,13 @@
                 }
                 else
                 {
-                    <tr><td colspan="6" class="text-center py-4">No hay registros para mostrar.</td></tr>
+                    <tr><td colspan="7" class="text-center py-4">No hay registros para mostrar.</td></tr>
                 }
             </tbody>
         </table>
     </div>
 
-    <!-- =========================
-         PAGINACIÓN (conserva filtros y orden)
-         ========================= -->
+    <!-- Paginación -->
     @if (Model.TotalPages > 1)
     {
         <nav class="mt-2" aria-label="Paginación de usuarios">
@@ -326,17 +324,13 @@
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
                         <a class="page-link"
-                           href="@Url.Action("Index", new {
+                           href="@Url.Action("Index","Usuarios", new {
                                Search = Model.Search,
+                               Rol = Context.Request.Query["Rol"].ToString(),
                                FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                               FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                               Rol = Model.Rol,
+                               FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                Estado = Model.Estado,
-                               Usuario = Context.Request.Query["Usuario"].ToString(),
-                               Sort = Model.Sort,
-                               Dir  = Model.Dir,
-                               Page = p,
-                               PageSize = Model.PageSize
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
                            })">@p</a>
                     </li>
                 }
@@ -344,17 +338,13 @@
                 {
                     <li class="page-item">
                         <a class="page-link"
-                           href="@Url.Action("Index", new {
+                           href="@Url.Action("Index","Usuarios", new {
                                Search = Model.Search,
+                               Rol = Context.Request.Query["Rol"].ToString(),
                                FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-                               FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-                               Rol = Model.Rol,
+                               FechaFin = Model.FechaFin?.ToString("yyyy-MM-dd"),
                                Estado = Model.Estado,
-                               Usuario = Context.Request.Query["Usuario"].ToString(),
-                               Sort = Model.Sort,
-                               Dir  = Model.Dir,
-                               Page = Model.Page + 1,
-                               PageSize = Model.PageSize
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
                            })">Siguiente →</a>
                     </li>
                 }
@@ -362,3 +352,166 @@
         </nav>
     }
 </div>
+
+@section Scripts{
+<script>
+/* =========================
+   POPovers abrir/cerrar
+   ========================= */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* =========================
+   Acciones por selección de fila (VER/MODIFICAR)
+   ========================= */
+(function () {
+    const btnVer    = document.getElementById('btnVer');
+    const btnEditar = document.getElementById('btnEditar');
+    let selectedId = null;
+
+    function toggleButtons(enable){
+        if (btnVer) btnVer.classList.toggle('is-disabled', !enable);
+        if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
+    }
+
+    function applySelection(row) {
+        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+        row.classList.add('row-selected');
+        document.querySelectorAll('.ua-rowchk').forEach(c => { if (c.closest('.ua-rowitem') !== row) c.checked = false; });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+        toggleButtons(!!selectedId);
+    }
+
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('.ua-rowitem');
+        if (!row) return;
+        if (e.target.closest('a,button,select,textarea,label,input')) return;
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+
+    document.addEventListener('change', function (e) {
+        const chk = e.target.closest('.ua-rowchk');
+        if (!chk) return;
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row);
+        else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+    });
+
+    // ------ Details en modal (usa el parcial de Usuarios/Details.cshtml) ------
+    async function openDetailsModal(id) {
+        if (!window.Swal) {
+            window.location.href = '@Url.Action("Details", "Usuarios")/' + encodeURIComponent(id);
+            return;
+        }
+        const url = '@Url.Action("DetailsCard","Usuarios")' + '?id=' + encodeURIComponent(id);
+        try {
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+            if (!resp.ok) throw new Error('No se pudo cargar el detalle');
+            const html = await resp.text();
+            Swal.fire({
+                title: 'Detalle del Usuario',
+                html: html, width: 900, showCloseButton: true, showConfirmButton: false,
+                focusConfirm: false, customClass: { popup: 'swal2-no-padding' }
+            });
+        } catch (err) {
+            console.error(err);
+            if (window.Swal) Swal.fire('Error','No se pudo abrir el detalle.','error');
+            else alert('No se pudo abrir el detalle.');
+        }
+    }
+
+    if (btnVer) {
+        btnVer.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info"); return; }
+            openDetailsModal(selectedId);
+        });
+    }
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info"); return; }
+            window.location.href = '@Url.Action("Edit", "Usuarios")/' + encodeURIComponent(selectedId);
+        });
+    }
+})();
+
+/* =========================
+   Aplicar/Limpiar filtros
+   ========================= */
+function submitFilter(params) {
+    // Reconstituye la URL con los nuevos parámetros, preservando otros
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // reiniciar a página 1 al filtrar
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+
+// ROL (texto: acepta ID o nombre parcial)
+function uaApplyRol(){
+    const v = (document.getElementById('fRol')?.value || '').trim();
+    submitFilter({ Rol: v || null });
+}
+function uaClearRol(){ submitFilter({ Rol: null }); }
+
+// FECHA REGISTRO
+function uaApplyFecha(){
+    const fi = (document.getElementById('fIni')?.value || '').trim();
+    const ff = (document.getElementById('fFin')?.value || '').trim();
+    submitFilter({ FechaInicio: fi || null, FechaFin: ff || null });
+}
+function uaClearFecha(){ submitFilter({ FechaInicio: null, FechaFin: null }); }
+
+// ESTADO
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    submitFilter({ Estado: v || null });
+}
+function uaClearEstado(){ submitFilter({ Estado: null }); }
+
+
+/* =====================================================
+   PRG Post-Delete — mostrar SweetAlert si viene TempData
+   ===================================================== */
+(function(){
+    // 1) Leer TempData que el controller rellenó (si no hay, no hace nada)
+    const flag = '@(TempData["SwalOneBtnFlag"] ?? "")';
+    if (!flag) return;
+
+    const title = '@(TempData["SwalTitle"] ?? "Operación realizada")';
+    const text  = '@(TempData["SwalText"]  ?? "El registro se procesó correctamente.")';
+
+    // 2) Mostrar SweetAlert (si existe), o ignorar silenciosamente
+    if (window.Swal) {
+        Swal.fire({
+            icon: (flag === 'deleted' ? 'success' : 'info'),
+            title: title,
+            text: text,
+            confirmButtonText: 'Aceptar',
+            allowOutsideClick: true,
+            allowEscapeKey: true
+        });
+    }
+})();
+</script>
+}

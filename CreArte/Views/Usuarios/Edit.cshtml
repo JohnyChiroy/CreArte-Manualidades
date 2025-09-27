@@ -1,115 +1,308 @@
-﻿@model CreArte.Models.USUARIO
-
+﻿@* ===============================================
+   RUTA: Views/Usuarios/Edit.cshtml
+   DESCRIPCIÓN: Formulario de edición de USUARIO
+   - Contraseña OPCIONAL (si se llena, se valida)
+   - Guard "sin cambios" (snapshot)
+   - Pill estado
+   - Validaciones cliente consistentes con el controller
+   =============================================== *@
+@model CreArte.ModelsPartial.UsuarioCreateVM
 @{
-    Layout = null;
+    ViewData["Title"] = "Editar Usuario";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Usuario</h2>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Edit</title>
-</head>
-<body>
+    <!-- asp-route-id: envía el ID que requiere Edit(string id, ...) -->
+    <form asp-action="Edit" asp-controller="Usuarios" asp-route-id="@Model.USUARIO_ID"
+          method="post" id="frmUsuarioEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
 
-<h4>USUARIO</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="USUARIO_ID" />
-            <div class="form-group">
-                <label asp-for="USUARIO_NOMBRE" class="control-label"></label>
-                <input asp-for="USUARIO_NOMBRE" class="form-control" />
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="USUARIO_ID"><strong>Código Usuario:</strong></label>
+                    <input asp-for="USUARIO_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="USUARIO_ID" />
+                <span class="ua-help">Código no editable.</span>
+                <span asp-validation-for="USUARIO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           Datos de Usuario
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="USUARIO_NOMBRE"><strong>Nombre de Usuario:*</strong></label>
+                <input asp-for="USUARIO_NOMBRE"
+                       class="form-control"
+                       maxlength="50"
+                       required
+                       pattern="^[a-zA-Z0-9_.-]{3,50}$"
+                       title="De 3 a 50 caracteres: letras, números, punto, guion y guion bajo." />
                 <span asp-validation-for="USUARIO_NOMBRE" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CONTRASENA" class="control-label"></label>
-                <input asp-for="USUARIO_CONTRASENA" class="form-control" />
-                <span asp-validation-for="USUARIO_CONTRASENA" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_SALT" class="control-label"></label>
-                <input asp-for="USUARIO_SALT" class="form-control" />
-                <span asp-validation-for="USUARIO_SALT" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_FECHAREGISTRO" class="control-label"></label>
-                <input asp-for="USUARIO_FECHAREGISTRO" class="form-control" />
-                <span asp-validation-for="USUARIO_FECHAREGISTRO" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="USUARIO_CAMBIOINICIAL" /> @Html.DisplayNameFor(model => model.USUARIO_CAMBIOINICIAL)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="ROL_ID" class="control-label"></label>
-                <select asp-for="ROL_ID" class="form-control" asp-items="ViewBag.ROL_ID"></select>
-                <span asp-validation-for="ROL_ID" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="EMPLEADO_ID" class="control-label"></label>
-                <select asp-for="EMPLEADO_ID" class="form-control" asp-items="ViewBag.EMPLEADO_ID"></select>
-                <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CORREO" class="control-label"></label>
-                <input asp-for="USUARIO_CORREO" class="form-control" />
+
+            <div class="ua-field">
+                <label asp-for="USUARIO_CORREO"><strong>Correo:</strong></label>
+                <input asp-for="USUARIO_CORREO"
+                       class="form-control"
+                       maxlength="150"
+                       type="email"
+                       placeholder="opcional"
+                       title="Si ingresa un correo, debe tener formato válido." />
                 <span asp-validation-for="USUARIO_CORREO" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
+        </div>
+
+        @* ==============================
+           Relaciones: Rol / Empleado
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="ROL_ID"><strong>Rol:*</strong></label>
+                <select asp-for="ROL_ID" class="form-control" asp-items="Model.Roles" required>
+                    <option value="">Seleccione un rol ↓</option>
+                </select>
+                <span asp-validation-for="ROL_ID" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="FECHA_CREACION" class="control-label"></label>
-                <input asp-for="FECHA_CREACION" class="form-control" />
-                <span asp-validation-for="FECHA_CREACION" class="text-danger"></span>
+            <div class="ua-field">
+                <label asp-for="EMPLEADO_ID"><strong>Empleado:*</strong></label>
+                <select asp-for="EMPLEADO_ID" class="form-control" asp-items="Model.Empleados" required>
+                    <option value="">Seleccione un empleado ↓</option>
+                </select>
+                <span asp-validation-for="EMPLEADO_ID" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
+        </div>
+
+        @* ==============================
+           Seguridad: Contraseña y confirmación (OPCIONAL en EDIT)
+           - Si llenas cualquiera, ambas se vuelven obligatorias
+           - Política: 8+ con Mayúscula, Minúscula, Dígito, Símbolo
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="Password"><strong>Nueva Contraseña:</strong></label>
+                <input asp-for="Password"
+                       id="Password"
+                       class="form-control"
+                       type="password"
+                       minlength="8"
+                       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$"
+                       title="Mínimo 8, incluir mayúscula, minúscula, dígito y símbolo." />
+                <span asp-validation-for="Password" class="text-danger"></span>
+                <div class="ua-help">Déjalo vacío si no deseas cambiarla.</div>
             </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
+            <div class="ua-field">
+                <label asp-for="ConfirmPassword"><strong>Confirmar Nueva Contraseña:</strong></label>
+                <input asp-for="ConfirmPassword"
+                       id="ConfirmPassword"
+                       class="form-control"
+                       type="password"
+                       minlength="8" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                <div class="ua-help">Debe coincidir si decides cambiar la contraseña.</div>
             </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
+        </div>
+
+        @* ==============================
+           Política: Forzar cambio al primer inicio
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label><strong>Cambio inicial de contraseña:</strong></label>
+                <div class="form-check">
+                    <input asp-for="USUARIO_CAMBIOINICIAL" class="form-check-input" type="checkbox" id="chkCambioInicial" />
+                    <label class="form-check-label" for="chkCambioInicial">Requerir cambio de contraseña en el primer inicio de sesión</label>
+                </div>
+                <span asp-validation-for="USUARIO_CAMBIOINICIAL" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Usuarios">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-</body>
-</html>
+    <script>
+        // ==============================
+        // Pill Estado
+        // ==============================
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent='Activo')
+                                               : (pill.classList.remove('active'), pill.textContent='Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // ==============================
+        // Confirmación de contraseña (si se edita)
+        // ==============================
+        (function () {
+            const pwd = document.getElementById('Password');
+            const cpw = document.getElementById('ConfirmPassword');
+            if (!pwd || !cpw) return;
+
+            function checkMatch() {
+                // Si cualquiera tiene valor, ambas obligatorias
+                const anyFilled = (pwd.value || '').length > 0 || (cpw.value || '').length > 0;
+                pwd.required = anyFilled;
+                cpw.required = anyFilled;
+
+                // Coincidencia
+                if (anyFilled && pwd.value !== cpw.value) {
+                    cpw.setCustomValidity('La confirmación no coincide.');
+                } else {
+                    cpw.setCustomValidity('');
+                }
+            }
+            pwd.addEventListener('input', checkMatch);
+            cpw.addEventListener('input', checkMatch);
+            checkMatch();
+        })();
+
+        // ==============================
+        // Política de contraseña (cliente)
+        // ==============================
+        function passwordPolicyOk(v) {
+            if (!v || v.length < 8) return false;
+            if (!/[A-Z]/.test(v)) return false;
+            if (!/[a-z]/.test(v)) return false;
+            if (!/[0-9]/.test(v)) return false;
+            if (!/[^a-zA-Z0-9]/.test(v)) return false;
+            return true;
+        }
+
+        // ==============================
+        // Habilitar botón Actualizar
+        // Reglas:
+        //  - Usuario, Rol, Empleado => requeridos
+        //  - Si se edita contraseña: política y confirmación
+        //  - Correo opcional; valida por type=email
+        //  - form.checkValidity()
+        // ==============================
+        (function () {
+            const btn  = document.getElementById('btnActualizar');
+            const form = document.getElementById('frmUsuarioEdit');
+
+            const baseIds = ['USUARIO_NOMBRE', 'ROL_ID', 'EMPLEADO_ID'];
+            const els = baseIds.map(id => document.getElementById(id));
+            const usuario = document.getElementById('USUARIO_NOMBRE');
+            const pwd = document.getElementById('Password');
+            const cpw = document.getElementById('ConfirmPassword');
+
+            function ready() {
+                // Campos base llenos
+                const baseOk = els.every(el => el && (el.value || '').trim().length > 0);
+
+                // Usuario respeta el pattern
+                let userOk = true;
+                if (usuario) userOk = usuario.checkValidity();
+
+                // Contraseña (opcional): si hay intento de cambio, validar
+                const anyPwd = (pwd && pwd.value.length > 0) || (cpw && cpw.value.length > 0);
+                let pwdOk = true, matchOk = true;
+                if (anyPwd) {
+                    pwdOk = passwordPolicyOk(pwd.value);
+                    matchOk = (pwd.value === cpw.value) && cpw.value.length > 0;
+                }
+
+                const ok = baseOk && userOk && pwdOk && matchOk && (form ? form.checkValidity() : true);
+
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            // Hooks
+            const hook = (el) => el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', ready);
+            els.forEach(hook);
+            if (pwd) pwd.addEventListener('input', ready);
+            if (cpw) cpw.addEventListener('input', ready);
+            ready();
+        })();
+
+        // ==============================
+        // Guard "sin cambios" (snapshot)
+        // ==============================
+        (function () {
+            const frm = document.getElementById('frmUsuarioEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                if (currentSnapshot === initialSnapshot) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "Usuarios")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "Usuarios")';
+                    }
+                    return;
+                }
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // ==============================
+        // PRG (post-Edit) si usas TempData
+        // ==============================
+        (function () {
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+            const flag='@(TempData["SwalOneBtnFlag"] ?? "")', title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+            const redirect='@Url.Action("Index", "Usuarios")';
+            window.CreArteSwal.info({
+                icon:(flag==='updated'?'success':'info'),
+                title:title || (flag==='updated'?'¡Usuario actualizado!':'Sin cambios'),
+                text: text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                confirmText:'Aceptar',
+                redirectUrl:redirect
+            });
+        })();
+    </script>
+}
