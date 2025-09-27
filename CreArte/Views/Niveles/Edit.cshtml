@@ -46,7 +46,7 @@
 
         <!-- Nombre -->
         <div class="ua-field" style="margin-top:12px;">
-            <label asp-for="NIVEL_NOMBRE"><strong>Nombre del nivel:</strong></label>
+            <label asp-for="NIVEL_NOMBRE"><strong>Nombre del nivel:*</strong></label>
             <input asp-for="NIVEL_NOMBRE" class="form-control" maxlength="30" />
             <span asp-validation-for="NIVEL_NOMBRE" class="text-danger"></span>
             <div class="ua-help"><span id="cntNombre">0</span></div>
@@ -58,7 +58,7 @@
             <label asp-for="NIVEL_DESCRIPCION"><strong>Descripción:</strong></label>
             <textarea asp-for="NIVEL_DESCRIPCION" class="form-control" rows="2" maxlength="30"></textarea>
             <span asp-validation-for="NIVEL_DESCRIPCION" class="text-danger"></span>
-            <div class="ua-help">Opcional <span id="cntDesc">0</span></div>
+            <div class="ua-help"><span id="cntDesc">0</span></div>
         </div>
 
         <!-- Acciones -->
