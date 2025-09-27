@@ -1,0 +1,69 @@
+﻿@* ===============================================
+   RUTA: Views/Roles/Details.cshtml
+   DESCRIPCIÓN: PartialView (Layout = null) para inyectar en SweetAlert2.
+   Mismos estilos/UX que Empleados/Details, adaptado a ROL.
+   =============================================== *@
+@model CreArte.ModelsPartial.RolDetailsVM
+@{
+    ViewData["Title"] = "Detalle de Rol";
+    Layout = null; // Es parcial para el modal (SweetAlert2)
+}
+
+<div class="ua-card">
+    <!-- Fila superior: Código y Estado (misma UX que Empleados) -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código Rol:</strong></label>
+                <input value="@Model.ROL_ID" class="form-control" readonly />
+            </div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nombre del rol -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <label><strong>Nombre:</strong></label>
+            <input value="@Model.ROL_NOMBRE" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- Descripción -->
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Descripción:</strong></label>
+        <textarea class="form-control" rows="2" readonly>@(Model.ROL_DESCRIPCION ?? "")</textarea>
+    </div>
+
+    <!-- Auditoría (creación y última modificación) -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+        </div>
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- Acciones (mismo layout que Empleados) -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Roles">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-controller="Roles" asp-route-id="@Model.ROL_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
+</div>

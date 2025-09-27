@@ -1,0 +1,108 @@
+﻿@* ===============================================
+   RUTA: Views/Empresa/Index.cshtml
+   DESCRIPCIÓN: Vista de SOLO LECTURA con botón Editar.
+   - Mismos estilos (ua-card, ua-row, ua-field, ua-kv, ua-pill).
+   - Muestra logo, datos y auditoría.
+   =============================================== *@
+@model CreArte.ModelsPartial.EmpresaConfigVM
+@{
+    ViewData["Title"] = "Empresa";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Información de la Empresa</h2>
+
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código Empresa:</strong></label>
+                <span>@Model.EMPRESA_ID</span>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">@(Model.ESTADO ? "Activo" : "Inactivo")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 60%;">
+            <div class="ua-kv"><label><strong>Nombre Comercial:</strong></label><span>@Model.NOMBRE_COMERCIAL_EMPRESA</span></div>
+        </div>
+        <div class="ua-field" style="flex:1 1 40%;">
+            <div class="ua-kv"><label><strong>Nombre Legal:</strong></label><span>@(Model.NOMBRE_LEGAL_EMPRESA ?? "-")</span></div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <div class="ua-kv"><label><strong>NIT:</strong></label><span>@(Model.NIT_EMPRESA ?? "-")</span></div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv"><label><strong>Correo:</strong></label><span>@(Model.CORREO_EMPRESA ?? "-")</span></div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv"><label><strong>Teléfono:</strong></label><span>@Model.TELEFONO_EMPRESA</span></div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv"><label><strong>WhatsApp:</strong></label><span>@(Model.WHATSAPP_EMPRESA ?? "-")</span></div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv"><label><strong>Dirección:</strong></label><span>@Model.DIRECCION_EMPRESA</span></div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv"><label><strong>Descripción corta:</strong></label><span>@(Model.DESCRIPCION_EMPRESA ?? "-")</span></div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Logo:</strong></label>
+            <div class="p-2 border rounded d-flex align-items-center" style="gap:12px;">
+                <img src="@(string.IsNullOrWhiteSpace(Model.LOGO_EMPRESA) ? "/images/no-logo.png" : Model.LOGO_EMPRESA)"
+                     alt="Logo" style="height:64px;width:auto;border-radius:6px;" />
+            </div>
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv">
+                <label><strong>Auditoría:</strong></label>
+                <span>
+                    Creado por @Model.USUARIO_CREACION el @Model.FECHA_CREACION?.ToString("dd/MM/yyyy HH:mm") |
+                    Última modif. por @Model.USUARIO_MODIFICACION el @Model.FECHA_MODIFICACION?.ToString("dd/MM/yyyy HH:mm")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="ua-actions">
+        <a class="btn-save" asp-action="Edit" asp-controller="Empresa">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // PRG (SweetAlert) tras guardar en Edit
+        (function(){
+            if(!window.Swal) return;
+            const title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            if(!title && !text) return;
+            Swal.fire({icon:'success', title:title||'Cambios guardados', text:text||'Se guardó la información.'});
+        })();
+    </script>
+}

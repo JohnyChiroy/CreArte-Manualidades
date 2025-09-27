@@ -1,0 +1,360 @@
+﻿@* ===============================================
+   RUTA: Views/Roles/Index.cshtml
+   DESCRIPCIÓN: Listado ROLES con filtros popover
+   (ESTADO), buscador global, orden, paginación,
+   selección de fila y Details en modal.
+   Estilos y UX idénticos a Empleados.
+   =============================================== *@
+@model CreArte.ModelsPartial.RolViewModels
+
+@{
+    ViewData["Title"] = "Roles";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@functions{
+    // ===== Utilitarios de orden (idénticos a Empleados) =====
+    string NextDir(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
+}
+
+@section Styles{
+<style>
+/* ====== MISMO CSS QUE EN EMPLEADOS ====== */
+.ua-popover-wrap{ position:relative; }
+.ua-popover{
+    display:none; position:absolute; top:100%; left:0; z-index:3000; background:#fff;
+    border:1px solid var(--ua-border, #e5e7eb); border-radius:8px; padding:12px; min-width:260px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.ua-popover.open{ display:block; }
+.table-responsive{ overflow:visible; }
+.ua-popover .ua-input{ width:100%; border:1px solid #F2B90F; border-radius:6px; padding:8px 10px; }
+.ua-pop-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.ua-btn-sm{ border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
+.ua-btn-sm.primary{ background:#C5D930; color:#000; }
+.ua-option{ display:block; margin-top:4px; }
+
+/* (Las clases .ua-toolbar, .ua-btn, .ua-table, .ua-pagination, etc.
+   se asumen globales como en Empleados. No se tocan aquí.) */
+</style>
+}
+
+<div class="container-fluid py-3">
+
+    <!-- Toolbar -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Roles</h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- NUEVO -->
+            <a asp-controller="Roles" asp-action="Create" class="ua-btn ua-btn-new">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                NUEVO
+            </a>
+
+            <!-- VER (modal Details) -->
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                VER
+            </a>
+
+            <!-- MODIFICAR -->
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                MODIFICAR
+            </a>
+        </div>
+
+        <!-- Buscador global (conserva Sort/Dir) -->
+        <form method="get" asp-controller="Roles" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+            <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+            <input name="Search" value="@Model.Search" placeholder="Buscar ID o Nombre de Rol" />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></path></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- Form oculto para filtros -->
+    <form id="uaFilterForm" method="get" asp-controller="Roles" asp-action="Index">
+        <input type="hidden" name="Search" value="@Model.Search" />
+        <input type="hidden" name="Page" value="1" />
+        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+        <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+        <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+        <input type="hidden" id="ua_val_estado" value="@(Model.Estado?.ToString().ToLower())" />
+    </form>
+
+    <!-- Tabla -->
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+            <thead>
+                <tr>
+                    <th class="ua-col-check text-center align-middle">
+                        <input type="checkbox" class="form-check-input" id="chkAll"
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                    </th>
+
+                    <!-- ID -->
+                    <th class="ua-col-no">
+                        <div class="ua-th">
+                            @{
+                                var next_id = NextDir("id", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_id = Url.Action("Index", "Roles", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "id", Dir = next_id, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_id = (Model.Sort ?? "fecha").Equals("id", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_id ? "" : "inactive")" href="@href_id">
+                                <span class="ua-title">ID</span>
+                                <span class="ua-arrow">@Arrow("id", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- NOMBRE -->
+                    <th>
+                        <div class="ua-th">
+                            @{
+                                var next_nom = NextDir("nombre", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_nom = Url.Action("Index", "Roles", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "nombre", Dir = next_nom, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_nom = (Model.Sort ?? "fecha").Equals("nombre", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_nom ? "" : "inactive")" href="@href_nom">
+                                <span class="ua-title">NOMBRE</span>
+                                <span class="ua-arrow">@Arrow("nombre", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- DESCRIPCIÓN (texto simple) -->
+                    <th>
+                        <div class="ua-th">
+                            <span class="ua-title">DESCRIPCIÓN</span>
+                        </div>
+                    </th>
+
+                    <!-- ESTADO (ordenable + filtro popover) -->
+                    <th style="width:150px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_estado = Url.Action("Index", "Roles", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "estado", Dir = next_estado, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_estado = (Model.Sort ?? "fecha").Equals("estado", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_estado ? "" : "inactive")" href="@href_estado">
+                                <span class="ua-title">ESTADO</span>
+                                <span class="ua-arrow">@Arrow("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <select id="fEstado" class="ua-input">
+                                    <option value="">(Todos)</option>
+                                    <option value="true"  selected="@(Model.Estado == true  ? "selected" : null)">Activo</option>
+                                    <option value="false" selected="@(Model.Estado == false ? "selected" : null)">Inactivo</option>
+                                </select>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearEstado()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyEstado()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var r in Model.Items)
+                    {
+                        <tr class="ua-rowitem" data-id="@r.ROL_ID">
+                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@r.ROL_ID" /></td>
+                            <td>@r.ROL_ID</td>
+                            <td>@r.ROL_NOMBRE</td>
+                            <td>@(string.IsNullOrWhiteSpace(r.ROL_DESCRIPCION) ? "-" : r.ROL_DESCRIPCION)</td>
+                            <td>
+                                @if (r.ESTADO) { <span class="ua-badge-activo">Activo</span> }
+                                else { <span class="ua-badge-inactivo">Inactivo</span> }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="5" class="text-center py-4">No hay registros para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de roles">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Roles", new {
+                               Search = Model.Search,
+                               Estado = Model.Estado,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Roles", new {
+                               Search = Model.Search,
+                               Estado = Model.Estado,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts{
+<script>
+/* =========================
+   POPovers abrir/cerrar
+   (mismo patrón de Empleados)
+   ========================= */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* =========================
+   Acciones por selección de fila (VER/MODIFICAR)
+   ========================= */
+(function () {
+    const btnVer    = document.getElementById('btnVer');
+    const btnEditar = document.getElementById('btnEditar');
+    let selectedId = null;
+
+    function toggleButtons(enable){
+        if (btnVer)    btnVer.classList.toggle('is-disabled', !enable);
+        if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
+    }
+
+    function applySelection(row) {
+        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+        row.classList.add('row-selected');
+        document.querySelectorAll('.ua-rowchk').forEach(c => { if (c.closest('.ua-rowitem') !== row) c.checked = false; });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+        toggleButtons(!!selectedId);
+    }
+
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('.ua-rowitem');
+        if (!row) return;
+        if (e.target.closest('a,button,select,textarea,label,input')) return;
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+
+    document.addEventListener('change', function (e) {
+        const chk = e.target.closest('.ua-rowchk');
+        if (!chk) return;
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+    });
+
+    async function openDetailsModal(id) {
+        if (!window.Swal) {
+            window.location.href = '@Url.Action("Details", "Roles")/' + encodeURIComponent(id);
+            return;
+        }
+        const url = '@Url.Action("DetailsCard","Roles")' + '?id=' + encodeURIComponent(id);
+        try {
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+            if (!resp.ok) throw new Error('No se pudo cargar el detalle');
+            const html = await resp.text();
+            Swal.fire({
+                title: 'Detalle del Rol',
+                html: html, width: 900, showCloseButton: true, showConfirmButton: false,
+                focusConfirm: false, customClass: { popup: 'swal2-no-padding' }
+            });
+        } catch (err) { console.error(err); Swal.fire('Error','No se pudo abrir el detalle.','error'); }
+    }
+
+    if (btnVer) {
+        btnVer.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info"); return; }
+            openDetailsModal(selectedId);
+        });
+    }
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info"); return; }
+            window.location.href = '@Url.Action("Edit", "Roles")/' + encodeURIComponent(selectedId);
+        });
+    }
+})();
+
+/* =========================
+   Aplicar/Limpiar filtro ESTADO
+   ========================= */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1');
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    submitFilter({ Estado: v || null });
+}
+function uaClearEstado(){ submitFilter({ Estado: null }); }
+</script>
+}
