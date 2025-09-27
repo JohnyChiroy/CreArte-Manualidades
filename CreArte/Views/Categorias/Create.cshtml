@@ -1,0 +1,160 @@
+﻿@* ===============================================
+   RUTA: Views/Categorias/Create.cshtml
+   DESCRIPCIÓN: Formulario de creación de CATEGORÍA.
+   - ID autogenerado por el Controller (prefijo CA)
+   - Nombre obligatorio (HTML + DataAnnotations)
+   - ESTADO con "pill", guard para habilitar botón
+   - PRG con SweetAlert2 (usa TempData del Controller)
+   =============================================== *@
+@model CreArte.ModelsPartial.CategoriaCreateVM
+@{
+    ViewData["Title"] = "Crear Categoría";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Nueva Categoría</h2>
+
+    <!-- El Controller reasigna CATEGORIA_ID en servidor -->
+    <form asp-action="Create" asp-controller="Categorias" method="post" id="frmCategoria" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="CATEGORIA_ID"><strong>Código Categoría:</strong></label>
+                    <input asp-for="CATEGORIA_ID" class="form-control" readonly />
+                </div>
+                <span asp-validation-for="CATEGORIA_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:2px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           CATEGORÍA: Nombre
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="CATEGORIA_NOMBRE"><strong>Nombre:*</strong></label>
+                <input asp-for="CATEGORIA_NOMBRE" class="form-control" maxlength="100" required id="CATEGORIA_NOMBRE" />
+                <span asp-validation-for="CATEGORIA_NOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom">0/100</span></div> *@
+            </div>
+        </div>
+
+        @* ==============================
+           CATEGORÍA: Descripción (opcional)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="CATEGORIA_DESCRIPCION"><strong>Descripción:</strong></label>
+                <input asp-for="CATEGORIA_DESCRIPCION" class="form-control" maxlength="255" id="CATEGORIA_DESCRIPCION" />
+                <span asp-validation-for="CATEGORIA_DESCRIPCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Categorias">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Contador opcional (si quieres mostrarlo, descomenta el span y esta función)
+        (function () {
+            const input = document.getElementById('CATEGORIA_NOMBRE');
+            const max = 100;
+            const lbl = document.getElementById('cntNom'); // descomenta el span arriba si lo usarás
+            if (!input || !lbl) return;
+            const upd = () => lbl.textContent = (input.value || '').length + '/' + max;
+            upd(); input.addEventListener('input', upd);
+        })();
+
+        // Pill Estado (sincroniza texto/estilo con el switch)
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent = 'Activo')
+                                               : (pill.classList.remove('active'), pill.textContent = 'Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // Guard de habilitación de botón "Guardar"
+        // Requisitos: Nombre no vacío + form.checkValidity()
+        (function () {
+            const btn = document.getElementById('btnGuardar');
+            const form = document.getElementById('frmCategoria');
+            const elNombre = document.getElementById('CATEGORIA_NOMBRE');
+
+            function ready() {
+                const nombreOk = elNombre && (elNombre.value || '').trim().length > 0;
+                const ok = nombreOk && (form ? form.checkValidity() : true);
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            if (elNombre) elNombre.addEventListener('input', ready);
+            if (form) form.addEventListener('input', ready);
+            ready();
+        })();
+
+        // Prevenir doble submit
+        (function () {
+            const frm = document.getElementById('frmCategoria');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true; btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // PRG (SweetAlert2) con TempData — mismo patrón que Empleados
+        (function () {
+            if (!window.Swal) return;
+            const title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            const urlIndex='@(TempData["SwalIndexUrl"] ?? "")', urlCreate='@(TempData["SwalCreateUrl"] ?? "")';
+            if (!title && !text) return;
+            Swal.fire({
+                icon:'success',
+                title: title || 'Guardado',
+                text: text || 'El registro se creó correctamente.',
+                showDenyButton:true,
+                confirmButtonText:'Volver al listado',
+                denyButtonText:'Crear otra',
+                allowOutsideClick:false,
+                allowEscapeKey:false
+            }).then(r=>{
+                if (r.isConfirmed && urlIndex) location.href=urlIndex;
+                else if (r.isDenied && urlCreate) location.href=urlCreate;
+            });
+        })();
+    </script>
+}

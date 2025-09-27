@@ -1,0 +1,162 @@
+﻿@* ===============================================
+   RUTA: Views/SubCategorias/Edit.cshtml
+   DESCRIPCIÓN: Formulario de edición de SUBCATEGORÍA
+   - Guard "sin cambios" (snapshot)
+   - Pill estado
+   =============================================== *@
+@model CreArte.ModelsPartial.SubCategoriaCreateVM
+@{
+    ViewData["Title"] = "Editar Subcategoría";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Subcategoría</h2>
+
+    <form asp-action="Edit" asp-controller="SubCategorias" asp-route-id="@Model.SUBCATEGORIA_ID"
+          method="post" id="frmSubCatEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="SUBCATEGORIA_ID"><strong>Código:</strong></label>
+                    <input asp-for="SUBCATEGORIA_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="SUBCATEGORIA_ID" />
+                <span class="ua-help">Código no editable.</span>
+                <span asp-validation-for="SUBCATEGORIA_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px%;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Nombre + Categoría -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 65%;">
+                <label asp-for="SUBCATEGORIA_NOMBRE"><strong>Nombre:*</strong></label>
+                <input asp-for="SUBCATEGORIA_NOMBRE" class="form-control" maxlength="100" required />
+                <span asp-validation-for="SUBCATEGORIA_NOMBRE" class="text-danger"></span>
+            </div>
+            <div class="ua-field" style="flex:1 1 35%;">
+                <label asp-for="CATEGORIA_ID"><strong>Categoría:*</strong></label>
+                <select asp-for="CATEGORIA_ID" class="form-control" asp-items="Model.Categorias" required>
+                    <option value="">Seleccione una categoría ↓</option>
+                </select>
+                <span asp-validation-for="CATEGORIA_ID" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="SUBCATEGORIA_DESCRIPCION"><strong>Descripción:</strong></label>
+                <input asp-for="SUBCATEGORIA_DESCRIPCION" class="form-control" maxlength="255" />
+                <span asp-validation-for="SUBCATEGORIA_DESCRIPCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="SubCategorias">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Pill Estado
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent='Activo')
+                                               : (pill.classList.remove('active'), pill.textContent='Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // Habilitar botón Actualizar (obligatorios)
+        (function () {
+            const btn  = document.getElementById('btnActualizar');
+            const form = document.getElementById('frmSubCatEdit');
+            const reqIds = ['SUBCATEGORIA_NOMBRE','CATEGORIA_ID'];
+            const els = reqIds.map(id => document.getElementById(id));
+            function ready(){
+                const ok = els.every(el => el && (el.value||'').trim().length>0) && (form?form.checkValidity():true);
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+            els.forEach(el => el && el.addEventListener(el.tagName==='SELECT'?'change':'input', ready));
+            ready();
+        })();
+
+        // Guard "sin cambios" (snapshot)
+        (function () {
+            const frm = document.getElementById('frmSubCatEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                if (currentSnapshot === initialSnapshot) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "SubCategorias")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "SubCategorias")';
+                    }
+                    return;
+                }
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // PRG post-Edit
+        (function () {
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+            const flag='@(TempData["SwalOneBtnFlag"] ?? "")', title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+            const redirect='@Url.Action("Index", "SubCategorias")';
+            window.CreArteSwal.info({
+                icon:(flag==='updated'?'success':'info'),
+                title:title || (flag==='updated'?'¡Subcategoría actualizada!':'Sin cambios'),
+                text: text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                confirmText:'Aceptar',
+                redirectUrl:redirect
+            });
+        })();
+    </script>
+}
