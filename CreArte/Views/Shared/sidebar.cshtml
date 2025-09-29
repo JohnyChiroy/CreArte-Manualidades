@@ -5,7 +5,7 @@
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
     // Controladores hijos de "Configuración"
-    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "empresa" };
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "marcas", "empresa" };
 
     // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
     bool isConfigOpen = configChildren.Contains(currentController);
@@ -35,12 +35,6 @@
             <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
         </a>
 
-        <!-- Productos -->
-        <a asp-controller="Productos" asp-action="Index"
-           class="nav-item @(currentController == "productos" ? "is-active" : "")">
-            <i class="bi bi-box"></i> <span>Productos</span>
-        </a>
-
         <!-- Inventario -->
         <a asp-controller="Inventario" asp-action="Index"
            class="nav-item @(currentController == "inventario" ? "is-active" : "")">
@@ -61,6 +55,12 @@
 
         <div class="sidebar-sep"></div>
 
+        <!-- Productos -->
+        <a asp-controller="Productos" asp-action="Index"
+           class="nav-item @(currentController == "productos" ? "is-active" : "")">
+            <i class="bi bi-box"></i> <span>Productos</span>
+        </a>
+
         <!-- Proveedores -->
         <a asp-controller="Proveedores" asp-action="Index"
            class="nav-item @(currentController == "proveedores" ? "is-active" : "")">
@@ -78,12 +78,6 @@
            class="nav-item @(currentController == "empleados" ? "is-active" : "")">
             <i class="bi bi-person-badge"></i> <span>Empleados</span>
         </a>
-
-        @* <!-- Puestos -->
-        <a asp-controller="Puestos" asp-action="Index"
-           class="nav-item @(currentController == "puestos" ? "is-active" : "")">
-            <i class="bi bi-diagram-3"></i> <span>Puestos</span>
-        </a> *@
 
         <!-- Usuarios -->
         <a asp-controller="Usuarios" asp-action="Index"
@@ -139,6 +133,24 @@
             <a asp-controller="SubCategorias" asp-action="Index"
                class="nav-item nav-item--sub @(currentController == "subcategorías" ? "is-active" : "")">
                 <i class="bi bi-tags"></i> <span>SubCategorías</span>
+            </a>
+
+            <!-- Marcas -->
+            <a asp-controller="Marcas" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "marcas" ? "is-active" : "")">
+                <i class="bi bi-receipt-cutoff"></i> <span>Marcas</span>
+            </a>
+
+            <!-- Unidad de Medida -->
+            <a asp-controller="Unidad Medida" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "unidadmedida" ? "is-active" : "")">
+                <i class="bi bi-columns-gap"></i> <span>Unidad Medida</span>
+            </a>
+
+            <!-- Tipo Cliente -->
+            <a asp-controller="TipoCliente" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "TipoCliente" ? "is-active" : "")">
+                <i class="bi bi-person-bounding-box"></i> <span>Tipo Cliente</span>
             </a>
 
             <!-- Empresa -->

@@ -4,6 +4,8 @@
 //              y auditoría. Usa los mismos estilos/UX que Empleados.
 //              ▸ Incluye: búsqueda global, filtro ESTADO, orden por
 //                ID/NOMBRE/CATEGORÍA/ESTADO, paginación.
+//              ▸ AJUSTE: Validación de unicidad de nombre por CATEGORÍA
+//                en Create/Edit (case-insensitive, ignora ELIMINADO).
 // ===============================================
 using CreArte.Data;
 using CreArte.Models;
@@ -67,10 +69,7 @@ namespace CreArte.Controllers
                 q = q.Where(su => EF.Functions.Like(su.SUBCATEGORIA_NOMBRE, $"%{n}%"));
             }
 
-            // 4) Filtro por CATEGORÍA:
-            //    - "__BLANKS__": sin categoría (raro, pero soportado)
-            //    - "__NONBLANKS__": con categoría
-            //    - texto: busca en CATEGORIA_NOMBRE
+            // 4) Filtro por CATEGORÍA
             if (!string.IsNullOrWhiteSpace(Categoria))
             {
                 var cat = Categoria.Trim();
@@ -175,6 +174,7 @@ namespace CreArte.Controllers
         // ============================================================
         // CREATE (POST) – /SubCategorias/Create
         // Validaciones: Nombre/Categoría obligatorios, FK Categoría activa.
+        // + Unicidad de NOMBRE por CATEGORÍA (case-insensitive, ignora ELIMINADO)
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -183,29 +183,47 @@ namespace CreArte.Controllers
             // Recalcular ID en servidor por seguridad
             vm.SUBCATEGORIA_ID = await SiguienteSubCategoriaIdAsync();
 
-            // --------- VALIDACIONES ---------
+            // --------- VALIDACIONES BÁSICAS ---------
             if (string.IsNullOrWhiteSpace(vm.SUBCATEGORIA_NOMBRE))
                 ModelState.AddModelError(nameof(vm.SUBCATEGORIA_NOMBRE), "El nombre es obligatorio.");
 
-            // Validar FK Categoría activa y no eliminada
+            // Validar FK Categoría (activa y no eliminada)
             bool catOk = !string.IsNullOrWhiteSpace(vm.CATEGORIA_ID)
                          && await _context.CATEGORIA.AnyAsync(c => c.CATEGORIA_ID == vm.CATEGORIA_ID && !c.ELIMINADO && c.ESTADO);
             if (!catOk)
                 ModelState.AddModelError(nameof(vm.CATEGORIA_ID), "La categoría seleccionada no existe o no está activa.");
+
+            // --------- VALIDACIÓN DE UNICIDAD (Nombre por Categoría) ---------
+            // Normalizamos nombre para comparar sin distinción de mayúsc./minúsc.
+            string nombreNorm = (vm.SUBCATEGORIA_NOMBRE ?? "").Trim();
+            string nombreUpper = nombreNorm.ToUpper();
+
+            bool duplicado = await _context.SUBCATEGORIA.AnyAsync(s =>
+                !s.ELIMINADO &&
+                s.CATEGORIA_ID == vm.CATEGORIA_ID &&
+                s.SUBCATEGORIA_NOMBRE.ToUpper() == nombreUpper
+            );
+
+            if (duplicado)
+            {
+                ModelState.AddModelError(nameof(vm.SUBCATEGORIA_NOMBRE),
+                    "Ya existe una subcategoría con este nombre en la misma categoría.");
+            }
 
             if (!ModelState.IsValid)
             {
                 vm.Categorias = await CargarCategoriasAsync();
                 return View(vm);
             }
-            // --------------------------------
+            // ----------------------------------------
 
             string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
 
             var sc = new SUBCATEGORIA
             {
                 SUBCATEGORIA_ID = vm.SUBCATEGORIA_ID,
-                SUBCATEGORIA_NOMBRE = vm.SUBCATEGORIA_NOMBRE!.Trim(),
+                // Guardamos ya normalizado (trim). Si quisieras TitleCase, aquí es el lugar.
+                SUBCATEGORIA_NOMBRE = nombreNorm,
                 SUBCATEGORIA_DESCRIPCION = s2(vm.SUBCATEGORIA_DESCRIPCION),
                 CATEGORIA_ID = vm.CATEGORIA_ID!,
                 ESTADO = vm.ESTADO,
@@ -254,6 +272,7 @@ namespace CreArte.Controllers
 
         // ============================================================
         // EDIT (POST) – /SubCategorias/Edit/{id}
+        // + Unicidad de NOMBRE por CATEGORÍA (excluye el propio ID)
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -261,7 +280,7 @@ namespace CreArte.Controllers
         {
             if (id != vm.SUBCATEGORIA_ID) return NotFound();
 
-            // --------- VALIDACIONES ---------
+            // --------- VALIDACIONES BÁSICAS ---------
             if (string.IsNullOrWhiteSpace(vm.SUBCATEGORIA_NOMBRE))
                 ModelState.AddModelError(nameof(vm.SUBCATEGORIA_NOMBRE), "El nombre es obligatorio.");
 
@@ -270,19 +289,36 @@ namespace CreArte.Controllers
             if (!catOk)
                 ModelState.AddModelError(nameof(vm.CATEGORIA_ID), "La categoría seleccionada no existe o no está activa.");
 
+            // --------- VALIDACIÓN DE UNICIDAD (Nombre por Categoría) ---------
+            string nombreNorm = (vm.SUBCATEGORIA_NOMBRE ?? "").Trim();
+            string nombreUpper = nombreNorm.ToUpper();
+
+            bool duplicado = await _context.SUBCATEGORIA.AnyAsync(s =>
+                !s.ELIMINADO &&
+                s.CATEGORIA_ID == vm.CATEGORIA_ID &&
+                s.SUBCATEGORIA_NOMBRE.ToUpper() == nombreUpper &&
+                s.SUBCATEGORIA_ID != id // excluye el propio registro
+            );
+
+            if (duplicado)
+            {
+                ModelState.AddModelError(nameof(vm.SUBCATEGORIA_NOMBRE),
+                    "Ya existe una subcategoría con este nombre en la misma categoría.");
+            }
+
             if (!ModelState.IsValid)
             {
                 vm.Categorias = await CargarCategoriasAsync();
                 return View(vm);
             }
-            // --------------------------------
+            // ----------------------------------------
 
             var sc = await _context.SUBCATEGORIA.FirstOrDefaultAsync(s => s.SUBCATEGORIA_ID == id && !s.ELIMINADO);
             if (sc == null) return NotFound();
 
             string? s2(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
 
-            sc.SUBCATEGORIA_NOMBRE = vm.SUBCATEGORIA_NOMBRE!.Trim();
+            sc.SUBCATEGORIA_NOMBRE = nombreNorm; // guardamos normalizado
             sc.SUBCATEGORIA_DESCRIPCION = s2(vm.SUBCATEGORIA_DESCRIPCION);
             sc.CATEGORIA_ID = vm.CATEGORIA_ID!;
             sc.ESTADO = vm.ESTADO;
@@ -298,7 +334,7 @@ namespace CreArte.Controllers
 
         // ===================== HELPERS ==============================
 
-        // Genera IDs tipo SC00000001 (ajusta prefijo si quieres)
+        // Genera IDs tipo SC00000001
         private async Task<string> SiguienteSubCategoriaIdAsync()
         {
             const string prefijo = "SC";

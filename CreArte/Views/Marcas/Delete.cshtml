@@ -1,0 +1,90 @@
+﻿@model CreArte.Models.MARCA
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Delete</title>
+</head>
+<body>
+
+<h3>Are you sure you want to delete this?</h3>
+<div>
+    <h4>MARCA</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.MARCA_NOMBRE)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.MARCA_NOMBRE)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.MARCA_DESCRIPCION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.MARCA_DESCRIPCION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_CREACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_CREACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_CREACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ELIMINADO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ELIMINADO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ESTADO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ESTADO)
+        </dd>
+    </dl>
+    
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="MARCA_ID" />
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Index">Back to List</a>
+    </form>
+</div>
+</body>
+</html>

@@ -32,12 +32,12 @@
 .ua-btn-new {
     /*background: #C5D930;*/
     background: #03C1FF;
-    color: black;
+    color: white;
 }
 
     .ua-btn-view {
         background: #F2B90F;
-        color: black;
+        color: white;
     }
 
     .ua-btn-edit {
@@ -253,7 +253,7 @@
     /* Badges */
 .ua-badge-activo {
     background: #03C1FF;
-    color: black;
+    color: white;
     font-weight: 600;
     border-radius: 10px;
     padding: 3px 10px;
@@ -261,7 +261,7 @@
 
 .ua-badge-inactivo {
     background: #FF007D;
-    color: black;
+    color: white;
     font-weight: 600;
     border-radius: 10px;
     padding: 3px 10px;

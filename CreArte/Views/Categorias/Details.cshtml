@@ -47,13 +47,13 @@
     <div class="ua-row" style="margin-top:8px;">
         <div class="ua-field">
             <label><strong>Creado por:</strong></label>
-            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm:ss}")" class="form-control" readonly />
         </div>
         @if (Model.FECHA_MODIFICACION != null)
         {
             <div class="ua-field">
                 <label><strong>Última modificación:</strong></label>
-                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm}")" class="form-control" readonly />
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm:ss}")" class="form-control" readonly />
             </div>
         }
     </div>

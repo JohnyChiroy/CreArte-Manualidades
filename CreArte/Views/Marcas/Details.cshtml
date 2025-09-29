@@ -1,21 +1,16 @@
-﻿@* ===============================================
-   RUTA: Views/Roles/Details.cshtml
-   DESCRIPCIÓN: PartialView (Layout = null) para inyectar en SweetAlert2.
-   Mismos estilos/UX que Empleados/Details, adaptado a ROL.
-   =============================================== *@
-@model CreArte.ModelsPartial.RolDetailsVM
+﻿@model CreArte.ModelsPartial.MarcaDetailsVM
 @{
-    ViewData["Title"] = "Detalle de Rol";
-    Layout = null; // Es parcial para el modal (SweetAlert2)
+    ViewData["Title"] = "Detalle de Marca";
+    Layout = null;
 }
 
 <div class="ua-card">
-    <!-- Fila superior: Código y Estado (misma UX que Empleados) -->
+    <!-- Fila superior -->
     <div class="ua-row">
         <div class="ua-field">
             <div class="ua-kv">
-                <label><strong>Código Rol:</strong></label>
-                <input value="@Model.ROL_ID" class="form-control" readonly />
+                <label><strong>Código Marca:</strong></label>
+                <input value="@Model.MARCA_ID" class="form-control" readonly />
             </div>
         </div>
         <div class="ua-field">
@@ -28,21 +23,23 @@
         </div>
     </div>
 
-    <!-- Nombre del rol -->
+    <!-- Nombre -->
     <div class="ua-row" style="margin-top:8px;">
         <div class="ua-field" style="flex:1 1 100%;">
             <label><strong>Nombre:</strong></label>
-            <input value="@Model.ROL_NOMBRE" class="form-control" readonly />
+            <input value="@Model.MARCA_NOMBRE" class="form-control" readonly />
         </div>
     </div>
 
     <!-- Descripción -->
-    <div class="ua-field" style="margin-top:8px;">
-        <label><strong>Descripción:</strong></label>
-        <textarea class="form-control" rows="2" readonly>@(Model.ROL_DESCRIPCION ?? "")</textarea>
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <label><strong>Descripción:</strong></label>
+            <textarea class="form-control" rows="2" readonly>@(Model.MARCA_DESCRIPCION ?? "")</textarea>
+        </div>
     </div>
 
-    <!-- Auditoría (creación y última modificación) -->
+    <!-- Auditoría -->
     <div class="ua-row" style="margin-top:8px;">
         <div class="ua-field">
             <label><strong>Creado por:</strong></label>
@@ -57,12 +54,12 @@
         }
     </div>
 
-    <!-- Acciones (mismo layout que Empleados) -->
+    <!-- Acciones -->
     <div class="ua-actions">
-        <a class="btn-cancel" asp-action="Index" asp-controller="Roles">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Marcas">
             <i class="bi bi-arrow-left"></i> <span>Volver</span>
         </a>
-        <a class="btn-save enabled" asp-action="Edit" asp-controller="Roles" asp-route-id="@Model.ROL_ID">
+        <a class="btn-save enabled" asp-action="Edit" asp-route-id="@Model.MARCA_ID">
             <i class="bi bi-pencil-square"></i> <span>Editar</span>
         </a>
     </div>
