@@ -5,7 +5,7 @@
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
     // Controladores hijos de "Configuración"
-    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "marcas", "empresa" };
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias","unidadmedida", "marcas", "empresa" };
 
     // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
     bool isConfigOpen = configChildren.Contains(currentController);
@@ -142,7 +142,7 @@
             </a>
 
             <!-- Unidad de Medida -->
-            <a asp-controller="Unidad Medida" asp-action="Index"
+            <a asp-controller="UnidadesMedida" asp-action="Index"
                class="nav-item nav-item--sub @(currentController == "unidadmedida" ? "is-active" : "")">
                 <i class="bi bi-columns-gap"></i> <span>Unidad Medida</span>
             </a>
