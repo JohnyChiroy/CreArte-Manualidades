@@ -1,7 +1,7 @@
-﻿@model CreArte.ModelsPartial.MarcaViewModels
+﻿@model CreArte.ModelsPartial.TipoEmpaqueViewModels
 
 @{
-    ViewData["Title"] = "Marcas";
+    ViewData["Title"] = "Tipo Empaque";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -25,7 +25,7 @@
         <h2 class="m-0"></h2>
 
         <div class="d-flex align-items-center gap-2">
-            <a asp-controller="Marcas" asp-action="Create" class="ua-btn ua-btn-new">
+            <a asp-controller="TiposEmpaque" asp-action="Create" class="ua-btn ua-btn-new">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 NUEVO
             </a>
@@ -42,7 +42,7 @@
         </div>
 
         <!-- Buscador global (conserva Sort/Dir) -->
-        <form method="get" asp-controller="Marcas" asp-action="Index" class="ua-search d-flex align-items-center">
+        <form method="get" asp-controller="TiposEmpaque" asp-action="Index" class="ua-search d-flex align-items-center">
             <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
             <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
             <input name="Search" value="@Model.Search" placeholder="Buscar ID, Nombre, Descripción" />
@@ -53,7 +53,7 @@
     </div>
 
     <!-- Form oculto para filtros (idéntico patrón) -->
-    <form id="uaFilterForm" method="get" asp-controller="Marcas" asp-action="Index">
+    <form id="uaFilterForm" method="get" asp-controller="TiposEmpaque" asp-action="Index">
         <input type="hidden" name="Search" value="@Model.Search" />
         <input type="hidden" name="Page" value="1" />
         <input type="hidden" name="PageSize" value="@Model.PageSize" />
@@ -75,12 +75,12 @@
                                onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
                     </th>
 
-                    <!-- NO. (MARCA_ID) -->
+                    <!-- NO. (id) -->
                     <th class="ua-col-no">
                         <div class="ua-th">
                             @{
                                 var next_id = NextDir("id", Model.Sort ?? "fecha", Model.Dir ?? "desc"); 
-                                var href_id = Url.Action("Index", "Marcas", new { 
+                                var href_id = Url.Action("Index", "TiposEmpaque", new { 
                                     Search = Model.Search,
                                     Nombre = Context.Request.Query["Nombre"].ToString(),
                                     Estado = Model.Estado,
@@ -100,7 +100,7 @@
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_nom = NextDir("nombre", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_nom = Url.Action("Index", "Marcas", new {
+                                var href_nom = Url.Action("Index", "TiposEmpaque", new {
                                     Search = Model.Search,
                                     Nombre = Context.Request.Query["Nombre"].ToString(),
                                     Estado = Model.Estado,
@@ -141,7 +141,7 @@
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_estado = Url.Action("Index", "Marcas", new {
+                                var href_estado = Url.Action("Index", "TiposEmpaque", new {
                                     Search = Model.Search,
                                     Nombre = Context.Request.Query["Nombre"].ToString(),
                                     Estado = Model.Estado,
@@ -178,11 +178,11 @@
                 {
                     foreach (var c in Model.Items)
                     {
-                        <tr class="ua-rowitem" data-id="@c.MARCA_ID">
-                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@c.MARCA_ID" /></td>
-                            <td>@c.MARCA_ID</td>
-                            <td>@c.MARCA_NOMBRE</td>
-                            <td>@(string.IsNullOrWhiteSpace(c.MARCA_DESCRIPCION) ? "-" : c.MARCA_DESCRIPCION)</td>
+                        <tr class="ua-rowitem" data-id="@c.TIPO_EMPAQUE_ID">
+                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@c.TIPO_EMPAQUE_ID" /></td>
+                            <td>@c.TIPO_EMPAQUE_ID</td>
+                            <td>@c.TIPO_EMPAQUE_NOMBRE</td>
+                            <td>@(string.IsNullOrWhiteSpace(c.TIPO_EMPAQUE_DESCRIPCION) ? "-" : c.TIPO_EMPAQUE_DESCRIPCION)</td>
                             <td>
                                 @if (c.ESTADO) { <span class="ua-badge-activo">Activo</span> }
                                 else { <span class="ua-badge-inactivo">Inactivo</span> }
@@ -192,7 +192,7 @@
                 }
                 else
                 {
-                    <tr><td colspan="5" class="text-center py-4">No hay marcas registradas.</td></tr>
+                    <tr><td colspan="5" class="text-center py-4">No hay tipos de empaque registrados.</td></tr>
                 }
             </tbody>
         </table>
@@ -201,13 +201,13 @@
     <!-- Paginación (mismo patrón) -->
     @if (Model.TotalPages > 1)
     {
-        <nav class="mt-2" aria-label="Paginación de marcas">
+        <nav class="mt-2" aria-label="Paginación de tipos de empaque">
             <ul class="pagination ua-pagination justify-content-center">
                 @for (int p = 1; p <= Model.TotalPages; p++)
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
                         <a class="page-link"
-                           href="@Url.Action("Index","Marcas", new {
+                           href="@Url.Action("Index","TiposEmpaque", new {
                                Search = Model.Search,
                                Nombre = Context.Request.Query["Nombre"].ToString(),
                                Estado = Model.Estado,
@@ -219,7 +219,7 @@
                 {
                     <li class="page-item">
                         <a class="page-link"
-                           href="@Url.Action("Index","Marcas", new {
+                           href="@Url.Action("Index","TiposEmpaque", new {
                                Search = Model.Search,
                                Nombre = Context.Request.Query["Nombre"].ToString(),
                                Estado = Model.Estado,
@@ -293,16 +293,16 @@
 
     async function openDetailsModal(id) {
         if (!window.Swal) {
-            window.location.href = '@Url.Action("Details", "Marcas")/' + encodeURIComponent(id);
+            window.location.href = '@Url.Action("Details", "TiposEmpaque")/' + encodeURIComponent(id);
             return;
         }
-        const url = '@Url.Action("DetailsCard","Marcas")' + '?id=' + encodeURIComponent(id);
+        const url = '@Url.Action("DetailsCard","TiposEmpaque")' + '?id=' + encodeURIComponent(id);
         try {
             const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
             if (!resp.ok) throw new Error('No se pudo cargar el detalle');
             const html = await resp.text();
             Swal.fire({
-                title: 'Detalle de la Marca',
+                title: 'Detalle del Tipo de Empaque',
                 html: html, width: 700, showCloseButton: true, showConfirmButton: false,
                 focusConfirm: false, customClass: { popup: 'swal2-no-padding' }
             });
@@ -323,7 +323,7 @@
         btnEditar.addEventListener('click', function (e) {
             e.preventDefault();
             if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info"); return; }
-            window.location.href = '@Url.Action("Edit", "Marcas")/' + encodeURIComponent(selectedId);
+            window.location.href = '@Url.Action("Edit", "TiposEmpaque")/' + encodeURIComponent(selectedId);
         });
     }
 })();

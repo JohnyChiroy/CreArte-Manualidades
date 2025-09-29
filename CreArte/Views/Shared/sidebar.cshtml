@@ -5,7 +5,7 @@
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
     // Controladores hijos de "Configuración"
-    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias","unidadmedida", "marcas", "empresa" };
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente", "empresa" };
 
     // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
     bool isConfigOpen = configChildren.Contains(currentController);
@@ -50,7 +50,7 @@
         <!-- Reportes -->
         <a asp-controller="Reportes" asp-action="Index"
            class="nav-item @(currentController == "reportes" ? "is-active" : "")">
-            <i class="bi bi-graph-up"></i> <span>Reportes</span>
+            <i class="bi bi-clipboard2-data"></i> <span>Reportes</span>
         </a>
 
         <div class="sidebar-sep"></div>
@@ -129,7 +129,7 @@
                 <i class="bi bi-tag"></i> <span>Categorías</span>
             </a>
 
-            <!-- Categorías -->
+            <!-- SubCategorías -->
             <a asp-controller="SubCategorias" asp-action="Index"
                class="nav-item nav-item--sub @(currentController == "subcategorías" ? "is-active" : "")">
                 <i class="bi bi-tags"></i> <span>SubCategorías</span>
@@ -143,13 +143,25 @@
 
             <!-- Unidad de Medida -->
             <a asp-controller="UnidadesMedida" asp-action="Index"
-               class="nav-item nav-item--sub @(currentController == "unidadmedida" ? "is-active" : "")">
+               class="nav-item nav-item--sub @(currentController == "unidadesmedida" ? "is-active" : "")">
                 <i class="bi bi-columns-gap"></i> <span>Unidad Medida</span>
             </a>
 
+            <!-- Tipos de Empaque -->
+            <a asp-controller="TiposEmpaque" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "tiposempaque" ? "is-active" : "")">
+                <i class="bi bi-boxes"></i> <span>Tipo Empaque</span>
+            </a>
+
+            <!-- Tipos de Producto -->
+            <a asp-controller="TiposProducto" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "tiposproducto" ? "is-active" : "")">
+                <i class="bi bi-qr-code-scan"></i> <span>Tipo Producto</span>
+            </a>
+
             <!-- Tipo Cliente -->
-            <a asp-controller="TipoCliente" asp-action="Index"
-               class="nav-item nav-item--sub @(currentController == "TipoCliente" ? "is-active" : "")">
+            <a asp-controller="TiposCliente" asp-action="Index"
+               class="nav-item nav-item--sub @(currentController == "tiposcliente" ? "is-active" : "")">
                 <i class="bi bi-person-bounding-box"></i> <span>Tipo Cliente</span>
             </a>
 
