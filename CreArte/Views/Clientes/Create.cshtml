@@ -1,0 +1,244 @@
+﻿@model CreArte.ModelsPartial.ClienteCreateVM
+@{
+    ViewData["Title"] = "Crear Cliente";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Nuevo Cliente</h2>
+
+    <!-- El Controller reasigna CLIENTE_ID/PERSONA_ID en servidor -->
+    <form asp-action="Create" asp-controller="Clientes" method="post" id="frmCliente" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="CLIENTE_ID"><strong>Código Cliente:</strong></label>
+                    <input asp-for="CLIENTE_ID" class="form-control" readonly />
+                    <input type="hidden" asp-for="PERSONA_ID" />
+                </div>
+                <span asp-validation-for="CLIENTE_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:2px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: Nombres
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PERSONA_PRIMERNOMBRE"><strong>Primer Nombre:*</strong></label>
+                <input asp-for="PERSONA_PRIMERNOMBRE" class="form-control" maxlength="50" required />
+                <span asp-validation-for="PERSONA_PRIMERNOMBRE" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_SEGUNDONOMBRE"><strong>Segundo Nombre:</strong></label>
+                <input asp-for="PERSONA_SEGUNDONOMBRE" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_SEGUNDONOMBRE" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_TERCERNOMBRE"><strong>Tercer Nombre:</strong></label>
+                <input asp-for="PERSONA_TERCERNOMBRE" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_TERCERNOMBRE" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: Apellidos
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PERSONA_PRIMERAPELLIDO"><strong>Primer Apellido:*</strong></label>
+                <input asp-for="PERSONA_PRIMERAPELLIDO" class="form-control" maxlength="50" required />
+                <span asp-validation-for="PERSONA_PRIMERAPELLIDO" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_SEGUNDOAPELLIDO"><strong>Segundo Apellido:</strong></label>
+                <input asp-for="PERSONA_SEGUNDOAPELLIDO" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_SEGUNDOAPELLIDO" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_APELLIDOCASADA"><strong>Apellido de Casada:</strong></label>
+                <input asp-for="PERSONA_APELLIDOCASADA" class="form-control" maxlength="50" />
+                <span asp-validation-for="PERSONA_APELLIDOCASADA" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: NIT / CUI (DPI)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PERSONA_NIT"><strong>NIT:</strong></label>
+                <input asp-for="PERSONA_NIT"
+                       class="form-control"
+                       maxlength="15"
+                       pattern="^[0-9-]{6,15}$"
+                       inputmode="numeric"
+                       title="Entre 6 y 15 caracteres (números y guiones). Ej.: 1234567-8" />
+                <span asp-validation-for="PERSONA_NIT" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_CUI"><strong>CUI / DPI:*</strong></label>
+                <input asp-for="PERSONA_CUI"
+                       class="form-control"
+                       maxlength="13"
+                       required
+                       pattern="^\d{13}$"
+                       inputmode="numeric"
+                       title="El CUI/DPI debe tener exactamente 13 dígitos numéricos." />
+                <span asp-validation-for="PERSONA_CUI" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: Contacto (Casa/Móvil/Correo)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="PERSONA_TELEFONOCASA"><strong>Teléfono (Casa):</strong></label>
+                <input asp-for="PERSONA_TELEFONOCASA" class="form-control" maxlength="15" />
+                <span asp-validation-for="PERSONA_TELEFONOCASA" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_TELEFONOMOVIL"><strong>Teléfono (Celular)*:</strong></label>
+                <input asp-for="PERSONA_TELEFONOMOVIL" class="form-control" maxlength="15" required />
+                <span asp-validation-for="PERSONA_TELEFONOMOVIL" class="text-danger"></span>
+            </div>
+            <div class="ua-field">
+                <label asp-for="PERSONA_CORREO"><strong>Correo:*</strong></label>
+                <input asp-for="PERSONA_CORREO" type="email" class="form-control" maxlength="150" required />
+                <span asp-validation-for="PERSONA_CORREO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           PERSONA: Dirección
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="PERSONA_DIRECCION"><strong>Dirección:*</strong></label>
+                <input asp-for="PERSONA_DIRECCION" class="form-control" maxlength="255" required />
+                <span asp-validation-for="PERSONA_DIRECCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           CLIENTE: Tipo / Nota
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="TIPO_CLIENTE_ID"><strong>Tipo de Cliente:*</strong></label>
+                <select asp-for="TIPO_CLIENTE_ID" class="form-control" asp-items="Model.TiposCliente" required>
+                    <option value="">Seleccione un tipo ↓</option>
+                </select>
+                <span asp-validation-for="TIPO_CLIENTE_ID" class="text-danger"></span>
+            </div>
+            <div class="ua-field" style="flex:1 1 66%;">
+                <label asp-for="CLIENTE_NOTA"><strong>Nota (opcional):</strong></label>
+                <input asp-for="CLIENTE_NOTA" class="form-control" maxlength="250" placeholder="Observaciones, referencias, etc." />
+                <span asp-validation-for="CLIENTE_NOTA" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Clientes">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Pill Estado (sincroniza etiqueta "Activo/Inactivo" con el switch)
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent = 'Activo')
+                                               : (pill.classList.remove('active'), pill.textContent = 'Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // Habilitar botón Guardar (obligatorios + checkValidity)
+        // Importante: Estos campos deben coincidir con los marcados [Required] en ClienteCreateVM
+        (function () {
+            const btn  = document.getElementById('btnGuardar');
+            const form = document.getElementById('frmCliente');
+
+            // PERSONA obligatorios + TIPO_CLIENTE_ID
+            const reqIds = [
+                'PERSONA_PRIMERNOMBRE',
+                'PERSONA_PRIMERAPELLIDO',
+                'PERSONA_CUI',
+                'PERSONA_TELEFONOMOVIL',
+                'PERSONA_CORREO',
+                'PERSONA_DIRECCION',
+                'TIPO_CLIENTE_ID'
+            ];
+            const els = reqIds.map(id => document.getElementById(id));
+
+            function ready() {
+                const baseOk = els.every(el => el && (el.value || '').trim().length > 0);
+                const ok = baseOk && (form ? form.checkValidity() : true);
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            els.forEach(el => el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', ready));
+            ready();
+        })();
+
+        // Prevenir doble submit
+        (function () {
+            const frm = document.getElementById('frmCliente');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true; btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // PRG (SweetAlert2) con TempData (mismo patrón que en Empleados)
+        (function () {
+            if (!window.Swal) return;
+            const title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            const urlIndex='@(TempData["SwalIndexUrl"] ?? "")', urlCreate='@(TempData["SwalCreateUrl"] ?? "")';
+            if (!title && !text) return;
+            Swal.fire({
+                icon:'success', title:title||'Guardado', text:text||'El registro se creó correctamente.',
+                showDenyButton:true, confirmButtonText:'Volver al listado', denyButtonText:'Crear otro',
+                allowOutsideClick:false, allowEscapeKey:false
+            }).then(r=>{
+                if (r.isConfirmed && urlIndex) location.href=urlIndex;
+                else if (r.isDenied && urlCreate) location.href=urlCreate;
+            });
+        })();
+    </script>
+}
