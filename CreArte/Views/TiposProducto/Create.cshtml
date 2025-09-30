@@ -1,14 +1,14 @@
-﻿@model CreArte.ModelsPartial.MarcaCreateVM
+﻿@model CreArte.ModelsPartial.TipoProductoCreateVM
 @{
-    ViewData["Title"] = "Crear Marca";
+    ViewData["Title"] = "Crear Tipo Producto";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <div class="ua-card">
-    <h2 style="margin:0 0 12px 0;">Nueva Marca</h2>
+    <h2 style="margin:0 0 12px 0;">Nuevo Tipo Producto</h2>
 
-    <!-- El Controller reasigna MARCA_ID en servidor -->
-    <form asp-action="Create" asp-controller="Marcas" method="post" id="frmMarca" data-guard="true" autocomplete="off">
+    <!-- El Controller reasigna TIPO_PRODUCTO_ID en servidor -->
+    <form asp-action="Create" asp-controller="TiposProducto" method="post" id="frmTipoProducto" data-guard="true" autocomplete="off">
         @Html.AntiForgeryToken()
 
         <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
@@ -17,10 +17,10 @@
         <div class="ua-row">
             <div class="ua-field">
                 <div class="ua-kv">
-                    <label asp-for="MARCA_ID"><strong>Código Marca:</strong></label>
-                    <input asp-for="MARCA_ID" class="form-control" readonly />
+                    <label asp-for="TP_ID"><strong>Código Tipo Producto:</strong></label>
+                    <input asp-for="TP_ID" class="form-control" readonly />
                 </div>
-                <span asp-validation-for="MARCA_ID" class="text-danger"></span>
+                <span asp-validation-for="TP_ID" class="text-danger"></span>
             </div>
 
             <div class="ua-field">
@@ -39,31 +39,31 @@
         </div>
 
         @* ==============================
-           MARCA: Nombre
+           TIPO_PRODUCTO: Nombre
            ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field" style="flex:1 1 100%;">
-                <label asp-for="MARCA_NOMBRE"><strong>Nombre:*</strong></label>
-                <input asp-for="MARCA_NOMBRE" class="form-control" maxlength="100" required id="MARCA_NOMBRE" />
-                <span asp-validation-for="MARCA_NOMBRE" class="text-danger"></span>
+                <label asp-for="TP_NOMBRE"><strong>Nombre:*</strong></label>
+                <input asp-for="TP_NOMBRE" class="form-control" maxlength="100" required id="TIPO_PRODUCTO_NOMBRE" />
+                <span asp-validation-for="TP_NOMBRE" class="text-danger"></span>
                 @* <div class="ua-help"><span id="cntNom">0/100</span></div> *@
             </div>
         </div>
 
         @* ==============================
-           MARCA: Descripción (opcional)
+           TIPO_PRODUCTO: Descripción (opcional)
            ============================== *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field" style="flex:1 1 100%;">
-                <label asp-for="MARCA_DESCRIPCION"><strong>Descripción:</strong></label>
-                <input asp-for="MARCA_DESCRIPCION" class="form-control" maxlength="255" id="MARCA_DESCRIPCION" />
-                <span asp-validation-for="MARCA_DESCRIPCION" class="text-danger"></span>
+                <label asp-for="TP_DESCRIPCION"><strong>Descripción:</strong></label>
+                <input asp-for="TP_DESCRIPCION" class="form-control" maxlength="255" id="TIPO_PRODUCTO_DESCRIPCION" />
+                <span asp-validation-for="TP_DESCRIPCION" class="text-danger"></span>
             </div>
         </div>
 
         <!-- Acciones -->
         <div class="ua-actions">
-            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Marcas">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="TiposProducto">
                 <i class="bi bi-x-circle"></i> <span>Cancelar</span>
             </a>
             <button id="btnGuardar" type="submit" class="btn-save" disabled>
@@ -79,7 +79,7 @@
     <script>
         // Contador opcional (si quieres mostrarlo, descomenta el span y esta función)
         (function () {
-            const input = document.getElementById('MARCA_NOMBRE');
+            const input = document.getElementById('TIPO_PRODUCTO_NOMBRE');
             const max = 100;
             const lbl = document.getElementById('cntNom'); // descomenta el span arriba si lo usarás
             if (!input || !lbl) return;
@@ -101,8 +101,8 @@
         // Requisitos: Nombre no vacío + form.checkValidity()
         (function () {
             const btn = document.getElementById('btnGuardar');
-            const form = document.getElementById('frmMarca');
-            const elNombre = document.getElementById('MARCA_NOMBRE');
+            const form = document.getElementById('frmTipoProducto');
+            const elNombre = document.getElementById('TIPO_PRODUCTO_NOMBRE');
 
             function ready() {
                 const nombreOk = elNombre && (elNombre.value || '').trim().length > 0;
@@ -119,7 +119,7 @@
 
         // Prevenir doble submit
         (function () {
-            const frm = document.getElementById('frmMarca');
+            const frm = document.getElementById('frmTipoProducto');
             const btn = document.getElementById('btnGuardar');
             if (!frm || !btn) return;
             frm.addEventListener('submit', function () {
