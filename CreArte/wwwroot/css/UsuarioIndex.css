@@ -383,3 +383,46 @@
     display: block;
     margin-top: 4px;
 }
+
+
+/* Miniatura para imágenes en listados de Productos
+   - Tamaño fijo cuadrado
+   - Recorte centrado sin deformar (object-fit: cover)
+   - Borde suave para integrarse al diseño */
+.ua-img-thumb {
+    width: 50px;  /*ajusta 90–120px a tu gusto */
+    height: 50px;
+    object-fit: cover;  recorta sin deformar 
+    object-position: center;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}
+
+/*.ua-img-thumb {
+    width: 110px;
+    height: 110px;
+    object-fit: contain;*/ /* <- antes estaba cover */
+    /*object-position: center;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fff;*/ /* para que se vea “letterbox” blanco */
+    /*box-sizing: border-box;*/ /* por si luego agregas padding */
+/*}*/
+
+.ua-col-img {
+    width: 140px; /* un poco más que la miniatura para respiración */
+}
+
+.ua-img-thumb-details {
+    width: 150px; /*ajusta 90–120px a tu gusto */
+    height: 150px;
+    object-fit: cover;
+    recorta sin deformar object-position: center;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}

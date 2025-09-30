@@ -1,0 +1,631 @@
+﻿@model CreArte.ModelsPartial.ProductoViewModels
+
+@{
+    ViewData["Title"] = "Productos";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@functions{
+    // ============================
+    // Helpers para orden (asc/desc)
+    // ============================
+    string NextDir(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
+}
+
+<div class="container-fluid py-3">
+
+    <!-- ===========================================
+         Toolbar superior — RUTA: GET /Productos/Index
+         =========================================== -->
+    <div class="ua-toolbar">
+        <h2 class="m-0"></h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- Ruta: GET /Productos/Create -->
+            <a asp-controller="Productos" asp-action="Create" class="ua-btn ua-btn-new">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                NUEVO
+            </a>
+
+            <!-- Botón VER (modal DetailsCard) -->
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                VER
+            </a>
+
+            <!-- Botón MODIFICAR -->
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                MODIFICAR
+            </a>
+        </div>
+
+        <!-- Buscador global – mantiene Sort/Dir -->
+        <form method="get" asp-controller="Productos" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+            <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+            <input name="Search" value="@Model.Search" placeholder="Buscar ID, Nombre, Subcategoría, Marca" />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- ===========================================
+         Form oculto con estado de filtros/orden
+         =========================================== -->
+    <form id="uaFilterForm" method="get" asp-controller="Productos" asp-action="Index">
+        <input type="hidden" name="Search" value="@Model.Search" />
+        <input type="hidden" name="Page" value="1" />
+        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+        <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+        <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+
+        <!-- Valores actuales (para UI/JS) -->
+        <input type="hidden" id="ua_val_subcat" value="@(Context.Request.Query["SubCategoria"])" />
+        <input type="hidden" id="ua_val_tipo"   value="@(Context.Request.Query["Tipo"])" />
+        <input type="hidden" id="ua_val_marca"  value="@(Context.Request.Query["Marca"])" />
+        <input type="hidden" id="ua_val_unidad" value="@(Context.Request.Query["Unidad"])" />
+        <input type="hidden" id="ua_val_empaq"  value="@(Context.Request.Query["Empaque"])" />
+        <input type="hidden" id="ua_val_estado" value="@(Model.Estado?.ToString().ToLower())" />
+    </form>
+
+    <!-- ===========================================
+         Tabla principal
+         =========================================== -->
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+            <thead>
+                <tr>
+                    <!-- Checkbox maestro -->
+                    <th class="ua-col-check text-center align-middle">
+                        <input type="checkbox" class="form-check-input" id="chkAll"
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                    </th>
+
+                    <!-- NO. (ID) – orden -->
+                    <th class="ua-col-no">
+                        <div class="ua-th">
+                            @{
+                                var next_id = NextDir("id", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_id = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "id", Dir = next_id, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_id = (Model.Sort ?? "fecha").Equals("id", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_id ? "" : "inactive")" href="@href_id">
+                                <span class="ua-title">NO.</span>
+                                <span class="ua-arrow">@Arrow("id", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- IMAGEN miniatura -->
+                    <th style="width:64px;">
+    <div class="ua-th">
+        <span class="ua-title">IMG</span>
+    </div>
+</th>
+                    <!-- NOMBRE – orden -->
+                    <th>
+                        <div class="ua-th">
+                            @{
+                                var next_nom = NextDir("nombre", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_nom = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "nombre", Dir = next_nom, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_nom = (Model.Sort ?? "fecha").Equals("nombre", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_nom ? "" : "inactive")" href="@href_nom">
+                                <span class="ua-title">NOMBRE</span>
+                                <span class="ua-arrow">@Arrow("nombre", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- SUBCATEGORÍA – orden + filtro popover -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_sc = NextDir("subcat", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_sc = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "subcat", Dir = next_sc, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_sc = (Model.Sort ?? "fecha").Equals("subcat", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_sc ? "" : "inactive")" href="@href_sc">
+                                <span class="ua-title">SUBCATEGORÍA</span>
+                                <span class="ua-arrow">@Arrow("subcat", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popSubCat" title="Filtrar subcategoría">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popSubCat" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fSubCat" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["SubCategoria"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearSubCat()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplySubCat()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- TIPO PRODUCTO – orden + filtro -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_tipo = NextDir("tipo", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_tipo = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "tipo", Dir = next_tipo, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_tipo = (Model.Sort ?? "fecha").Equals("tipo", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_tipo ? "" : "inactive")" href="@href_tipo">
+                                <span class="ua-title">TIPO</span>
+                                <span class="ua-arrow">@Arrow("tipo", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popTipo" title="Filtrar tipo">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popTipo" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fTipo" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Tipo"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearTipo()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyTipo()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- MARCA – orden + filtro -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_marca = NextDir("marca", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_marca = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "marca", Dir = next_marca, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_marca = (Model.Sort ?? "fecha").Equals("marca", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_marca ? "" : "inactive")" href="@href_marca">
+                                <span class="ua-title">MARCA</span>
+                                <span class="ua-arrow">@Arrow("marca", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popMarca" title="Filtrar marca">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popMarca" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fMarca" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Marca"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearMarca()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyMarca()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- UNIDAD – orden + filtro -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_unidad = NextDir("unidad", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_unidad = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "unidad", Dir = next_unidad, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_unidad = (Model.Sort ?? "fecha").Equals("unidad", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_unidad ? "" : "inactive")" href="@href_unidad">
+                                <span class="ua-title">UNIDAD</span>
+                                <span class="ua-arrow">@Arrow("unidad", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popUnidad" title="Filtrar unidad">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popUnidad" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fUnidad" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Unidad"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearUnidad()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyUnidad()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- EMPAQUE – orden + filtro -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_emp = NextDir("empaque", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_emp = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "empaque", Dir = next_emp, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_emp = (Model.Sort ?? "fecha").Equals("empaque", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_emp ? "" : "inactive")" href="@href_emp">
+                                <span class="ua-title">EMPAQUE</span>
+                                <span class="ua-arrow">@Arrow("empaque", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popEmpaque" title="Filtrar empaque">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popEmpaque" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fEmpaque" placeholder="Texto a filtrar..."
+                                       value="@(Context.Request.Query["Empaque"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearEmpaque()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyEmpaque()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- IVA% – orden -->
+                    <th style="width:100px;">
+    <div class="ua-th">
+        @{
+            var next_iva = NextDir("iva", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+            var href_iva = Url.Action("Index", "Productos", new {
+                Search = Model.Search,
+                SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                Tipo = Context.Request.Query["Tipo"].ToString(),
+                Marca = Context.Request.Query["Marca"].ToString(),
+                Unidad = Context.Request.Query["Unidad"].ToString(),
+                Empaque = Context.Request.Query["Empaque"].ToString(),
+                Estado = Model.Estado,
+                Sort = "iva", Dir = next_iva, Page = 1, PageSize = Model.PageSize
+            });
+            var isActive_iva = (Model.Sort ?? "fecha").Equals("iva", StringComparison.OrdinalIgnoreCase);
+        }
+        <a class="ua-sort @(isActive_iva ? "" : "inactive")" href="@href_iva">
+            <span class="ua-title">%IVA</span>
+            <span class="ua-arrow">@Arrow("iva", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+        </a>
+    </div>
+</th>
+
+
+
+                    <!-- ESTADO – orden + filtro -->
+                    <th style="width:150px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_estado = Url.Action("Index", "Productos", new {
+                                    Search = Model.Search,
+                                    SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                                    Tipo = Context.Request.Query["Tipo"].ToString(),
+                                    Marca = Context.Request.Query["Marca"].ToString(),
+                                    Unidad = Context.Request.Query["Unidad"].ToString(),
+                                    Empaque = Context.Request.Query["Empaque"].ToString(),
+                                    Estado = Model.Estado,
+                                    Sort = "estado", Dir = next_estado, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_estado = (Model.Sort ?? "fecha").Equals("estado", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_estado ? "" : "inactive")" href="@href_estado">
+                                <span class="ua-title">ESTADO</span>
+                                <span class="ua-arrow">@Arrow("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <select id="fEstado" class="ua-input">
+                                    <option value="">(Todos)</option>
+                                    <option value="true"  selected="@(Model.Estado == true  ? "selected" : null)">Activo</option>
+                                    <option value="false" selected="@(Model.Estado == false ? "selected" : null)">Inactivo</option>
+                                </select>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearEstado()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyEstado()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var p in Model.Items)
+                    {
+                        <tr class="ua-rowitem" data-id="@p.PRODUCTO_ID">
+                            <td><input type="checkbox" class="form-check-input ua-rowchk" value="@p.PRODUCTO_ID" /></td>
+                            <td>@p.PRODUCTO_ID</td>
+
+                            <!-- Miniatura -->
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(p.IMAGEN_PRODUCTO))
+                                {
+                                    <img class="ua-img-thumb" src="@p.IMAGEN_PRODUCTO" alt="img @p.PRODUCTO_NOMBRE" />
+                                }
+                                else
+                                {
+                                    <div class="ua-img-thumb d-flex align-items-center justify-content-center">—</div>
+                                }
+                            </td>
+
+                            <td>@p.PRODUCTO_NOMBRE</td>
+                            <td>@p.SUBCATEGORIA?.SUBCATEGORIA_NOMBRE</td>
+                            <td>@p.TIPO_PRODUCTO?.TIPO_PRODUCTO_NOMBRE</td>
+                            <td>@p.MARCA?.MARCA_NOMBRE</td>
+                            <td>@p.UNIDAD_MEDIDA?.UNIDAD_MEDIDA_NOMBRE</td>
+                            <td>@(p.TIPO_EMPAQUE_ID == null ? "-" : p.TIPO_EMPAQUE?.TIPO_EMPAQUE_NOMBRE)</td>
+                            <td>@(p.PORCENTAJE_IVA.HasValue ? p.PORCENTAJE_IVA.Value.ToString("0.##") : "-")</td>
+                            <td>
+                                @if (p.ESTADO) { <span class="ua-badge-activo">Activo</span> }
+                                else { <span class="ua-badge-inactivo">Inactivo</span> }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="11" class="text-center py-4">No hay productos para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===========================================
+         Paginación – RUTA: GET /Productos/Index?Page=n
+         =========================================== -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de productos">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Productos", new {
+                               Search = Model.Search,
+                               SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                               Tipo = Context.Request.Query["Tipo"].ToString(),
+                               Marca = Context.Request.Query["Marca"].ToString(),
+                               Unidad = Context.Request.Query["Unidad"].ToString(),
+                               Empaque = Context.Request.Query["Empaque"].ToString(),
+                               Estado = Model.Estado,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Productos", new {
+                               Search = Model.Search,
+                               SubCategoria = Context.Request.Query["SubCategoria"].ToString(),
+                               Tipo = Context.Request.Query["Tipo"].ToString(),
+                               Marca = Context.Request.Query["Marca"].ToString(),
+                               Unidad = Context.Request.Query["Unidad"].ToString(),
+                               Empaque = Context.Request.Query["Empaque"].ToString(),
+                               Estado = Model.Estado,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts{
+<script>
+/* ==========================================
+   POPovers abrir/cerrar (patrón estable)
+   ========================================== */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* ==========================================
+   Selección de fila + acciones VER/EDITAR
+   ========================================== */
+(function () {
+    const btnVer    = document.getElementById('btnVer');
+    const btnEditar = document.getElementById('btnEditar');
+    let selectedId = null;
+
+    function toggleButtons(enable){
+        if (btnVer) btnVer.classList.toggle('is-disabled', !enable);
+        if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
+    }
+
+    function applySelection(row) {
+        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+        row.classList.add('row-selected');
+        document.querySelectorAll('.ua-rowchk').forEach(c => {
+            if (c.closest('.ua-rowitem') !== row) c.checked = false;
+        });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+        toggleButtons(!!selectedId);
+    }
+
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('.ua-rowitem');
+        if (!row) return;
+        if (e.target.closest('a,button,select,textarea,label,input')) return;
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+
+    document.addEventListener('change', function (e) {
+        const chk = e.target.closest('.ua-rowchk');
+        if (!chk) return;
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+    });
+
+    async function openDetailsModal(id) {
+        // Ruta del parcial: GET /Productos/DetailsCard?id=...
+        if (!window.Swal) {
+            window.location.href = '@Url.Action("Details", "Productos")/' + encodeURIComponent(id);
+            return;
+        }
+        const url = '@Url.Action("DetailsCard","Productos")' + '?id=' + encodeURIComponent(id);
+        try {
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+            if (!resp.ok) throw new Error('No se pudo cargar el detalle');
+            const html = await resp.text();
+            Swal.fire({
+                title: 'Detalle del Producto',
+                html: html, width: 900, showCloseButton: true, showConfirmButton: false,
+                focusConfirm: false, customClass: { popup: 'swal2-no-padding' }
+            });
+        } catch (err) { console.error(err); Swal.fire('Error','No se pudo abrir el detalle.','error'); }
+    }
+
+    if (btnVer) {
+        btnVer.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info"); return; }
+            openDetailsModal(selectedId);
+        });
+    }
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para editar.","info"); return; }
+            // Ruta: GET /Productos/Edit/{id}
+            window.location.href = '@Url.Action("Edit", "Productos")/' + encodeURIComponent(selectedId);
+        });
+    }
+})();
+
+/* ==========================================
+   Helper para enviar filtros preservando query
+   ========================================== */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // al aplicar filtro, reinicia a la primera página
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+
+/* ===== Aplicar/Limpiar cada filtro ===== */
+// SUBCATEGORÍA
+function uaApplySubCat(){
+    const v = (document.getElementById('fSubCat')?.value || '').trim();
+    submitFilter({ SubCategoria: v || null });
+}
+function uaClearSubCat(){ submitFilter({ SubCategoria: null }); }
+
+// TIPO
+function uaApplyTipo(){
+    const v = (document.getElementById('fTipo')?.value || '').trim();
+    submitFilter({ Tipo: v || null });
+}
+function uaClearTipo(){ submitFilter({ Tipo: null }); }
+
+// MARCA
+function uaApplyMarca(){
+    const v = (document.getElementById('fMarca')?.value || '').trim();
+    submitFilter({ Marca: v || null });
+}
+function uaClearMarca(){ submitFilter({ Marca: null }); }
+
+// UNIDAD
+function uaApplyUnidad(){
+    const v = (document.getElementById('fUnidad')?.value || '').trim();
+    submitFilter({ Unidad: v || null });
+}
+function uaClearUnidad(){ submitFilter({ Unidad: null }); }
+
+// EMPAQUE
+function uaApplyEmpaque(){
+    const v = (document.getElementById('fEmpaque')?.value || '').trim();
+    submitFilter({ Empaque: v || null });
+}
+function uaClearEmpaque(){ submitFilter({ Empaque: null }); }
+
+// ESTADO
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    submitFilter({ Estado: v || null });
+}
+function uaClearEstado(){ submitFilter({ Estado: null }); }
+</script>
+}

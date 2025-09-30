@@ -1,13 +1,4 @@
-﻿// ===============================================
-// RUTA: Controllers/EmpleadosController.cs
-// DESCRIPCIÓN: CRUD de EMPLEADO con captura integrada
-//              de datos de PERSONA (EMP = PERSONA_ID),
-//              filtros/orden/paginación y auditoría.
-//              ▸ IMPORTANTE: En la ENTIDAD EF (EMPLEADO) las fechas son
-//                DateOnly/DateOnly?, y en los ViewModels (formularios) SON DateTime?.
-//                Por eso convertimos explícitamente en Create/Edit.
-// ===============================================
-using CreArte.Data;
+﻿using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial;
 using CreArte.Services.Auditoria; // IAuditoriaService

@@ -1,0 +1,126 @@
+﻿@model CreArte.ModelsPartial.ProductoDetailsVM
+@{
+    // Esta vista se usa como parcial dentro de un modal (SweetAlert2), por eso sin Layout
+    ViewData["Title"] = "Detalle de Producto";
+    Layout = null;
+}
+
+<div class="ua-card">
+    <!-- ==============================
+         Fila superior: Código + Estado
+         ============================== -->
+    <div class="ua-row">
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Código Producto:</strong></label>
+                <input value="@Model.PRODUCTO_ID" class="form-control" readonly />
+            </div>
+        </div>
+        <div class="ua-field">
+            <div class="ua-kv">
+                <label><strong>Estado:</strong></label>
+                <span class="ua-pill@(Model.ESTADO ? " active" : "")">
+                    @(Model.ESTADO ? "Activo" : "Inactivo")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==============================
+         Imagen + Nombre
+         ============================== -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:0 0 120px;">
+            <label><strong>Imagen:</strong></label>
+            @if (!string.IsNullOrWhiteSpace(Model.IMAGEN_PRODUCTO))
+            {
+                <!-- La URL es relativa: /uploads/productos/... -->
+                <img src="@Model.IMAGEN_PRODUCTO"
+                     alt="Imagen @Model.PRODUCTO_NOMBRE"
+                     class="ua-img-thumb-details" @* style="width:110px;height:100%;object-fit:cover;border-radius:8px;border:1px solid #eee;background:#fafafa;" *@ />
+            }
+            else
+            {
+                <div style="width:110px;height:110px;border-radius:8px;border:1px solid #eee;background:#fafafa;display:flex;align-items:center;justify-content:center;">—</div>
+            }
+        </div>
+
+        <div class="ua-field" style="flex:1 1 auto;">
+            <label><strong>Nombre:</strong></label>
+            <input value="@Model.PRODUCTO_NOMBRE" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- ==============================
+         Descripción
+         ============================== -->
+    <div class="ua-field" style="margin-top:8px;">
+        <label><strong>Descripción:</strong></label>
+        <textarea class="form-control" rows="2" readonly>@(Model.PRODUCTO_DESCRIPCION ?? "")</textarea>
+    </div>
+
+    <!-- ==============================
+         Catálogos principales
+         ============================== -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Subcategoría:</strong></label>
+            <input value="@($"{Model.SUBCATEGORIA_NOMBRE} ({Model.SUBCATEGORIA_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Tipo de Producto:</strong></label>
+            <input value="@($"{Model.TIPO_PRODUCTO_NOMBRE} ({Model.TIPO_PRODUCTO_ID})")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Unidad de Medida:</strong></label>
+            <input value="@($"{Model.UNIDAD_MEDIDA_NOMBRE} ({Model.UNIDAD_MEDIDA_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>Tipo de Empaque:</strong></label>
+            <input value="@(Model.TIPO_EMPAQUE_ID == null ? "-" : $"{Model.TIPO_EMPAQUE_NOMBRE} ({Model.TIPO_EMPAQUE_ID})")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Marca:</strong></label>
+            <input value="@(Model.MARCA_ID == null ? "-" : $"{Model.MARCA_NOMBRE} ({Model.MARCA_ID})")" class="form-control" readonly />
+        </div>
+        <div class="ua-field">
+            <label><strong>IVA (%):</strong></label>
+            <input value="@(Model.PORCENTAJE_IVA?.ToString("0.##") ?? "")" class="form-control" readonly />
+        </div>
+    </div>
+
+    <!-- ==============================
+         Auditoría
+         ============================== -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <label><strong>Creado por:</strong></label>
+            <input value="@($"{Model.USUARIO_CREACION} - {Model.FECHA_CREACION:dd/MM/yyyy HH:mm:ss}")" class="form-control" readonly />
+        </div>
+        @if (Model.FECHA_MODIFICACION != null)
+        {
+            <div class="ua-field">
+                <label><strong>Última modificación:</strong></label>
+                <input value="@($"{Model.USUARIO_MODIFICACION} - {Model.FECHA_MODIFICACION:dd/MM/yyyy HH:mm:ss}")" class="form-control" readonly />
+            </div>
+        }
+    </div>
+
+    <!-- ==============================
+         Acciones
+         ============================== -->
+    <div class="ua-actions">
+        <a class="btn-cancel" asp-action="Index" asp-controller="Productos">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+        <a class="btn-save enabled" asp-action="Edit" asp-controller="Productos" asp-route-id="@Model.PRODUCTO_ID">
+            <i class="bi bi-pencil-square"></i> <span>Editar</span>
+        </a>
+    </div>
+</div>

@@ -1,11 +1,4 @@
-﻿// ===============================================
-// RUTA: ModelsPartial/EmpleadoViewModels.cs
-// DESCRIPCIÓN: VMs para listar, crear/editar y detallar
-//              EMPLEADO con campos de PERSONA incluidos.
-//              ▸ En CREATE/EDIT las fechas son DateTime? (inputs HTML),
-//                el Controller convierte a DateOnly/DateOnly?.
-// ===============================================
-using CreArte.Models;
+﻿using CreArte.Models;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 

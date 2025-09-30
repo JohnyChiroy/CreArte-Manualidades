@@ -1,0 +1,326 @@
+﻿@model CreArte.ModelsPartial.ProductoCreateVM
+@{
+    ViewData["Title"] = "Editar Producto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Producto</h2>
+
+    <!--
+        RUTAS:
+        - POST /Productos/Edit/{id}  (usa asp-route-id con PRODUCTO_ID)
+        - enctype multipart para permitir reemplazo de imagen.
+    -->
+    <form asp-action="Edit" asp-controller="Productos" asp-route-id="@Model.PRODUCTO_ID"
+          method="post" id="frmProductoEdit" data-guard="true" autocomplete="off" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- ==============================
+             Fila superior: Código + Estado
+             ============================== -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="PRODUCTO_ID"><strong>Código Producto:</strong></label>
+                    <!-- Código solo lectura; además mandamos un hidden para garantizar binding -->
+                    <input asp-for="PRODUCTO_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="PRODUCTO_ID" />
+                <span class="ua-help">Código no editable.</span>
+                <span asp-validation-for="PRODUCTO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- ==============================
+             Datos principales
+             ============================== -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 60%;">
+                <label asp-for="PRODUCTO_NOMBRE"><strong>Nombre:*</strong></label>
+                <input asp-for="PRODUCTO_NOMBRE" class="form-control" maxlength="100" required />
+                <span asp-validation-for="PRODUCTO_NOMBRE" class="text-danger"></span>
+            </div>
+            <div class="ua-field" style="flex:1 1 40%;">
+                <label asp-for="PORCENTAJE_IVA"><strong>IVA (%):</strong></label>
+                <!-- IVA opcional; si lo llenan, debe estar entre 0 y 100 -->
+                <input asp-for="PORCENTAJE_IVA" class="form-control" inputmode="decimal" step="0.01" min="0" max="100" placeholder="0 - 100" />
+                <span asp-validation-for="PORCENTAJE_IVA" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="PRODUCTO_DESCRIPCION"><strong>Descripción:</strong></label>
+                <textarea asp-for="PRODUCTO_DESCRIPCION" class="form-control" maxlength="250" rows="2"></textarea>
+                <span asp-validation-for="PRODUCTO_DESCRIPCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- ==============================
+             Catálogos (combos)
+             ============================== -->
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="SUBCATEGORIA_ID"><strong>Subcategoría:*</strong></label>
+                <select asp-for="SUBCATEGORIA_ID" class="form-control" asp-items="Model.SubCategorias" required>
+                    <option value="">Seleccione una subcategoría ↓</option>
+                </select>
+                <span asp-validation-for="SUBCATEGORIA_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <label asp-for="TIPO_PRODUCTO_ID"><strong>Tipo de Producto:*</strong></label>
+                <select asp-for="TIPO_PRODUCTO_ID" class="form-control" asp-items="Model.TiposProducto" required>
+                    <option value="">Seleccione un tipo ↓</option>
+                </select>
+                <span asp-validation-for="TIPO_PRODUCTO_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <label asp-for="UNIDAD_MEDIDA_ID"><strong>Unidad de Medida:*</strong></label>
+                <select asp-for="UNIDAD_MEDIDA_ID" class="form-control" asp-items="Model.Unidades" required>
+                    <option value="">Seleccione una unidad ↓</option>
+                </select>
+                <span asp-validation-for="UNIDAD_MEDIDA_ID" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field">
+                <label asp-for="MARCA_ID"><strong>Marca:</strong></label>
+                <select asp-for="MARCA_ID" class="form-control" asp-items="Model.Marcas">
+                    <option value="">(Sin marca)</option>
+                </select>
+                <span asp-validation-for="MARCA_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <label asp-for="TIPO_EMPAQUE_ID"><strong>Tipo de Empaque:</strong></label>
+                <select asp-for="TIPO_EMPAQUE_ID" class="form-control" asp-items="Model.Empaques">
+                    <option value="">(Sin empaque)</option>
+                </select>
+                <span asp-validation-for="TIPO_EMPAQUE_ID" class="text-danger"></span>
+            </div>
+
+            <!-- Imagen actual + reemplazo -->
+            <div class="ua-field">
+                <label><strong>Imagen del Producto:</strong></label>
+
+                <!-- Vista de la imagen actual (si existe) -->
+                <div style="display:flex; align-items:center; gap:8px;">
+                    @if (!string.IsNullOrWhiteSpace(Model.IMAGEN_PRODUCTO))
+                    {
+                        <img src="@Model.IMAGEN_PRODUCTO"
+                             alt="Imagen actual"
+                             @* style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #eee;background:#fafafa;" /> *@
+                             class="ua-img-thumb-details" />
+                    }
+                    else
+                    {
+                        <div style="width:90px;height:90px;border-radius:8px;border:1px solid #eee;background:#fafafa;display:flex;align-items:center;justify-content:center;">—</div>
+                    }
+                    @* <div class="ua-help"><small>Imagen Actual <code>@(Model.IMAGEN_PRODUCTO ?? "(sin imagen)")</code></small></div> *@
+                    <div class="ua-help">Imagen Actual</div>
+                </div>
+
+                <!-- Campo para reemplazar la imagen -->
+                <input type="file" class="form-control" id="ImagenFile" name="ImagenFile"
+                       accept=".jpg,.jpeg,.png,.webp" style="margin-top:6px;" />
+                <div class="ua-help">
+                    <small>Si no selecciona una imagen, se conservará la actual. Tamaño Máximo 2MB.</small>
+                </div>
+
+                <!-- Hidden para preservar la ruta actual si no se carga una nueva -->
+                <input type="hidden" asp-for="IMAGEN_PRODUCTO" />
+
+                <!-- Preview de nueva imagen -->
+                <div id="imgPreviewWrap" style="margin-top:6px; display:none;">
+                    @* <img id="imgPreview" alt="Vista previa" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #eee;" /> *@
+                    <img id="imgPreview" alt="Vista previa" class="ua-img-thumb-details" />
+                    <div><small id="imgInfo" class="text-muted"></small></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==============================
+             Acciones
+             ============================== -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Productos">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // =========================
+        // Pill Estado (igual patrón Empleados)
+        // =========================
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent='Activo')
+                                               : (pill.classList.remove('active'), pill.textContent='Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // =========================
+        // Preview de imagen nueva + validaciones cliente
+        // =========================
+        (function () {
+            const input = document.getElementById('ImagenFile');
+            const wrap = document.getElementById('imgPreviewWrap');
+            const img  = document.getElementById('imgPreview');
+            const info = document.getElementById('imgInfo');
+            if (!input || !wrap || !img) return;
+
+            input.addEventListener('change', function(){
+                const f = this.files && this.files[0] ? this.files[0] : null;
+                if (!f) { wrap.style.display = 'none'; return; }
+
+                const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+                if (allowed.indexOf(f.type) === -1) {
+                    alert('Formato inválido. Usa JPG, JPEG, PNG o WEBP.');
+                    this.value = ''; wrap.style.display = 'none'; return;
+                }
+                if (f.size > (2 * 1024 * 1024)) {
+                    alert('La imagen supera 2 MB.');
+                    this.value = ''; wrap.style.display = 'none'; return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = e => { img.src = e.target.result; wrap.style.display = 'block'; };
+                reader.readAsDataURL(f);
+                if (info) info.textContent = `Nombre imagen: ${f.name} - Tamaño: ${(f.size/1024).toFixed(0)} KB`;
+            });
+        })();
+
+        // =========================
+        // Habilitar botón Actualizar (obligatorios + IVA 0..100)
+        // =========================
+        (function () {
+            const btn  = document.getElementById('btnActualizar');
+            const form = document.getElementById('frmProductoEdit');
+
+            const reqIds = [
+                'PRODUCTO_NOMBRE',
+                'SUBCATEGORIA_ID',
+                'TIPO_PRODUCTO_ID',
+                'UNIDAD_MEDIDA_ID'
+            ];
+            const ivaEl = document.getElementById('PORCENTAJE_IVA');
+
+            function isIvaOk() {
+                if (!ivaEl || !ivaEl.value.trim()) { ivaEl && ivaEl.setCustomValidity(''); return true; }
+                const val = Number(ivaEl.value.replace(',', '.'));
+                const ok = !Number.isNaN(val) && val >= 0 && val <= 100;
+                if (!ok) ivaEl.setCustomValidity('El IVA debe estar entre 0 y 100.');
+                else ivaEl.setCustomValidity('');
+                return ok;
+            }
+
+            function ready() {
+                const reqOk = reqIds.every(id => {
+                    const el = document.getElementById(id);
+                    return el && (el.value || '').trim().length > 0;
+                });
+
+                const ok = reqOk && isIvaOk() && (form ? form.checkValidity() : true);
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            reqIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', ready);
+            });
+            if (ivaEl) ivaEl.addEventListener('input', ready);
+
+            ready();
+        })();
+
+        // =========================
+        // Guard "sin cambios" (snapshot)
+        // =========================
+        (function () {
+            const frm = document.getElementById('frmProductoEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            // Tomamos un snapshot de todos los campos excepto el file input (no lo consideres cambio si está vacío)
+            function snapshot(form) {
+                const fd = new FormData(form);
+                fd.delete('ImagenFile'); // ignorar archivo en comparación
+                return new URLSearchParams(fd).toString();
+            }
+
+            let initialSnapshot = snapshot(frm);
+
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = snapshot(frm);
+                if (currentSnapshot === initialSnapshot) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "Productos")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "Productos")';
+                    }
+                    return;
+                }
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // =========================
+        // PRG post-Edit con TempData (igual patrón Empleados)
+        // =========================
+        (function () {
+            if (!window.Swal || !window.CreArteSwal || typeof window.CreArteSwal.info !== 'function') return;
+            const flag='@(TempData["SwalOneBtnFlag"] ?? "")', title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+            const redirect='@Url.Action("Index", "Productos")';
+            window.CreArteSwal.info({
+                icon:(flag==='updated'?'success':'info'),
+                title:title || (flag==='updated'?'¡Producto actualizado!':'Sin cambios'),
+                text:  text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                confirmText:'Aceptar',
+                redirectUrl:redirect
+            });
+        })();
+    </script>
+}
