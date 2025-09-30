@@ -5,7 +5,7 @@
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
     // Controladores hijos de "Configuración"
-    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente", "empresa" };
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "subcategorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente", "empresa" };
 
     // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
     bool isConfigOpen = configChildren.Contains(currentController);
@@ -131,7 +131,7 @@
 
             <!-- SubCategorías -->
             <a asp-controller="SubCategorias" asp-action="Index"
-               class="nav-item nav-item--sub @(currentController == "subcategorías" ? "is-active" : "")">
+               class="nav-item nav-item--sub @(currentController == "subcategorias" ? "is-active" : "")">
                 <i class="bi bi-tags"></i> <span>SubCategorías</span>
             </a>
 

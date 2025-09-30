@@ -1,0 +1,193 @@
+﻿@model CreArte.ModelsPartial.TipoClienteCreateVM
+@{
+    ViewData["Title"] = "Editar Tipo Cliente";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Modificar Tipo Cliente</h2>
+
+    <!-- RUTA POST: /TiposCliente/Edit/{id} -->
+    <!-- asp-route-id: envía el ID exigido por Edit(string id, ...) -->
+    <form asp-action="Edit" asp-controller="TiposCliente" asp-route-id="@Model.TC_ID"
+          method="post" id="frmTipoClienteEdit" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- Fila superior: Código + Estado -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="TC_ID"><strong>Código Tipo Cliente:</strong></label>
+                    <input asp-for="TC_ID" class="form-control" readonly />
+                </div>
+                <input type="hidden" asp-for="TC_ID" />
+                <span class="ua-help">Código no editable.</span>
+                <span asp-validation-for="TC_ID" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label><strong>Estado:</strong></label>
+                    <span id="pillEstado" class="ua-pill@(Model?.ESTADO == true ? " active" : "")">
+                        @(Model?.ESTADO == true ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+                <div class="ua-switch" style="margin-top:6px%;">
+                    <input asp-for="ESTADO" type="checkbox" id="chkEstado" />
+                    <span>Activo</span>
+                </div>
+                <span asp-validation-for="ESTADO" class="text-danger"></span>
+            </div>
+        </div>
+
+        @* ==============================
+           TIPO_CLIENTE: Nombre (obligatorio)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="TC_NOMBRE"><strong>Nombre:*</strong></label>
+                <input asp-for="TC_NOMBRE" class="form-control" maxlength="100" required id="TIPO_CLIENTE_NOMBRE" />
+                <span asp-validation-for="TC_NOMBRE" class="text-danger"></span>
+                @* <div class="ua-help"><span id="cntNom">0/100</span></div> *@
+            </div>
+        </div>
+
+        @* ==============================
+           TIPO_CLIENTE: Descripción (opcional)
+           ============================== *@
+        <div class="ua-row" style="margin-top:8px%;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label asp-for="TC_DESCRIPCION"><strong>Descripción:</strong></label>
+                <input asp-for="TC_DESCRIPCION" class="form-control" maxlength="255" id="TIPO_CLIENTE_DESCRIPCION" />
+                <span asp-validation-for="TC_DESCRIPCION" class="text-danger"></span>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="TiposCliente">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnActualizar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Actualizar</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // (Opcional) Contador para Nombre (si activas el <span id="cntNom">)
+        (function () {
+            const $i = document.getElementById('TIPO_CLIENTE_NOMBRE'), $l = document.getElementById('cntNom');
+            const max = 100; if (!$i || !$l) return;
+            const upd = () => $l.textContent = (($i.value || '').length) + '/' + max;
+            upd(); $i.addEventListener('input', upd);
+        })();
+
+        // Pill Estado: sincroniza texto/estilo con el switch
+        (function () {
+            const chk = document.getElementById('chkEstado');
+            const pill = document.getElementById('pillEstado');
+            if (!chk || !pill) return;
+            const syncPill = () => chk.checked ? (pill.classList.add('active'), pill.textContent='Activo')
+                                               : (pill.classList.remove('active'), pill.textContent='Inactivo');
+            chk.addEventListener('change', syncPill); syncPill();
+        })();
+
+        // Habilitar botón "Actualizar": Nombre no vacío + checkValidity()
+        (function () {
+            const btn  = document.getElementById('btnActualizar');
+            const form = document.getElementById('frmTipoClienteEdit');
+            const elNombre = document.getElementById('TIPO_CLIENTE_NOMBRE');
+
+            function ready() {
+                const nombreOk = elNombre && (elNombre.value || '').trim().length > 0;
+                const ok = nombreOk && (form ? form.checkValidity() : true);
+                if (!btn) return;
+                btn.disabled = !ok;
+                btn.classList.toggle('enabled', ok);
+            }
+
+            if (elNombre) elNombre.addEventListener('input', ready);
+            if (form) form.addEventListener('input', ready);
+            ready();
+        })();
+
+        // Guard "sin cambios" (snapshot) — mismo patrón que Empleados
+        (function () {
+            const frm = document.getElementById('frmTipoClienteEdit');
+            const btn = document.getElementById('btnActualizar');
+            if (!frm || !btn) return;
+
+            // Tomamos un snapshot inicial de todos los campos del formulario
+            let initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+
+            frm.addEventListener('submit', function (e) {
+                const currentSnapshot = new URLSearchParams(new FormData(frm)).toString();
+
+                // Si no hubo cambios, informamos y regresamos al Index
+                if (currentSnapshot === initialSnapshot) {
+                    e.preventDefault();
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sin cambios',
+                            text: 'No se modificó ningún dato.',
+                            confirmButtonText: 'Aceptar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(r => { if (r.isConfirmed) window.location.href = '@Url.Action("Index", "TiposCliente")'; });
+                    } else {
+                        window.location.href = '@Url.Action("Index", "TiposCliente")';
+                    }
+                    return;
+                }
+
+                // Feedback de guardado
+                btn.disabled = true;
+                btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // PRG (post-Edit) si usas TempData y helper global (opcional)
+        (function () {
+            // Soporta dos modos:
+            // 1) Helper global CreArteSwal.info({...})
+            // 2) Fallback a Swal.fire si sólo enviaste TempData["SwalOneBtnFlag"/"SwalTitle"/"SwalText"]
+            const flag='@(TempData["SwalOneBtnFlag"] ?? "")';
+            const title='@(TempData["SwalTitle"] ?? "")';
+            const text='@(TempData["SwalText"] ?? "")';
+            if (!flag) return;
+
+            const redirect='@Url.Action("Index", "TiposCliente")';
+
+            if (window.CreArteSwal && typeof window.CreArteSwal.info === 'function') {
+                window.CreArteSwal.info({
+                    icon:(flag==='updated'?'success':'info'),
+                    title:title || (flag==='updated'?'¡Tipo de Cliente actualizado!':'Sin cambios'),
+                    text: text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                    confirmText:'Aceptar',
+                    redirectUrl:redirect
+                });
+                return;
+            }
+
+            if (window.Swal) {
+                Swal.fire({
+                    icon:(flag==='updated'?'success':'info'),
+                    title:title || (flag==='updated'?'¡Tipo de Cliente actualizado!':'Sin cambios'),
+                    text: text  || (flag==='updated'?'El registro se actualizó correctamente.':'No se modificó ningún dato.'),
+                    confirmButtonText:'Aceptar',
+                    allowOutsideClick:false,
+                    allowEscapeKey:false
+                }).then(()=>{ window.location.href = redirect; });
+            }
+        })();
+    </script>
+}
