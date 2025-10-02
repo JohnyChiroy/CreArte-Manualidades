@@ -1,0 +1,100 @@
+﻿@model CreArte.Models.COMPRA
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Edit</title>
+</head>
+<body>
+
+<h4>COMPRA</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="COMPRA_ID" />
+            <div class="form-group">
+                <label asp-for="FECHA_COMPRA" class="control-label"></label>
+                <input asp-for="FECHA_COMPRA" class="form-control" />
+                <span asp-validation-for="FECHA_COMPRA" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ESTADO_COMPRA_ID" class="control-label"></label>
+                <select asp-for="ESTADO_COMPRA_ID" class="form-control" asp-items="ViewBag.ESTADO_COMPRA_ID"></select>
+                <span asp-validation-for="ESTADO_COMPRA_ID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_ENTREGA_COMPRA" class="control-label"></label>
+                <input asp-for="FECHA_ENTREGA_COMPRA" class="form-control" />
+                <span asp-validation-for="FECHA_ENTREGA_COMPRA" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="OBSERVACIONES_COMPRA" class="control-label"></label>
+                <input asp-for="OBSERVACIONES_COMPRA" class="form-control" />
+                <span asp-validation-for="OBSERVACIONES_COMPRA" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="PROVEEDOR_ID" class="control-label"></label>
+                <select asp-for="PROVEEDOR_ID" class="form-control" asp-items="ViewBag.PROVEEDOR_ID"></select>
+                <span asp-validation-for="PROVEEDOR_ID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_CREACION" class="control-label"></label>
+                <input asp-for="USUARIO_CREACION" class="form-control" />
+                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_CREACION" class="control-label"></label>
+                <input asp-for="FECHA_CREACION" class="form-control" />
+                <span asp-validation-for="FECHA_CREACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
+                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
+                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
+                <input asp-for="FECHA_MODIFICACION" class="form-control" />
+                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
+                </label>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
+                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
+                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
+                <input asp-for="FECHA_ELIMINACION" class="form-control" />
+                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
+                </label>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+</body>
+</html>
