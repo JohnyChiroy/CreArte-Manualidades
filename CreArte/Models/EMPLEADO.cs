@@ -60,13 +60,4 @@ public partial class EMPLEADO
 
     [InverseProperty("EMPLEADO")]
     public virtual ICollection<USUARIO> USUARIO { get; set; } = new List<USUARIO>();
-
-    
-        // =========================================================
-        // Navegación a PERSONA (1 a 1)
-        // Nota: La FK es EMPLEADO.EMPLEADO_ID -> PERSONA.PERSONA_ID,
-        // por eso usamos el mismo campo como FK.
-        //// =========================================================
-        //[ForeignKey(nameof(EMPLEADO_ID))]
-        //public virtual PERSONA PERSONA { get; set; } = default!;
 }

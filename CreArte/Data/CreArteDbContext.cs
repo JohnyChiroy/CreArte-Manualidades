@@ -18,6 +18,8 @@ public partial class CreArteDbContext : DbContext
 
     public virtual DbSet<AREA> AREA { get; set; }
 
+    public virtual DbSet<AUD_DDL> AUD_DDL { get; set; }
+
     public virtual DbSet<BITACORA> BITACORA { get; set; }
 
     public virtual DbSet<CAJA> CAJA { get; set; }
@@ -111,6 +113,14 @@ public partial class CreArteDbContext : DbContext
             entity.HasOne(d => d.NIVEL).WithMany(p => p.AREA)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_NIVEL_ID");
+        });
+
+        modelBuilder.Entity<AUD_DDL>(entity =>
+        {
+            entity.HasKey(e => e.AUD_ID).HasName("PK__AUD_DDL__C12C9F2E10AF9727");
+
+            entity.Property(e => e.FECHA).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.LOGIN_NAME).HasDefaultValueSql("(original_login())");
         });
 
         modelBuilder.Entity<BITACORA>(entity =>

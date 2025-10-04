@@ -56,6 +56,11 @@ public partial class COMPRA
 
     public bool ESTADO { get; set; }
 
+    public bool CARGADA_INVENTARIO { get; set; }
+
+    [Column(TypeName = "datetime")]
+    public DateTime? FECHA_CARGA { get; set; }
+
     [InverseProperty("COMPRA")]
     public virtual ICollection<DETALLE_COMPRA> DETALLE_COMPRA { get; set; } = new List<DETALLE_COMPRA>();
 

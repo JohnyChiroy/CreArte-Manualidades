@@ -59,6 +59,8 @@ public partial class DETALLE_COMPRA
 
     public bool ESTADO { get; set; }
 
+    public int? CANTIDAD_RECIBIDA { get; set; }
+
     [ForeignKey("COMPRA_ID")]
     [InverseProperty("DETALLE_COMPRA")]
     public virtual COMPRA COMPRA { get; set; } = null!;
