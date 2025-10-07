@@ -3,13 +3,10 @@ using CreArte.Models; // Entidades EF
 using CreArte.ModelsPartial; // ViewModels: LoginViewModels, CambiarContrasenaViewModel, RecuperacionContrasenaVM, RestablecerContrasenaVM
 using CreArte.Services.Auditoria; // ICurrentUserService y AuditoriaService (si fuera necesario)
 using CreArte.Services.Mail;  // EnvioCorreoSMTP y PlantillaEnvioCorreo
-
-// 👇 Necesario para auth por cookies y claims
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc; // Controller, IActionResult
 using Microsoft.EntityFrameworkCore; // FirstOrDefaultAsync, AsNoTracking
-
 using System.Security.Claims; // Claim, ClaimsIdentity, ClaimsPrincipal
 using System.Security.Cryptography; // RandomNumberGenerator, SHA256, Rfc2898DeriveBytes
 using System.Text; // Encoding.UTF8
@@ -33,21 +30,11 @@ namespace CreArte.Controllers
             _tpl = tpl;
             _app = appOptions.Value;
         }
-
-        // ============================================
-        // GET: /Login/Login
-        // Muestra el formulario de inicio de sesión.
-        // ============================================
         public IActionResult Login()
         {
             return View(); // Views/Login/Login.cshtml
         }
 
-        // ============================================
-        // POST: /Login/Login
-        // Valida credenciales y emite el cookie de auth.
-        // ► Ahora soporta PBKDF2 (actual) + SHA256 legado.
-        // ============================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModels model)

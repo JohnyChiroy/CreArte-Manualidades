@@ -1,92 +1,268 @@
-﻿@model CreArte.Models.COMPRA
+﻿@model CreArte.ModelsPartial.CompraCreateVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Nueva Compra";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Registrar Nueva Compra</h2>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Create</title>
-</head>
-<body>
-
-<h4>COMPRA</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="COMPRA_ID" class="control-label"></label>
-                <input asp-for="COMPRA_ID" class="form-control" />
-                <span asp-validation-for="COMPRA_ID" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ESTADO_COMPRA_ID" class="control-label"></label>
-                <select asp-for="ESTADO_COMPRA_ID" class ="form-control" asp-items="ViewBag.ESTADO_COMPRA_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ENTREGA_COMPRA" class="control-label"></label>
-                <input asp-for="FECHA_ENTREGA_COMPRA" class="form-control" />
-                <span asp-validation-for="FECHA_ENTREGA_COMPRA" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="OBSERVACIONES_COMPRA" class="control-label"></label>
-                <input asp-for="OBSERVACIONES_COMPRA" class="form-control" />
-                <span asp-validation-for="OBSERVACIONES_COMPRA" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="PROVEEDOR_ID" class="control-label"></label>
-                <select asp-for="PROVEEDOR_ID" class ="form-control" asp-items="ViewBag.PROVEEDOR_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
+    <!-- Nota: El estado se crea como BOR en el Controller -->
+    <div class="mb-2">
+        <span class="ua-pill active">Estado: Borrador</span>
     </div>
+
+    <!-- Form principal -->
+    <form asp-action="Create" asp-controller="Compras" method="post" id="frmCompra" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <!-- Resumen de validación MVC -->
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- ==============================
+             CABECERA: ID, Proveedor, Observaciones
+             ============================== -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <div class="ua-kv">
+                    <label asp-for="CompraId"><strong>Código de Compra:*</strong></label>
+                    <input asp-for="CompraId" class="form-control" maxlength="10" required />
+                </div>
+                <span asp-validation-for="CompraId" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field" style="flex:1">
+                <label asp-for="ProveedorId"><strong>Proveedor:*</strong></label>
+                <select asp-for="ProveedorId" class="form-control" required>
+                    <option value="">— Seleccione —</option>
+                    @foreach (var p in ViewBag.Proveedores as SelectList)
+                    {
+                        <option value="@p.Value">@p.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="ProveedorId" class="text-danger"></span>
+            </div>
+
+            <div class="ua-field">
+                <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
+                <input asp-for="Observaciones" class="form-control" maxlength="250" />
+            </div>
+        </div>
+
+        <!-- ==============================================
+             LÍNEAS DE PRODUCTOS
+             - Usamos un <table> pero con estilos UA alrededor.
+             - Importante: incluimos Lineas.Index para binding robusto.
+             ============================================== -->
+        <div class="ua-row" style="margin-top:12px;">
+            <div class="ua-field" style="flex:1 1 100%;">
+                <label><strong>Productos</strong></label>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="tblProductos">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:36%">Producto *</th>
+                                <th style="width:16%">Cantidad *</th>
+                                <th style="width:16%">Precio compra</th>
+                                <th style="width:20%">Fecha vencimiento</th>
+                                <th style="width:12%" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblBody">
+                            @* Render inicial: usa las filas del modelo (al menos una vacía) *@
+                            @for (int i = 0; i < Model.Lineas.Count; i++)
+                            {
+                                <tr>
+                                    <!-- Model binding robusto: índice explícito -->
+                                    <input type="hidden" name="Lineas.Index" value="@i" />
+                                    <td>
+                                        <select name="Lineas[@i].ProductoId" class="form-control producto" required>
+                                            <option value="">— Seleccione —</option>
+                                            @foreach (var pr in ViewBag.Productos as SelectList)
+                                            {
+                                                <option value="@pr.Value">@pr.Text</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input name="Lineas[@i].Cantidad" type="number" min="0" class="form-control cantidad" required />
+                                    </td>
+                                    <td>
+                                        <input name="Lineas[@i].PrecioCompra" type="number" step="0.01" min="0" class="form-control precio" />
+                                    </td>
+                                    <td>
+                                        <input name="Lineas[@i].FechaVencimiento" type="date" class="form-control fecha" />
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-end">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="agregarFila()">
+                        <i class="bi bi-plus-lg"></i> Agregar producto
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==============================
+             ACCIONES (UA) – Cancelar / Guardar
+             ============================== -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" asp-action="Index" asp-controller="Compras">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-</body>
-</html>
+    <script>
+        // ============================================================
+        // Plantilla oculta de opciones de PRODUCTOS para nuevas filas
+        // ============================================================
+        const productosOptionsHtml = `
+            @foreach (var pr in ViewBag.Productos as SelectList)
+            {
+                    @:<option value="@pr.Value">@pr.Text</option>
+            }
+        `;
+
+        // Contador de filas y "siguiente índice" para Lineas.Index
+        // (Iniciamos en el máximo i de las filas ya renderizadas)
+        let nextIndex = @Model.Lineas.Count;
+
+        // ============================================================
+        // Agregar fila: crea una nueva fila con Lineas.Index explícito
+        // ============================================================
+        function agregarFila() {
+            const tbody = document.getElementById("tblBody");
+            const i = nextIndex++; // Reservamos un índice único
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <input type="hidden" name="Lineas.Index" value="${i}" />
+                <td>
+                    <select name="Lineas[${i}].ProductoId" class="form-control producto" required>
+                        <option value="">— Seleccione —</option>
+                        ${productosOptionsHtml}
+                    </select>
+                </td>
+                <td><input name="Lineas[${i}].Cantidad" type="number" min="0" class="form-control cantidad" required /></td>
+                <td><input name="Lineas[${i}].PrecioCompra" type="number" step="0.01" min="0" class="form-control precio" /></td>
+                <td><input name="Lineas[${i}].FechaVencimiento" type="date" class="form-control fecha" /></td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>`;
+            tbody.appendChild(tr);
+            ready(); // Re-evaluar habilitación del Guardar
+        }
+
+        // ============================================================
+        // Eliminar fila: simplemente quita la <tr>
+        // (No reindexamos: usamos Lineas.Index oculto)
+        // ============================================================
+        function eliminarFila(btn) {
+            const fila = btn.closest("tr");
+            fila.remove();
+            ready();
+        }
+
+        // ============================================================
+        // Habilitar botón Guardar:
+        //  - CompraId no vacío
+        //  - ProveedorId seleccionado
+        //  - Al menos una línea válida (Producto y Cantidad > 0)
+        //  - checkValidity() general del form
+        // ============================================================
+        (function () {
+            const btn  = document.getElementById('btnGuardar');
+            const form = document.getElementById('frmCompra');
+
+            function hayLineaValida() {
+                const tbody = document.getElementById('tblBody');
+                if (!tbody) return false;
+                const filas = Array.from(tbody.querySelectorAll('tr'));
+                for (const tr of filas) {
+                    const prod = tr.querySelector('select[name*=".ProductoId"]');
+                    const cant = tr.querySelector('input[name*=".Cantidad"]');
+                    const vProd = (prod?.value || '').trim();
+                    const vCant = parseInt(cant?.value ?? '0', 10);
+                    if (vProd && !isNaN(vCant) && vCant > 0) return true;
+                }
+                return false;
+            }
+
+            function ready() {
+                const compraId    = (document.getElementById('CompraId')?.value || '').trim();
+                const proveedorId = (document.getElementById('ProveedorId')?.value || '').trim();
+
+                const baseOk = (compraId.length > 0) && (proveedorId.length > 0);
+                const lineOk = hayLineaValida();
+                const valid  = baseOk && lineOk && (form ? form.checkValidity() : true);
+
+                if (!btn) return;
+                btn.disabled = !valid;
+                btn.classList.toggle('enabled', valid);
+            }
+
+            // Eventos: cambia/teclea en cabecera y líneas
+            document.addEventListener('input', (e) => {
+                if (e.target.closest('#frmCompra')) ready();
+            });
+            document.addEventListener('change', (e) => {
+                if (e.target.closest('#frmCompra')) ready();
+            });
+
+            // Primera evaluación al cargar
+            ready();
+        })();
+
+        // ============================================================
+        // Prevenir doble submit: deshabilita y cambia texto del botón
+        // ============================================================
+        (function () {
+            const frm = document.getElementById('frmCompra');
+            const btn = document.getElementById('btnGuardar');
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
+                btn.disabled = true; btn.classList.remove('enabled');
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            });
+        })();
+
+        // ============================================================
+        // (Opcional) SweetAlert2 PRG como en Empleados:
+        // Si en el Controller asignas:
+        //  TempData["SwalTitle"], TempData["SwalText"],
+        //  TempData["SwalIndexUrl"], TempData["SwalCreateUrl"]
+        // puedes reutilizar el mismo patrón para post-redirect.
+        // ============================================================
+        (function () {
+            if (!window.Swal) return;
+            const title='@(TempData["SwalTitle"] ?? "")', text='@(TempData["SwalText"] ?? "")';
+            const urlIndex='@(TempData["SwalIndexUrl"] ?? "")', urlCreate='@(TempData["SwalCreateUrl"] ?? "")';
+            if (!title && !text) return;
+            Swal.fire({ icon:'success', title:title||'Guardado', text:text||'La compra se creó correctamente.',
+                showDenyButton:true, confirmButtonText:'Volver al listado', denyButtonText:'Crear otra',
+                allowOutsideClick:false, allowEscapeKey:false
+            }).then(r=>{ if (r.isConfirmed && urlIndex) location.href=urlIndex; else if (r.isDenied && urlCreate) location.href=urlCreate; });
+        })();
+    </script>
+}

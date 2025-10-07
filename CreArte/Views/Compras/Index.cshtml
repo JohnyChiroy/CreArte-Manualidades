@@ -1,115 +1,429 @@
-﻿@model IEnumerable<CreArte.Models.COMPRA>
+﻿@* @model IEnumerable<CompraIndexRowVM> *@
+@model CreArte.ModelsPartial.ComprasIndexVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Compras";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
-
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Index</title>
-</head>
-<body>
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_COMPRA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_ENTREGA_COMPRA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.OBSERVACIONES_COMPRA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ELIMINADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ESTADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ESTADO_COMPRA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PROVEEDOR)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_COMPRA)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_ENTREGA_COMPRA)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.OBSERVACIONES_COMPRA)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ELIMINADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ESTADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ESTADO_COMPRA.ESTADO_COMPRA_ID)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.PROVEEDOR.PROVEEDOR_ID)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.COMPRA_ID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.COMPRA_ID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.COMPRA_ID">Delete</a>
-            </td>
-        </tr>
+@functions{
+    // ===== Helpers para setear Dir y flecha visual =====
+    string NextDir(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
 }
-    </tbody>
-</table>
-</body>
-</html>
+
+<div class="container-fluid py-3">
+    <div class="ua-card">
+        <!-- =========================
+             TOOLBAR (igual que Empleados)
+             ========================= -->
+        <div class="ua-toolbar">
+            @* <h2 class="m-0">Compras</h2> *@
+
+            <div class="d-flex align-items-center gap-2">
+                <!-- NUEVO -->
+                <a asp-controller="Compras" asp-action="Create" class="ua-btn ua-btn-new">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                    NUEVA
+                </a>
+
+                <!-- VER / MODIFICAR (se activan al seleccionar fila) -->
+                <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                    VER
+                </a>
+                <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                    MODIFICAR
+                </a>
+            </div>
+
+            <!-- Buscador global (ID / Proveedor) -->
+            <form method="get" asp-controller="Compras" asp-action="Index" class="ua-search d-flex align-items-center">
+                <input type="hidden" name="Estado" value="@Model.Estado" />
+                <input type="hidden" name="Sort"   value="@(Model.Sort ?? "fecha")" />
+                <input type="hidden" name="Dir"    value="@(Model.Dir  ?? "desc")" />
+                <input name="Search" value="@Model.Search" placeholder="Buscar por ID o Proveedor..." />
+                <button title="Buscar" type="submit">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></path></svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- =========================
+             FILTRO ESTADO (Popover UA)
+             ========================= -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="ua-th ua-popover-wrap">
+                <button type="button" class="ua-btn ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                    Estado @if(!string.IsNullOrWhiteSpace(Model.Estado)){<span class="text-muted">: @Model.Estado</span>}
+                </button>
+                <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                    <select id="fEstado" class="ua-input">
+                        <option value="">— Todos los estados —</option>
+                        @{ string E = Model.Estado ?? ""; }
+                        <option value="BOR" selected="@(E=="BOR" ? "selected" : null)">Borrador</option>
+                        <option value="REV" selected="@(E=="REV" ? "selected" : null)">En revisión</option>
+                        <option value="APR" selected="@(E=="APR" ? "selected" : null)">Aprobada</option>
+                        <option value="ENV" selected="@(E=="ENV" ? "selected" : null)">Enviada</option>
+                        <option value="CON" selected="@(E=="CON" ? "selected" : null)">Confirmada</option>
+                        <option value="REC" selected="@(E=="REC" ? "selected" : null)">Recibida</option>
+                        <option value="CER" selected="@(E=="CER" ? "selected" : null)">Cerrada</option>
+                        <option value="ANU" selected="@(E=="ANU" ? "selected" : null)">Anulada</option>
+                    </select>
+                    <div class="ua-pop-actions">
+                        <button type="button" class="ua-btn-sm" onclick="uaClearEstado()">Limpiar</button>
+                        <button type="button" class="ua-btn-sm primary" onclick="uaApplyEstado()">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-end text-muted small">
+                Total: @Model.TotalCount
+            </div>
+        </div>
+
+        <!-- =========================
+             TABLA (ordenable + selección)
+             ========================= -->
+        <div class="table-responsive mt-3">
+            <table class="table ua-table align-middle">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width:48px;">
+                            <input type="checkbox" class="form-check-input" id="chkAll"
+                                   onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                        </th>
+
+                        <!-- ID (ordenable) -->
+                        <th>
+                            @{
+                                var next_id = NextDir("id", Model.Sort, Model.Dir);
+                                var href_id = Url.Action("Index", "Compras", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "id", Dir = next_id,
+                                    Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_id = (Model.Sort ?? "fecha").Equals("id", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <div class="ua-th">
+                                <a class="ua-sort @(isActive_id ? "" : "inactive")" href="@href_id">
+                                    <span class="ua-title">ID</span>
+                                    <span class="ua-arrow">@Arrow("id", Model.Sort, Model.Dir)</span>
+                                </a>
+                            </div>
+                        </th>
+
+                        <!-- PROVEEDOR (ordenable) -->
+                        <th>
+                            @{
+                                var next_prov = NextDir("proveedor", Model.Sort, Model.Dir);
+                                var href_prov = Url.Action("Index", "Compras", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "proveedor", Dir = next_prov,
+                                    Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_prov = (Model.Sort ?? "fecha").Equals("proveedor", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <div class="ua-th">
+                                <a class="ua-sort @(isActive_prov ? "" : "inactive")" href="@href_prov">
+                                    <span class="ua-title">PROVEEDOR</span>
+                                    <span class="ua-arrow">@Arrow("proveedor", Model.Sort, Model.Dir)</span>
+                                </a>
+                            </div>
+                        </th>
+
+                        <!-- FECHA COMPRA (ordenable) -->
+                        <th style="width:160px;">
+                            @{
+                                var next_fecha = NextDir("fecha", Model.Sort, Model.Dir);
+                                var href_fecha = Url.Action("Index", "Compras", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "fecha", Dir = next_fecha,
+                                    Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_fecha = (Model.Sort ?? "fecha").Equals("fecha", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <div class="ua-th">
+                                <a class="ua-sort @(isActive_fecha ? "" : "inactive")" href="@href_fecha">
+                                    <span class="ua-title">FECHA</span>
+                                    <span class="ua-arrow">@Arrow("fecha", Model.Sort, Model.Dir)</span>
+                                </a>
+                            </div>
+                        </th>
+
+                        <!-- ESTADO (ordenable) -->
+                        <th style="width:140px;">
+                            @{
+                                var next_estado = NextDir("estado", Model.Sort, Model.Dir);
+                                var href_estado = Url.Action("Index", "Compras", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "estado", Dir = next_estado,
+                                    Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_estado = (Model.Sort ?? "fecha").Equals("estado", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <div class="ua-th">
+                                <a class="ua-sort @(isActive_estado ? "" : "inactive")" href="@href_estado">
+                                    <span class="ua-title">ESTADO</span>
+                                    <span class="ua-arrow">@Arrow("estado", Model.Sort, Model.Dir)</span>
+                                </a>
+                            </div>
+                        </th>
+
+                        <!-- INVENTARIO (ordenable) -->
+                        <th style="width:140px;">
+                            @{
+                                var next_inv = NextDir("inv", Model.Sort, Model.Dir);
+                                var href_inv = Url.Action("Index", "Compras", new {
+                                    Search = Model.Search,
+                                    Estado = Model.Estado,
+                                    Sort = "inv", Dir = next_inv,
+                                    Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_inv = (Model.Sort ?? "fecha").Equals("inv", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <div class="ua-th">
+                                <a class="ua-sort @(isActive_inv ? "" : "inactive")" href="@href_inv">
+                                    <span class="ua-title">INVENTARIO</span>
+                                    <span class="ua-arrow">@Arrow("inv", Model.Sort, Model.Dir)</span>
+                                </a>
+                            </div>
+                        </th>
+
+                        <!-- OBSERVACIONES (no ordenable) -->
+                        <th>OBSERVACIONES</th>
+
+                        <th class="text-center" style="width:140px;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items == null || !Model.Items.Any())
+                {
+                    <tr><td colspan="8" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox"></i> No hay compras registradas.
+                    </td></tr>
+                }
+                else
+                {
+                    foreach (var c in Model.Items)
+                    {
+                        <tr class="ua-rowitem" data-id="@c.COMPRA_ID">
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input ua-rowchk" value="@c.COMPRA_ID" />
+                            </td>
+
+                            <td>@c.COMPRA_ID</td>
+
+                            <!-- Proveedor -->
+                            <td>@(!string.IsNullOrWhiteSpace(c.PROVEEDOR_NOMBRE) ? c.PROVEEDOR_NOMBRE : c.PROVEEDOR_ID)</td>
+
+
+                            <td>@c.FECHA_COMPRA.ToString("dd/MM/yyyy")</td>
+
+                            <td>
+                                @{
+                                    string estado = c.ESTADO_COMPRA_ID;
+                                    string clase = estado switch
+                                    {
+                                        "BOR" => "badge bg-secondary",
+                                        "REV" => "badge bg-warning text-dark",
+                                        "APR" => "badge bg-info text-dark",
+                                        "ENV" => "badge bg-primary",
+                                        "CON" => "badge bg-purple",
+                                        "REC" => "badge bg-success",
+                                        "CER" => "badge bg-dark",
+                                        "ANU" => "badge bg-danger",
+                                        _     => "badge bg-light text-dark"
+                                    };
+                                }
+                                <span class="@clase">@estado</span>
+                            </td>
+
+                            <td>
+                                @if (c.CARGADA_INVENTARIO) { <span class="badge bg-success">Cargada</span> }
+                                else { <span class="badge bg-secondary">Pendiente</span> }
+                            </td>
+
+                            <td>@(c.OBSERVACIONES_COMPRA ?? "-")</td>
+
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    @* <a asp-action="Details" asp-controller="Compras" asp-route-id="@c.COMPRA_ID"
+                                       class="btn btn-outline-primary btn-sm" title="Ver detalle">
+                                        <i class="bi bi-eye"></i>
+                                    </a> *@
+                                    @if (c.ESTADO_COMPRA_ID == "REC" && !c.CARGADA_INVENTARIO)
+                                    {
+                                        <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@c.COMPRA_ID" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Cargar a Inventario">
+                                                <i class="bi bi-box-arrow-in-down"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (c.ESTADO_COMPRA_ID != "CER" && c.ESTADO_COMPRA_ID != "ANU" && !c.CARGADA_INVENTARIO)
+                                    {
+                                        @* <form asp-action="Anular" asp-controller="Compras" asp-route-id="@c.COMPRA_ID" method="post" class="d-inline"
+                                              onsubmit="return confirm('¿Deseas anular esta compra?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Anular compra">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form> *@
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- =========================
+             PAGINACIÓN (UA)
+             ========================= -->
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="mt-2" aria-label="Paginación de compras">
+                <ul class="pagination ua-pagination justify-content-center">
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link"
+                               href="@Url.Action("Index","Compras", new {
+                                   Search = Model.Search,
+                                   Estado = Model.Estado,
+                                   Sort   = Model.Sort,
+                                   Dir    = Model.Dir,
+                                   Page   = p,
+                                   PageSize = Model.PageSize
+                               })">@p</a>
+                        </li>
+                    }
+                    @if (Model.Page < Model.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="@Url.Action("Index","Compras", new {
+                                   Search = Model.Search,
+                                   Estado = Model.Estado,
+                                   Sort   = Model.Sort,
+                                   Dir    = Model.Dir,
+                                   Page   = Model.Page + 1,
+                                   PageSize = Model.PageSize
+                               })">Siguiente →</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
+    </div>
+</div>
+
+@section Scripts{
+<script>
+/* =========================
+   POPovers abrir/cerrar (igual Empleados)
+   ========================= */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* =========================
+   Acciones por selección de fila (VER/MODIFICAR)
+   ========================= */
+(function () {
+    const btnVer    = document.getElementById('btnVer');
+    const btnEditar = document.getElementById('btnEditar');
+    let selectedId = null;
+
+    function toggleButtons(enable){
+        if (btnVer)    btnVer.classList.toggle('is-disabled', !enable);
+        if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
+    }
+    function applySelection(row) {
+        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+        row.classList.add('row-selected');
+        document.querySelectorAll('.ua-rowchk').forEach(c => { if (c.closest('.ua-rowitem') !== row) c.checked = false; });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+        toggleButtons(!!selectedId);
+    }
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('.ua-rowitem');
+        if (!row) return;
+        if (e.target.closest('a,button,select,textarea,label,input')) return;
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    document.addEventListener('change', function (e) {
+        const chk = e.target.closest('.ua-rowchk');
+        if (!chk) return;
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+    });
+
+    if (btnVer) {
+        btnVer.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { alert("Seleccione un registro para ver."); return; }
+            window.location.href = '@Url.Action("Details", "Compras")/' + encodeURIComponent(selectedId);
+        });
+    }
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { alert("Seleccione un registro para editar."); return; }
+            window.location.href = '@Url.Action("Edit", "Compras")/' + encodeURIComponent(selectedId);
+        });
+    }
+})();
+
+/* =========================
+   Aplicar/Limpiar filtro ESTADO
+   ========================= */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // Reiniciar a primera página cuando se aplica filtro
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    submitFilter({ Estado: v || null, Search: '@Model.Search', Sort: '@Model.Sort', Dir: '@Model.Dir', PageSize: '@Model.PageSize' });
+}
+function uaClearEstado(){ submitFilter({ Estado: null, Search: '@Model.Search', Sort: '@Model.Sort', Dir: '@Model.Dir', PageSize: '@Model.PageSize' }); }
+</script>
+}

@@ -1,105 +1,282 @@
-﻿@model CreArte.Models.COMPRA
+﻿@using CreArte.ModelsPartial
+@model CompraDetailsVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle de compra";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+@section Styles {
+    <style>
+        /* Color corporativo morado (usado para estado CON = Confirmada) */
+        .badge.bg-purple {
+            background-color: #BF265E !important;
+        }
+        /* Ajustes menores para la cabecera k/v */
+        .ua-kv-mini .lbl {
+            font-size: .8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+        .ua-kv-mini .val {
+            font-weight: 600;
+        }
+        /* Totales al pie de la tabla */
+        tfoot td {
+            font-weight: 600;
+        }
+    </style>
+}
 
-<div>
-    <h4>COMPRA</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_COMPRA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_COMPRA)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ENTREGA_COMPRA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ENTREGA_COMPRA)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.OBSERVACIONES_COMPRA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.OBSERVACIONES_COMPRA)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO_COMPRA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO_COMPRA.ESTADO_COMPRA_ID)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PROVEEDOR)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PROVEEDOR.PROVEEDOR_ID)
-        </dd>
-    </dl>
+<div class="ua-card">
+    <!-- =========================
+      TOOLBAR (título + volver + acciones tempranas)
+      ========================= -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Compra @Model.CompraId</h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- Volver -->
+            <a asp-action="Index" asp-controller="Compras" class="ua-btn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+                <span>Volver</span>
+            </a>
+
+            @* ====== Flujo temprano de estados ====== *@
+
+            @* 1) Enviar a revisión: BOR -> REV *@
+            @if (Model.EstadoId == "BOR")
+            {
+                <form asp-action="ToReview" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ua-btn" title="Enviar a revisión">
+                        <i class="bi bi-clipboard"></i> <span>Enviar a revisión</span>
+                    </button>
+                </form>
+            }
+
+            @* 2) Aprobar: REV -> APR *@
+            @if (Model.EstadoId == "REV")
+            {
+                <form asp-action="Approve" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ua-btn" title="Aprobar compra">
+                        <i class="bi bi-check2-square"></i> <span>Aprobar</span>
+                    </button>
+                </form>
+            }
+
+            @* 3) Enviar a proveedor: APR -> ENV *@
+            @if (Model.EstadoId == "APR")
+            {
+                <form asp-action="Send" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ua-btn" title="Enviar a proveedor">
+                        <i class="bi bi-send"></i> <span>Enviar</span>
+                    </button>
+                </form>
+            }
+
+            @* 4) Confirmar: disponible en APR / ENV / CON *@
+            @if (Model.EstadoId is "APR" or "ENV" or "CON")
+            {
+                <a asp-action="Confirm" asp-controller="Compras" asp-route-id="@Model.CompraId" class="ua-btn" title="Confirmar (fecha y precios)">
+                    <i class="bi bi-clipboard-check"></i> <span>Confirmar</span>
+                </a>
+            }
+        </div>
+    </div>
+
+
+    <!-- =========================
+         CABECERA (k/v estilo UA)
+         ========================= -->
+    <div class="ua-row" style="margin-top:12px;">
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Proveedor</div>
+                <div class="val">@Model.ProveedorNombre</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha compra</div>
+                <div class="val">@Model.FechaCompra.ToString("dd/MM/yyyy")</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha entrega</div>
+                <div class="val">@(Model.FechaEntregaCompra?.ToString("dd/MM/yyyy") ?? "-")</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Estado</div>
+                <div class="val">
+                    <span class="badge bg-@GetEstadoClass(Model.EstadoId)">@Model.EstadoId</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Inventario</div>
+                <div class="val">
+                    @if (Model.CargadaInventario)
+                    {
+                        <span class="badge bg-success">Cargada</span>
+                    }
+                    else
+                    {
+
+                        <span class="badge bg-secondary">Pendiente</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv-mini">
+                <div class="lbl">Observaciones</div>
+                <div class="val">@(Model.Observaciones ?? "-")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================
+         LÍNEAS (tabla UA + totales)
+         ========================= -->
+    <h5 class="mt-4">Productos</h5>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle ua-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Producto</th>
+                    <th class="text-end">Cant. Pedida</th>
+                    <th class="text-end">Precio</th>
+                    <th class="text-end">Cant. Recibida</th>
+                    <th>Vencimiento</th>
+                    <th class="text-end">Subtotal (regla vigente)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @* Reglas:
+                   - Para mostrar Cant. Recibida: si no hay valor, mostramos "-"
+                   - Subtotal = (Recibida si existe, si no Pedida) * PrecioCompra (0 si null)
+                *@
+                @{
+                    int totalPedida = 0;
+                    int totalRecibida = 0;
+                    decimal totalMonto = 0m;
+                }
+
+                @foreach (var l in Model.Lineas)
+                {
+                    var cant = l.Cantidad;
+                    var rec = l.CantidadRecibida ?? 0;
+                    var precio = l.PrecioCompra ?? 0m;
+                    var baseCalculo = l.CantidadRecibida.HasValue ? rec : cant;
+                    var subtotal = baseCalculo * precio;
+
+                    totalPedida += cant;
+                    totalRecibida += (l.CantidadRecibida ?? 0);
+                    totalMonto += subtotal;
+
+                    <tr>
+                        <td>@l.ProductoId</td>
+                        <td class="text-end">@cant</td>
+                        <td class="text-end">@precio.ToString("N2")</td>
+                        <td class="text-end">@((l.CantidadRecibida.HasValue ? rec : (int?)null)?.ToString() ?? "-")</td>
+                        <td>@(l.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "-")</td>
+                        <td class="text-end">@subtotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td class="text-end">Totales:</td>
+                    <td class="text-end">@totalPedida</td>
+                    <td></td>
+                    <td class="text-end">@totalRecibida</td>
+                    <td></td>
+                    <td class="text-end">@totalMonto.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- =========================
+         BOTONES DE ACCIÓN (UA)
+         ========================= -->
+    <div class="ua-actions" style="margin-top:12px;">
+        @* Recibir (solo si procede) *@
+        @if (Model.PuedeEditarPrecio || Model.PuedeMarcarRecibida)
+        {
+            <a asp-action="Recibir" asp-controller="Compras" asp-route-id="@Model.CompraId" class="ua-btn">
+                <i class="bi bi-truck"></i> <span>Recibir productos</span>
+            </a>
+        }
+
+        @* Cargar a inventario *@
+        @* @if (Model.PuedeCargarInventario)
+        {
+            <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-box-arrow-in-down"></i> <span>Cargar a Inventario</span>
+                </button>
+            </form>
+        } *@
+        @if (Model.PuedeCargarInventario)
+        {
+            <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@Model.CompraId"
+                  method="post" class="d-inline"
+                  onsubmit="return confirm('Esta acción actualizará inventario y cerrará la compra. ¿Continuar?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-box-arrow-in-down"></i> <span>Cargar a Inventario</span>
+                </button>
+            </form>
+        }
+
+        @* Anular *@
+        @if (Model.PuedeAnular)
+        {
+            <form asp-action="Anular" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline"
+                  onsubmit="return confirm('¿Seguro que deseas anular esta compra?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-cancel">
+                    <i class="bi bi-x-circle"></i> <span>Anular</span>
+                </button>
+            </form>
+        }
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.COMPRA_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>
+
+@functions {
+    // Convierte código de estado a clase de color (coincide con tus badges)
+    // El resultado se concatena como: "badge bg-@GetEstadoClass(...)"
+    private string GetEstadoClass(string estado) => estado switch
+    {
+        "BOR" => "secondary",
+        "REV" => "warning text-dark",
+        "APR" => "info text-dark",
+        "ENV" => "primary",
+        "CON" => "purple",               // <- usa .badge.bg-purple
+        "REC" => "success",
+        "CER" => "dark",
+        "ANU" => "danger",
+        _ => "light text-dark"
+    };
+}

@@ -1,18 +1,11 @@
-﻿// ===============================================
-// RUTA: ModelsPartial/UsuarioViewModels.cs
-// DESCRIPCIÓN: ViewModels para el módulo de Usuarios
-//  - UsuarioViewModels: listado con filtros/orden/paginación
-//  - UsuarioCreateVM: Create/Edit con validaciones de UI
-//  - UsuarioDetailsVM: para la tarjeta (modal) de detalles
-// ===============================================
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using CreArte.Models;
 
 namespace CreArte.ModelsPartial
 {
-    // ===================== LISTADO =====================
+    // ===================== LISTADO 
     public class UsuarioViewModels
     {
         // Filtros
