@@ -164,6 +164,26 @@
                             </div>
                         </th>
 
+                                                <!--FECHA ESTIMADA DE ENTREGA (ordenable) -->
+        <th style="width:170px;">
+            @{
+                var next_ent = NextDir("entrega", Model.Sort, Model.Dir);
+                var href_ent = Url.Action("Index", "Compras", new {
+                    Search = Model.Search,
+                    Estado = Model.Estado,
+                    Sort = "entrega", Dir = next_ent,
+                    Page = 1, PageSize = Model.PageSize
+                });
+                var isActive_ent = (Model.Sort ?? "fecha").Equals("entrega", StringComparison.OrdinalIgnoreCase);
+            }
+            <div class="ua-th">
+                <a class="ua-sort @(isActive_ent ? "" : "inactive")" href="@href_ent">
+                    <span class="ua-title">ENTREGA EST.</span>
+                    <span class="ua-arrow">@Arrow("entrega", Model.Sort, Model.Dir)</span>
+                </a>
+            </div>
+        </th>
+
                         <!-- ESTADO (ordenable) -->
                         <th style="width:140px;">
                             @{
@@ -204,10 +224,11 @@
                             </div>
                         </th>
 
-                        <!-- OBSERVACIONES (no ordenable) -->
+
+                       @*  <!-- OBSERVACIONES (no ordenable) -->
                         <th>OBSERVACIONES</th>
 
-                        <th class="text-center" style="width:140px;">ACCIONES</th>
+                        <th class="text-center" style="width:140px;">ACCIONES</th> *@
                     </tr>
                 </thead>
                 <tbody>
@@ -234,6 +255,17 @@
 
                             <td>@c.FECHA_COMPRA.ToString("dd/MM/yyyy")</td>
 
+                            <!-- Fecha estimada de entrega -->
+            <td>
+                @* @(
+                    c.FECHA_ENTREGA_COMPRA.HasValue
+                        ? c.FECHA_ENTREGA_COMPRA.Value.ToString("dd/MM/yyyy")
+                        : "-"
+                 ) *@
+                 @(c.FECHA_ENTREGA_COMPRA?.ToString("dd/MM/yyyy") ?? "-")
+
+            </td>
+
                             <td>
                                 @{
                                     string estado = c.ESTADO_COMPRA_ID;
@@ -258,35 +290,7 @@
                                 else { <span class="badge bg-secondary">Pendiente</span> }
                             </td>
 
-                            <td>@(c.OBSERVACIONES_COMPRA ?? "-")</td>
-
-                            <td class="text-center">
-                                <div class="btn-group" role="group">
-                                    @* <a asp-action="Details" asp-controller="Compras" asp-route-id="@c.COMPRA_ID"
-                                       class="btn btn-outline-primary btn-sm" title="Ver detalle">
-                                        <i class="bi bi-eye"></i>
-                                    </a> *@
-                                    @if (c.ESTADO_COMPRA_ID == "REC" && !c.CARGADA_INVENTARIO)
-                                    {
-                                        <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@c.COMPRA_ID" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Cargar a Inventario">
-                                                <i class="bi bi-box-arrow-in-down"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                    @if (c.ESTADO_COMPRA_ID != "CER" && c.ESTADO_COMPRA_ID != "ANU" && !c.CARGADA_INVENTARIO)
-                                    {
-                                        @* <form asp-action="Anular" asp-controller="Compras" asp-route-id="@c.COMPRA_ID" method="post" class="d-inline"
-                                              onsubmit="return confirm('¿Deseas anular esta compra?');">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Anular compra">
-                                                <i class="bi bi-x-circle"></i>
-                                            </button>
-                                        </form> *@
-                                    }
-                                </div>
-                            </td>
+                            @* <td>@(c.OBSERVACIONES_COMPRA ?? "-")</td> *@
                         </tr>
                     }
                 }

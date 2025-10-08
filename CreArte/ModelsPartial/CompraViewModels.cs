@@ -83,9 +83,10 @@ namespace CreArte.ModelsPartial
         public string COMPRA_ID { get; set; } = default!;
         public string PROVEEDOR_ID { get; set; } = default!;
         public DateTime FECHA_COMPRA { get; set; }        // DATETIME en SQL
+        public DateOnly? FECHA_ENTREGA_COMPRA { get; set; }
+
         public string ESTADO_COMPRA_ID { get; set; } = default!;
         public bool CARGADA_INVENTARIO { get; set; }
-        public string? OBSERVACIONES_COMPRA { get; set; }
         public string? PROVEEDOR_NOMBRE { get; set; }
     }
 
@@ -137,6 +138,29 @@ namespace CreArte.ModelsPartial
 
     // ===== Línea de compra (reutilizada en varias pantallas) =====
     // OJO: aquí no se edita Cantidad ni ProductoId en Recibir; solo CantidadRecibida
-    
+
+
+    public class CompraEditVM
+    {
+        public string CompraId { get; set; } = default!;
+
+        // Ahora editable
+        public string? ProveedorId { get; set; }       // <- NUEVO: editable
+        public string? ProveedorNombre { get; set; }   // solo para mostrar si quieres
+
+        public string? Observaciones { get; set; }
+
+        public List<CompraLineaEditVM> Lineas { get; set; } = new();
+    }
+
+
+    // Línea editable en EDIT (mapea con el detalle si ya existía)
+    public class CompraLineaEditVM
+    {
+        public string? DetalleCompraId { get; set; } // null => es una línea nueva
+        public string ProductoId { get; set; } = default!;
+        public int Cantidad { get; set; }
+    }
+
 
 }

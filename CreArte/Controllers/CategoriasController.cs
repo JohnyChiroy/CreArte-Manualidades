@@ -1,13 +1,4 @@
-﻿// ===============================================
-// RUTA: Controllers/CategoriasController.cs
-// DESCRIPCIÓN: CRUD de CATEGORIA con filtros, orden, 
-//              paginación y auditoría (borrado lógico).
-//              ▸ NOTAS:
-//                - ID autogenerado con prefijo "CA" + 8 dígitos.
-//                - Validación de unicidad por CATEGORIA_NOMBRE (no eliminado).
-//                - ESTADO controla activo/inactivo.
-// ===============================================
-using CreArte.Data;                 // DbContext
+﻿using CreArte.Data;                 // DbContext
 using CreArte.Models;               // Entidades (CATEGORIA)
 using CreArte.ModelsPartial;        // ViewModels de Categoría
 using CreArte.Services.Auditoria;   // IAuditoriaService

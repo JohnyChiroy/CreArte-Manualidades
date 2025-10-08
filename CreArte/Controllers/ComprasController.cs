@@ -80,6 +80,9 @@ public class ComprasController : Controller
             ("fecha", true) => q.OrderBy(c => c.FECHA_COMPRA),
             ("fecha", false) => q.OrderByDescending(c => c.FECHA_COMPRA),
 
+            ("entrega", true) => q.OrderBy(c => c.FECHA_ENTREGA_COMPRA),
+            ("entrega", false) => q.OrderByDescending(c => c.FECHA_ENTREGA_COMPRA),
+
             ("estado", true) => q.OrderBy(c => c.ESTADO_COMPRA_ID),
             ("estado", false) => q.OrderByDescending(c => c.ESTADO_COMPRA_ID),
 
@@ -107,9 +110,9 @@ public class ComprasController : Controller
                 PROVEEDOR_ID = c.PROVEEDOR_ID,
                 PROVEEDOR_NOMBRE = c.PROVEEDOR != null ? c.PROVEEDOR.EMPRESA : null,
                 FECHA_COMPRA = c.FECHA_COMPRA,
+                FECHA_ENTREGA_COMPRA = c.FECHA_ENTREGA_COMPRA,
                 ESTADO_COMPRA_ID = c.ESTADO_COMPRA_ID,
                 CARGADA_INVENTARIO = c.CARGADA_INVENTARIO,
-                OBSERVACIONES_COMPRA = c.OBSERVACIONES_COMPRA
             })
             .ToListAsync();
 
@@ -181,18 +184,54 @@ public class ComprasController : Controller
         return View(vm);
     }
 
-    // -------------------------------------------
-    // GET /Compras/Create
-    // -------------------------------------------
-    [HttpGet]
-    public IActionResult Create()
+    // =====================================
+    // Helper: Genera IDs tipo CO00000000 (prefijo + 8 dígitos)
+    // =====================================
+    private async Task<string> SiguienteCompraIdAsync()
     {
+        const string prefijo = "CO";
+        const int ancho = 8; // CO + 8 dígitos
+
+        var ids = await _db.COMPRA
+            .Select(c => c.COMPRA_ID)
+            .Where(id => id.StartsWith(prefijo))
+            .ToListAsync();
+
+        int maxNum = 0;
+        var rx = new System.Text.RegularExpressions.Regex(@"^" + prefijo + @"(?<n>\d+)$");
+        foreach (var id in ids)
+        {
+            var m = rx.Match(id);
+            if (m.Success && int.TryParse(m.Groups["n"].Value, out int n))
+                if (n > maxNum) maxNum = n;
+        }
+
+        var siguiente = maxNum + 1;
+        return prefijo + siguiente.ToString(new string('0', ancho));
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> Create()
+    {
+        // 1) Genera ID (solo lectura en la vista + hidden real)
+        var nuevoId = await SiguienteCompraIdAsync();
+
+        // 2) Catálogo mínimo de productos para <select> y preview de imagen
+        var productosMin = await _db.PRODUCTO
+            .Select(p => new { id = p.PRODUCTO_ID, nombre = p.PRODUCTO_NOMBRE, imagen = p.IMAGEN_PRODUCTO })
+            .ToListAsync();
+
+        ViewBag.Productos = new SelectList(productosMin, "id", "nombre");
+        ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(productosMin);
+
+        // 3) Proveedores (igual que antes)
         ViewBag.Proveedores = new SelectList(_db.PROVEEDOR, "PROVEEDOR_ID", "EMPRESA");
-        ViewBag.Productos = new SelectList(_db.PRODUCTO, "PRODUCTO_ID", "PRODUCTO_NOMBRE");
 
         var vm = new CompraCreateVM
         {
-            Lineas = new List<CompraLineaVM> { new CompraLineaVM() } // fila inicial
+            CompraId = nuevoId,
+            Lineas = new List<CompraLineaVM> { new CompraLineaVM() }
         };
         return View(vm);
     }
@@ -205,11 +244,19 @@ public class ComprasController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CompraCreateVM vm)
     {
-        // Combos para re-render si hay error
+        // Re-cargar combos si hay error
+        var productosMin = await _db.PRODUCTO
+            .Select(p => new { id = p.PRODUCTO_ID, nombre = p.PRODUCTO_NOMBRE, imagen = p.IMAGEN_PRODUCTO })
+            .ToListAsync();
+        ViewBag.Productos = new SelectList(productosMin, "id", "nombre");
+        ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(productosMin);
         ViewBag.Proveedores = new SelectList(_db.PROVEEDOR, "PROVEEDOR_ID", "EMPRESA");
-        ViewBag.Productos = new SelectList(_db.PRODUCTO, "PRODUCTO_ID", "PRODUCTO_NOMBRE");
 
         if (!ModelState.IsValid) return View(vm);
+
+        // Generar ID si faltara
+        if (string.IsNullOrWhiteSpace(vm.CompraId))
+            vm.CompraId = await SiguienteCompraIdAsync();
 
         var lineasValidas = vm.Lineas?
             .Where(l => !string.IsNullOrWhiteSpace(l.ProductoId) && l.Cantidad > 0)
@@ -223,6 +270,7 @@ public class ComprasController : Controller
 
         var user = User?.Identity?.Name ?? "system";
 
+        // Cabecera
         var compra = new COMPRA
         {
             COMPRA_ID = vm.CompraId,
@@ -236,6 +284,7 @@ public class ComprasController : Controller
         };
         _db.COMPRA.Add(compra);
 
+        // Detalles
         foreach (var l in lineasValidas)
         {
             var det = new DETALLE_COMPRA
@@ -244,9 +293,9 @@ public class ComprasController : Controller
                 COMPRA_ID = vm.CompraId,
                 PRODUCTO_ID = l.ProductoId,
                 CANTIDAD = l.Cantidad,
-                PRECIO_COMPRA = l.PrecioCompra,         // puede ser null
-                FECHA_VENCIMIENTO = l.FechaVencimiento, // DateOnly?
-                SUBTOTAL = (l.PrecioCompra ?? 0m) * l.Cantidad,
+                PRECIO_COMPRA = null,
+                FECHA_VENCIMIENTO = null,
+                SUBTOTAL = 0m,
                 USUARIO_CREACION = user,
                 ESTADO = true
             };
@@ -254,7 +303,165 @@ public class ComprasController : Controller
         }
 
         await _db.SaveChangesAsync();
-        TempData["ok"] = "Compra creada en estado BORRADOR.";
+
+        TempData["SwalTitle"] = "Compra registrada";
+        TempData["SwalText"] = $"La compra \"{vm.CompraId}\" se guardó exitosamente en estado BORRADOR.";
+        TempData["SwalIndexUrl"] = Url.Action("Index", "Compras");   // Confirmar
+        TempData["SwalCreateUrl"] = Url.Action("Create", "Compras");   // Denegar (nuevo)
+
+        return RedirectToAction(nameof(Create));
+
+    }
+
+    // =====================================
+    // GET: /Compras/Edit/{id}
+    // - Solo BOR/REV/APR
+    // =====================================
+    [HttpGet]
+    public async Task<IActionResult> Edit(string id)
+    {
+        var compra = await _db.COMPRA
+            .Include(c => c.PROVEEDOR)
+            .FirstOrDefaultAsync(c => c.COMPRA_ID == id);
+
+        if (compra == null) return NotFound();
+
+        if (compra.ESTADO_COMPRA_ID is not ("BOR" or "REV" or "APR"))
+        {
+            TempData["err"] = "Solo puedes modificar compras en BORRADOR, EN_REVISION o APROBADA.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Catálogo productos (para selects e imagen)
+        var productosMin = await _db.PRODUCTO
+            .Select(p => new { id = p.PRODUCTO_ID, nombre = p.PRODUCTO_NOMBRE, imagen = p.IMAGEN_PRODUCTO })
+            .ToListAsync();
+        ViewBag.Productos = new SelectList(productosMin, "id", "nombre");
+        ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(productosMin);
+
+        // Catálogo proveedores (editable)
+        var proveedores = await _db.PROVEEDOR
+            .Select(p => new { id = p.PROVEEDOR_ID, nombre = p.EMPRESA })
+            .ToListAsync();
+        ViewBag.Proveedores = new SelectList(proveedores, "id", "nombre", compra.PROVEEDOR_ID);
+
+        // Detalle actual
+        var detalles = await _db.DETALLE_COMPRA
+            .Where(d => d.COMPRA_ID == id)
+            .Select(d => new CompraLineaEditVM
+            {
+                DetalleCompraId = d.DETALLE_COMPRA_ID,
+                ProductoId = d.PRODUCTO_ID,
+                Cantidad = d.CANTIDAD
+            })
+            .ToListAsync();
+
+        var vm = new CompraEditVM
+        {
+            CompraId = compra.COMPRA_ID,
+            ProveedorId = compra.PROVEEDOR_ID,                             // <- editable
+            ProveedorNombre = compra.PROVEEDOR?.EMPRESA ?? compra.PROVEEDOR_ID,
+            Observaciones = compra.OBSERVACIONES_COMPRA,
+            Lineas = detalles.Count > 0 ? detalles : new List<CompraLineaEditVM> { new CompraLineaEditVM() }
+        };
+
+        return View(vm);
+    }
+
+
+    // =====================================
+    // POST: /Compras/Edit
+    // - Aplica altas/bajas/cambios de líneas
+    // =====================================
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(CompraEditVM vm)
+    {
+        var compra = await _db.COMPRA
+            .Include(c => c.DETALLE_COMPRA)
+            .FirstOrDefaultAsync(c => c.COMPRA_ID == vm.CompraId);
+
+        if (compra == null) return NotFound();
+
+        if (compra.ESTADO_COMPRA_ID is not ("BOR" or "REV" or "APR"))
+        {
+            TempData["err"] = "La compra ya no puede modificarse en su estado actual.";
+            return RedirectToAction(nameof(Details), new { id = vm.CompraId });
+        }
+
+        // ===== Recargar catálogos si hay que volver a la vista =====
+        var productosMin = await _db.PRODUCTO
+            .Select(p => new { id = p.PRODUCTO_ID, nombre = p.PRODUCTO_NOMBRE, imagen = p.IMAGEN_PRODUCTO })
+            .ToListAsync();
+        ViewBag.Productos = new SelectList(productosMin, "id", "nombre");
+        ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(productosMin);
+
+        var proveedores = await _db.PROVEEDOR
+            .Select(p => new { id = p.PROVEEDOR_ID, nombre = p.EMPRESA })
+            .ToListAsync();
+        ViewBag.Proveedores = new SelectList(proveedores, "id", "nombre", vm.ProveedorId);
+
+        // ===== Validaciones =====
+        // Proveedor requerido y debe existir
+        var provId = (vm.ProveedorId ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(provId) || !await _db.PROVEEDOR.AnyAsync(p => p.PROVEEDOR_ID == provId))
+        {
+            ModelState.AddModelError(nameof(vm.ProveedorId), "Debe seleccionar un proveedor válido.");
+        }
+
+        var lineasValidas = vm.Lineas?
+            .Where(l => !string.IsNullOrWhiteSpace(l.ProductoId) && l.Cantidad > 0)
+            .ToList() ?? new();
+
+        if (lineasValidas.Count == 0)
+            ModelState.AddModelError(string.Empty, "Agrega al menos un producto con cantidad mayor a 0.");
+
+        if (!ModelState.IsValid) return View(vm);
+
+        // ===== Aplicar cambios =====
+        // Cabecera
+        compra.PROVEEDOR_ID = provId; // <- actualizar proveedor
+        compra.OBSERVACIONES_COMPRA = string.IsNullOrWhiteSpace(vm.Observaciones) ? null : vm.Observaciones.Trim();
+        compra.USUARIO_MODIFICACION = User?.Identity?.Name ?? "system";
+        compra.FECHA_MODIFICACION = DateTime.Now;
+
+        // Detalle (actualizar / crear / eliminar)
+        var existentes = compra.DETALLE_COMPRA.ToDictionary(d => d.DETALLE_COMPRA_ID);
+        var keepIds = new HashSet<string>(lineasValidas.Where(l => !string.IsNullOrEmpty(l.DetalleCompraId))
+                                                       .Select(l => l.DetalleCompraId!));
+
+        // Eliminar los que ya no vienen
+        foreach (var del in existentes.Values.Where(d => !keepIds.Contains(d.DETALLE_COMPRA_ID)).ToList())
+            _db.DETALLE_COMPRA.Remove(del);
+
+        // Actualizar existentes y crear nuevos
+        foreach (var l in lineasValidas)
+        {
+            if (!string.IsNullOrEmpty(l.DetalleCompraId) && existentes.TryGetValue(l.DetalleCompraId, out var det))
+            {
+                det.PRODUCTO_ID = l.ProductoId;
+                det.CANTIDAD = l.Cantidad;
+                det.SUBTOTAL = (det.PRECIO_COMPRA ?? 0m) * det.CANTIDAD; // referencial
+            }
+            else
+            {
+                _db.DETALLE_COMPRA.Add(new DETALLE_COMPRA
+                {
+                    DETALLE_COMPRA_ID = Guid.NewGuid().ToString("N")[..10],
+                    COMPRA_ID = vm.CompraId,
+                    PRODUCTO_ID = l.ProductoId,
+                    CANTIDAD = l.Cantidad,
+                    PRECIO_COMPRA = null,
+                    FECHA_VENCIMIENTO = null,
+                    SUBTOTAL = 0m,
+                    USUARIO_CREACION = User?.Identity?.Name ?? "system",
+                    ESTADO = true
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["ok"] = "Cambios guardados correctamente.";
         return RedirectToAction(nameof(Details), new { id = vm.CompraId });
     }
 
