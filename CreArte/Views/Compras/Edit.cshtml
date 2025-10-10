@@ -1,38 +1,31 @@
 ﻿@model CreArte.ModelsPartial.CompraEditVM
+
 @{
     ViewData["Title"] = "Editar compra";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // JSON [{ id, nombre, imagen }] inyectado desde el controller
     var productosJson = ViewBag.ProductosJson as string ?? "[]";
 }
 
 <div class="ua-card">
     <div class="ua-toolbar">
         <h2 class="m-0">Editar compra @Model.CompraId</h2>
-        <div class="d-flex align-items-center gap-2">
-            <a asp-action="Index" asp-route-id="@Model.CompraId" class="ua-btn">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
-                Volver
-            </a>
-        </div>
     </div>
+    <br />
 
-    <form asp-action="Edit" asp-controller="Compras" method="post" id="frmEdit" autocomplete="off">
-        @Html.AntiForgeryToken()
+        <form asp-action="Edit" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" id="frmEdit" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="CompraId" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
 
         <!-- Cabecera -->
         <div class="ua-row mt-2">
-            <div class="ua-field">
-                <div class="ua-kv">
-                    <label><strong>Código</strong></label>
-                    <input class="form-control" value="@Model.CompraId" disabled />
-                    <input type="hidden" asp-for="CompraId" />
-                </div>
-            </div>
-
             <div class="ua-field" style="flex:1">
-                <label asp-for="ProveedorId"><strong>Proveedor</strong></label>
+                <label asp-for="ProveedorId"><strong>Proveedor:*</strong></label>
                 <select asp-for="ProveedorId" asp-items="ViewBag.Proveedores" class="form-control">
-                    <option value="">— Seleccione —</option>
+                    <option value="">Seleccione ↓</option>
                 </select>
                 <span asp-validation-for="ProveedorId" class="text-danger"></span>
             </div>
@@ -40,29 +33,28 @@
             <div class="ua-field" style="flex:1">
                 <label asp-for="Observaciones"><strong>Observaciones</strong></label>
                 <input asp-for="Observaciones" class="form-control" maxlength="250" />
+                <span asp-validation-for="Observaciones" class="text-danger"></span>
             </div>
         </div>
 
-        <hr class="my-3" />
-
-        <!-- LÍNEAS: Producto, Imagen, Cantidad -->
+        <!-- Líneas -->
+        <div style="margin-top:12px;">
+            <div class="ua-field ua-table-compra" style="flex:1 1 100%;">
         <div class="table-responsive">
-            <table class="table table-sm align-middle" id="tblLineas">
+            <table class="table table-sm align-middle text-center" id="tblLineas">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:42%;">Producto</th>
+                        <th style="width:42%;">Producto*</th>
                         <th style="width:22%;">Imagen</th>
-                        <th class="text-end" style="width:16%;">Cantidad</th>
-                        <th class="text-center" style="width:12%;">Acciones</th>
+                        <th class="text-center" style="width:16%;">Cantidad*</th>
+                        <th class="text-center" style="width:12%;">Eliminar</th>
                     </tr>
                 </thead>
                 <tbody id="tbBody">
                     @for (int i = 0; i < Model.Lineas.Count; i++)
                     {
                         <tr>
-                            <!-- Índice fijo para el model binder -->
                             <input type="hidden" name="Lineas.Index" value="@i" />
-                            <!-- ID del detalle (si existe) -->
                             <input type="hidden" name="Lineas[@i].DetalleCompraId" value="@Model.Lineas[i].DetalleCompraId" />
 
                             <td>
@@ -70,9 +62,9 @@
                                         class="form-control js-prod"
                                         data-row="@i" required
                                         asp-items="ViewBag.Productos">
-                                    <option value="">— Seleccione —</option>
+                                    <option value="">Seleccione ↓</option>
                                 </select>
-                                <div class="text-muted small mt-1 js-prod-name" data-row="@i"></div>
+                                
                             </td>
 
                             <td>
@@ -83,113 +75,331 @@
 
                             <td class="text-end">
                                 <input name="Lineas[@i].Cantidad" type="number" min="1"
-                                       class="form-control text-end" value="@Model.Lineas[i].Cantidad" required />
+                                       class="form-control text-end"
+                                       value="@Model.Lineas[i].Cantidad" required />
                             </td>
 
                             <td class="text-center">
-                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="rm(this)">
+                                <button type="button" class="btn-eliminate" onclick="rm(this)">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
                         </tr>
+
                         <script>
-                            // Seleccionar el valor actual del producto para la fila i
+                            // Fijar valor inicial del producto y disparar preview
                             document.addEventListener('DOMContentLoaded', function () {
                                 const sel = document.querySelector('select[name="Lineas[@i].ProductoId"]');
-                                if (sel) { sel.value = '@Model.Lineas[i].ProductoId'; sel.dispatchEvent(new Event('change')); }
+                                if (sel) {
+                                    sel.value = '@Model.Lineas[i].ProductoId';
+                                    sel.dispatchEvent(new Event('change'));
+                                }
                             });
                         </script>
                     }
                 </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="4">
-                            <button type="button" class="ua-btn" onclick="addRow()">
-                                <i class="bi bi-plus-circle"></i> Agregar producto
-                            </button>
-                        </td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
 
+        <div class="text-center">
+            <button type="button" class="btn-agregate" onclick="addRow()">
+                <i class="bi bi-plus-circle"></i> Agregar producto
+            </button>
+        </div>
+            </div>
+        </div>
+
         <div class="ua-actions">
-            <a class="btn-cancel" asp-action="Details" asp-route-id="@Model.CompraId">
+            <!-- Importante: js-leave para el guard de salida -->
+            <a class="btn-cancel js-leave" href="@Url.Action("Details","Compras", new { id = Model.CompraId })">
                 <i class="bi bi-x-circle"></i> <span>Cancelar</span>
             </a>
-            <button id="btnSave" type="submit" class="btn-save">
+            <button id="btnSave" type="submit" class="btn-save" disabled>
                 <i class="bi bi-save"></i> <span>Guardar cambios</span>
             </button>
         </div>
     </form>
 </div>
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        // ===== Catálogo JS (para imagen y nombre) =====
-        const CAT = @Html.Raw(productosJson);
-        const IDX = {}; CAT.forEach(p => IDX[p.id] = p);
+                // ============================================================
+                // 1) Catálogo para preview (inyectado desde el Controller)
+                //    CAT: [{ id, nombre, imagen }]
+                // ============================================================
+                const CAT = @Html.Raw(productosJson);
+                const IDX = {};
+                CAT.forEach(p => IDX[p.id] = p);   // Acceso O(1) por id
 
-        // Plantilla de opciones del select
-        const optionsHtml = `
-            @foreach (var pr in ViewBag.Productos as SelectList)
-            {
-                    @:<option value="@pr.Value">@pr.Text</option>
-            }
+                // Opciones base para NUEVAS filas (se usan solo como plantilla)
+                const optionsHtml = `
+        @foreach (var pr in (SelectList)ViewBag.Productos)
+        {
+                @:<option value="@pr.Value">@pr.Text</option>
+        }
         `;
 
-        let nextIndex = @Model.Lineas.Count;
+                let nextIndex = @Model.Lineas.Count;
 
-        function addRow(){
-            const i = nextIndex++;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <input type="hidden" name="Lineas.Index" value="${i}" />
-                <input type="hidden" name="Lineas[${i}].DetalleCompraId" value="" />
-                <td>
-                    <select name="Lineas[${i}].ProductoId" class="form-control js-prod" data-row="${i}" required>
-                        <option value="">— Seleccione —</option>
-                        ${optionsHtml}
-                    </select>
-                    <div class="text-muted small mt-1 js-prod-name" data-row="${i}"></div>
-                </td>
-                <td>
-                    <img class="img-thumbnail js-prod-img" data-row="${i}"
-                         src="" alt="Sin imagen"
-                         style="max-height:60px;max-width:120px;object-fit:contain;" />
-                </td>
-                <td class="text-end">
-                    <input name="Lineas[${i}].Cantidad" type="number" min="1" class="form-control text-end" required />
-                </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="rm(this)">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>`;
-            document.getElementById('tbBody').appendChild(tr);
-            tr.querySelector('.js-prod').addEventListener('change', prodChanged);
-        }
+                // ============================================================
+                // 2) Anti-duplicados
+                //    - Ocultar en cada <select> los productos ya elegidos
+                //    - Mantener visible el valor actual de la propia fila
+                // ============================================================
+                function getSelectedIds() {
+                    const ids = new Set();
+                    document.querySelectorAll('#tbBody select[name*=".ProductoId"]').forEach(sel => {
+                        const v = (sel.value || '').trim();
+                        if (v) ids.add(v);
+                    });
+                    return ids;
+                }
 
-        function rm(btn){
-            const tr = btn.closest('tr');
-            tr && tr.remove();
-        }
+                function buildOptionsExcluding(excludeSet, currentValue) {
+                    const opts = ['<option value="">Seleccione ↓</option>'];
+                    CAT.forEach(p => {
+                        // Si ya está seleccionado en otra fila, lo excluimos,
+                        // salvo que sea el valor actual de esta fila
+                        if (excludeSet.has(p.id) && p.id !== currentValue) return;
+                        const selected = (p.id === currentValue) ? ' selected' : '';
+                        opts.push(`<option value="${p.id}"${selected}>${p.nombre}</option>`);
+                    });
+                    return opts.join('');
+                }
 
-        function prodChanged(){
-            const row = this.getAttribute('data-row');
-            const info = IDX[this.value] || null;
-            const img  = document.querySelector(`.js-prod-img[data-row="${row}"]`);
-            const name = document.querySelector(`.js-prod-name[data-row="${row}"]`);
-            if (info){ if (img) img.src = info.imagen || ''; if (name) name.textContent = info.nombre || ''; }
-            else     { if (img) img.src = ''; if (name) name.textContent = ''; }
-        }
+                function refreshAllSelects() {
+                    const selected = getSelectedIds();
+                    document.querySelectorAll('#tbBody select[name*=".ProductoId"]').forEach(sel => {
+                        const current = (sel.value || '').trim();
+                        sel.innerHTML = buildOptionsExcluding(selected, current);
+                        // Re-asignar el valor por seguridad (si quedó fuera)
+                        if (current) sel.value = current;
+                    });
+                }
 
-        // Wire up selects ya renderizados
-        document.querySelectorAll('.js-prod').forEach(s => {
-            s.addEventListener('change', prodChanged);
-            if (s.value) s.dispatchEvent(new Event('change'));
-        });
+                // ============================================================
+                // 3) Agregar / Eliminar filas
+                // ============================================================
+                function addRow(){
+                    const i = nextIndex++;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <input type="hidden" name="Lineas.Index" value="${i}" />
+                        <input type="hidden" name="Lineas[${i}].DetalleCompraId" value="" />
+                        <td>
+                            <select name="Lineas[${i}].ProductoId" class="form-control js-prod" data-row="${i}" required>
+                                ${optionsHtml}
+                            </select>
+                            
+                        </td>
+                        <td>
+                            <img class="img-thumbnail js-prod-img" data-row="${i}" src="" alt="Sin imagen"
+                                 style="max-height:60px;max-width:120px;object-fit:contain;" />
+                        </td>
+                        <td class="text-end">
+                        <input name="Lineas[${i}].Cantidad" type="number" min="1" class="form-control text-end" required />
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn-eliminate" onclick="rm(this)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>`;
+                    document.getElementById('tbBody').appendChild(tr);
+
+                    // Listeners de la nueva fila
+                    tr.querySelector('.js-prod').addEventListener('change', prodChanged);
+
+                    // Actualizar anti-duplicados y estado de guardado
+                    refreshAllSelects();
+                    evalReady();
+
+                    // Marcar sucio (hay cambios) solo si no estamos en boot
+                    if (!boot) dirty = true;
+                }
+
+                function rm(btn){
+                    const tr = btn.closest('tr');
+                    tr && tr.remove();
+
+                    refreshAllSelects();
+                    evalReady();
+
+                    // Eliminar fila = cambios
+                    if (!boot) dirty = true;
+                }
+
+                // ============================================================
+                // 4) Preview imagen + nombre al cambiar producto
+                // ============================================================
+                function prodChanged(){
+                    const row = this.getAttribute('data-row');
+                    const info = IDX[this.value] || null;
+
+                    const img  = document.querySelector(`.js-prod-img[data-row="${row}"]`);
+                    const name = document.querySelector(`.js-prod-name[data-row="${row}"]`);
+
+                    if (info){
+                        if (img)  img.src = info.imagen || '';
+                        if (name) name.textContent = info.nombre || '';
+                    } else {
+                        if (img)  img.src = '';
+                        if (name) name.textContent = '';
+                    }
+
+                    // Reaplicar anti-duplicados y marcar sucio
+                    refreshAllSelects();
+                    evalReady();
+                    if (!boot) dirty = true;
+                }
+
+                // Conectar selects renderizados por Razor (filas existentes)
+                document.querySelectorAll('.js-prod').forEach(s => {
+                    s.addEventListener('change', prodChanged);
+                    if (s.value) s.dispatchEvent(new Event('change')); // inicializa preview
+                });
+
+                // ============================================================
+                // 5) Habilitar botón Guardar cuando hay datos mínimos:
+                //    - Proveedor seleccionado O
+                //    - Al menos una línea con producto seleccionado
+                // ============================================================
+                function evalReady(){
+                    const btn = document.getElementById('btnSave');
+                    const prov = (document.getElementById('ProveedorId')?.value || '').trim();
+
+                    const hayLinea = Array.from(document.querySelectorAll('#tbBody select[name*=".ProductoId"]'))
+                                          .some(s => (s.value || '').trim());
+
+                    const ok = !!(prov || hayLinea);
+                    btn.disabled = !ok;
+                    btn.classList.toggle('enabled', ok);
+                }
+
+                // Escuchar cambios en cualquier input/select dentro del form
+                document.addEventListener('input',  e => {
+                    if (!e.target.closest('#frmEdit')) return;
+                    if (!boot) dirty = true; // cualquier input marca “sucio”
+                    evalReady();
+                });
+                document.addEventListener('change', e => {
+                    if (!e.target.closest('#frmEdit')) return;
+                    if (!boot) dirty = true; // cualquier change marca “sucio”
+                    evalReady();
+                });
+                evalReady();
+
+                // ============================================================
+                // 6) Anti doble submit (UX)
+                // ============================================================
+                (function(){
+                    const frm = document.getElementById('frmEdit');
+                    const btn = document.getElementById('btnSave');
+                    if (!frm || !btn) return;
+
+                    frm.addEventListener('submit', function(){
+                        btn.disabled = true;
+                        btn.classList.remove('enabled');
+                        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                    });
+                })();
+
+                // ============================================================
+                // 7) Guard de salida (Cancelar con cambios)
+                //    - Snapshot inicial SOLO una vez
+                //    - Flag dirty para altas/bajas y cualquier edición
+                // ============================================================
+                let initialSnapshot = ''; // estado inicial serializado
+                let dirty = false;        // hubo cambios
+                let boot  = true;         // fase de arranque (no contar cambios automáticos)
+
+                function takeSnapshot(){
+                    const frm = document.getElementById('frmEdit');
+                    if (!frm) return;
+                    initialSnapshot = new URLSearchParams(new FormData(frm)).toString();
+                }
+
+                function hasChanges(){
+                    if (dirty) return true; // más rápido: si ya marcamos sucio, ni comparamos
+                    const frm = document.getElementById('frmEdit');
+                    if (!frm) return false;
+                    const current = new URLSearchParams(new FormData(frm)).toString();
+                    return current !== initialSnapshot;
+                }
+
+                // Al terminar de cargar todo:
+                document.addEventListener('DOMContentLoaded', () => {
+                    refreshAllSelects(); // asegurar anti-duplicados inicial
+                    boot = false;        // a partir de aquí, los cambios sí cuentan
+                    takeSnapshot();      // snapshot inicial (NO volver a llamarlo)
+                });
+
+                        // Interceptar “Cancelar”
+        (function(){
+            const cancel = document.querySelector('.js-leave');
+            if (!cancel) return;
+
+            // URL de salida forzada (INDEX de Compras)
+            const exitUrl = '@Url.Action("Index", "Compras")';
+
+            cancel.addEventListener('click', function(e){
+                // Si no hay cambios -> navega normal al href (o a exitUrl)
+                if (!hasChanges()) return;
+
+                e.preventDefault(); // detenemos navegación por defecto
+
+                const go = () => {
+                    // Priorizar ir al INDEX; si por algo no se resolviera, usar href del anchor
+                    const href = exitUrl || e.currentTarget.getAttribute('href') || '@Url.Action("Index", "Compras")';
+                    window.location.href = href;
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Tienes cambios sin guardar',
+                        text: '¿Seguro que deseas salir sin guardar?',
+                        showCancelButton: true,
+                        confirmButtonText: 'Salir sin guardar',
+                        cancelButtonText: 'Seguir editando',
+                        reverseButtons: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(r => {
+                        if (r.isConfirmed) go();
+                    });
+                } else {
+                    if (confirm('Tienes cambios sin guardar. ¿Salir?')) go();
+                }
+            });
+        })();
+
+                // ============================================================
+                // 8) SweetAlert PRG (1 botón) – igual que Áreas
+                //    Usa TempData["SwalOneBtnFlag"], ["SwalTitle"], ["SwalText"]
+                // ============================================================
+                (function () {
+                    if (!window.Swal) return;
+                    const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")'; // "nochange" | "updated" | ""
+                    const title = '@(TempData["SwalTitle"] ?? "")';
+                    const text  = '@(TempData["SwalText"] ?? "")';
+                    if (!flag) return;
+
+                    const baseCfg = {
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        confirmButtonText: 'Aceptar'
+                    };
+                    const goIndex = () => { window.location.href = '@Url.Action("Index", "Compras")'; };
+
+                    if (flag === 'nochange') {
+                        Swal.fire({ icon:'info', title: title || 'Sin cambios', text: text || 'No se modificó ningún dato.', ...baseCfg })
+                            .then(r => { if (r.isConfirmed) goIndex(); });
+                    }
+                    if (flag === 'updated') {
+                        Swal.fire({ icon:'success', title: title || '¡Compra actualizada!', text: text || 'La compra se actualizó correctamente.', ...baseCfg })
+                            .then(r => { if (r.isConfirmed) goIndex(); });
+                    }
+                })();
     </script>
 }

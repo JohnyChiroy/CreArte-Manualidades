@@ -81,6 +81,7 @@
     margin-top: 18px;
 }
 
+/* Botones */
 .btn-cancel {
     background: #BF265E;
     color: #fff;
@@ -96,20 +97,62 @@
     text-decoration: none;
 }
 
-.btn-save {
-    background: #d8d8d8;
-    color: #888;
+.btn-cancel:hover {
+    background: #FF007D;
+}
+
+.btn-agregate {
+    background: #03C1FF;
+    color: black;
     border: none;
-    padding: 10px 16px;
+    padding: 7px 10px;
     border-radius: 10px;
-    font-weight: 700;
-    cursor: not-allowed;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: background .2s ease,color .2s ease;
-    text-decoration:none;
+    text-decoration: none;
 }
+    .btn-agregate:hover {
+        color: white;
+    }
+
+
+.btn-eliminate {
+    background: #BF265E;
+    color: white;
+    border: none;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-eliminate:hover {
+        background: #FF007D;
+    }
+
+    .btn-save {
+        background: #d8d8d8;
+        color: #888;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: not-allowed;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background .2s ease,color .2s ease;
+        text-decoration: none;
+    }
 
     .btn-save.enabled {
         background: #C5D930;
@@ -263,3 +306,28 @@ textarea:disabled {
     display: block;
     margin-top: 4px;
 }
+
+/* Solo aplica al encabezado con clase .thead-compra */
+.enca-compra {
+    background-color: #BF265E !important;
+    color: #fff !important;
+    border-bottom: 1px solid;
+}
+
+/* Encabezado específico de la tabla tblProductos */
+#tblProductos thead {
+    background-color: #23B6B1 !important;
+    color: #fff !important;
+}
+#tblProductos thead th {
+    border-bottom: 1px solid #ddd;
+}
+
+.table-light {
+    border-bottom: 1px solid white;
+}
+
+.ua-table-compra tbody tr {
+    border-bottom: 1px solid white;
+}
+/* línea divisoria entre filas */

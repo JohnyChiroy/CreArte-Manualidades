@@ -23,25 +23,24 @@
 <div class="container-fluid py-3">
     <div class="ua-card">
         <!-- =========================
-             TOOLBAR (igual que Empleados)
+             Barra superior
              ========================= -->
         <div class="ua-toolbar">
-            @* <h2 class="m-0">Compras</h2> *@
-
+            <h2 class="m-0"></h2>
             <div class="d-flex align-items-center gap-2">
                 <!-- NUEVO -->
                 <a asp-controller="Compras" asp-action="Create" class="ua-btn ua-btn-new">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                     NUEVA
                 </a>
 
                 <!-- VER / MODIFICAR (se activan al seleccionar fila) -->
                 <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
                     VER
                 </a>
                 <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
                     MODIFICAR
                 </a>
             </div>
@@ -69,7 +68,7 @@
                 </button>
                 <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
                     <select id="fEstado" class="ua-input">
-                        <option value="">— Todos los estados —</option>
+                        <option value="">Todos los estados</option>
                         @{ string E = Model.Estado ?? ""; }
                         <option value="BOR" selected="@(E=="BOR" ? "selected" : null)">Borrador</option>
                         <option value="REV" selected="@(E=="REV" ? "selected" : null)">En revisión</option>
@@ -275,7 +274,7 @@
                                         "REV" => "badge bg-warning text-dark",
                                         "APR" => "badge bg-info text-dark",
                                         "ENV" => "badge bg-primary",
-                                        "CON" => "badge bg-purple",
+                                        "CON" => "badge bg-primary",
                                         "REC" => "badge bg-success",
                                         "CER" => "badge bg-dark",
                                         "ANU" => "badge bg-danger",

@@ -3,11 +3,9 @@
 @{
     ViewData["Title"] = "Nueva Compra";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    // Catálogo mínimo para JS (inyectado desde el Controller)
     // var productosJson = (string)ViewBag.ProductosJson;
-    var productosJson = ViewBag.ProductosJson as string ?? "[]";  // ← default seguro
+    var productosJson = ViewBag.ProductosJson as string ?? "[]";  // default seguro
 }
-
 
 <div class="ua-card">
     <h2 style="margin:0 0 12px 0;">Registrar Nueva Compra</h2>
@@ -20,31 +18,31 @@
         <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
 
         <!-- ==============================
-             CABECERA: ID (autogenerado), Proveedor, Observaciones
+             Encabezado: ID (auto), Proveedor, Observaciones
              ============================== -->
         <div class="ua-row">
             <div class="ua-field">
-                <div class="ua-kv">
-                    <label><strong>Código de Compra:*</strong></label>
+                
+                    <label><strong>Código:*</strong></label>
 
                     <!-- Mostramos el ID autogenerado en solo-lectura y enviamos un hidden real -->
                     <input class="form-control" value="@Model.CompraId" disabled />
                     <input type="hidden" asp-for="CompraId" />
-                </div>
+               
                 <span asp-validation-for="CompraId" class="text-danger"></span>
-            </div>
 
-            <div class="ua-field" style="flex:1">
                 <label asp-for="ProveedorId"><strong>Proveedor:*</strong></label>
                 <select asp-for="ProveedorId" class="form-control" required>
-                    <option value="">— Seleccione —</option>
+                    <option value="">Seleccione ↓</option>
                     @foreach (var p in ViewBag.Proveedores as SelectList)
                     {
                         <option value="@p.Value">@p.Text</option>
                     }
                 </select>
                 <span asp-validation-for="ProveedorId" class="text-danger"></span>
+            </div>
 
+            <div class="ua-field" style="flex:1">
                 <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
                 <input asp-for="Observaciones" class="form-control" maxlength="250" />
             </div>
@@ -53,18 +51,17 @@
         <!-- ==============================================
              LÍNEAS DE PRODUCTOS: SOLO Producto, Imagen, Cantidad
              ============================================== -->
-        <div class="ua-row" style="margin-top:12px;">
-            <div class="ua-field" style="flex:1 1 100%;">
-                <label><strong>Productos</strong></label>
+        <div style="margin-top:12px;">
+            <div class="ua-field ua-table-compra text-center" style="flex:1 1 100%;">
 
                 <div class="table-responsive">
                     <table class="table table-sm align-middle" id="tblProductos">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:42%">Producto *</th>
+                                <th style="width:50%">Producto*</th>
                                 <th style="width:22%">Imagen</th>
-                                <th class="text-end" style="width:16%">Cantidad *</th>
-                                <th style="width:12%" class="text-center">Acciones</th>
+                                <th class="text-center" style="width:16%">Cantidad*</th>
+                                <th style="width:12%" class="text-center">Eliminar</th>
                             </tr>
                         </thead>
                         <tbody id="tblBody">
@@ -78,20 +75,19 @@
                                         <select name="Lineas[@i].ProductoId"
                                                 class="form-control producto js-prod"
                                                 data-row="@i" required>
-                                            <option value="">— Seleccione —</option>
+                                            <option value=""> Seleccione ↓ </option>
                                             @foreach (var pr in ViewBag.Productos as SelectList)
                                             {
                                                 <option value="@pr.Value">@pr.Text</option>
                                             }
                                         </select>
-                                        <div class="text-muted small mt-1 js-prod-name" data-row="@i"></div>
                                     </td>
 
                                     <!-- Imagen -->
                                     <td>
                                         <img class="img-thumbnail js-prod-img" data-row="@i"
                                              src="" alt="Sin imagen"
-                                             style="max-height:60px;max-width:120px;object-fit:contain;" />
+                                             style="max-height:80px;max-width:80px;object-fit:contain;" />
                                     </td>
 
                                     <!-- Cantidad -->
@@ -102,7 +98,7 @@
 
                                     <!-- Eliminar fila -->
                                     <td class="text-center">
-                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </td>
@@ -112,9 +108,9 @@
                     </table>
                 </div>
 
-                <div class="text-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="agregarFila()">
-                        <i class="bi bi-plus-lg"></i> Agregar producto
+                <div class="text-center">
+                    <button type="button" class="btn-agregate" onclick="agregarFila()">
+                        <i class="bi bi-plus-circle"></i> Agregar producto
                     </button>
                 </div>
             </div>
@@ -141,17 +137,51 @@
         // =========================
         // Catálogo productos (id, nombre, imagen) para preview
         // =========================
-        const CAT = @Html.Raw(productosJson);
-        const IDX = {};
-        CAT.forEach(p => { IDX[p.id] = p; });
+        const CAT = @Html.Raw(productosJson);   // [{id,nombre,imagen}, ...]
+        const IDX = {}; CAT.forEach(p => { IDX[p.id] = p; });
 
-        // Plantilla de opciones del <select>
-        const productosOptionsHtml = `
-            @foreach (var pr in ViewBag.Productos as SelectList)
-            {
-                    @:<option value="@pr.Value">@pr.Text</option>
+        // (Ya no usaremos la plantilla estática; reconstruimos opciones dinámicamente)
+        // const productosOptionsHtml = `...`;
+
+        // ===== Helpers DOM =====
+        function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+        function getAllProductSelects(){ return qsAll('#tblBody select[name*=".ProductoId"]'); }
+
+        // Conjunto de IDs actualmente seleccionados (no vacíos)
+        function selectedIds(){
+            const set = new Set();
+            getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if (v) set.add(v); });
+            return set;
+        }
+
+        // Construye HTML de <option> excluyendo IDs usados por otras filas.
+        // Mantiene "current" para no dejar un select sin su valor actual.
+        function buildOptionsHtml(exclude, current){
+            let html = `<option value="">Seleccione ↓</option>`;
+            for (const p of CAT){
+                if (p.id !== current && exclude.has(p.id)) continue;   // fuera si otro ya lo usa
+                html += `<option value="${p.id}" ${p.id===current?'selected':''}>${p.nombre}</option>`;
             }
-        `;
+            return html;
+        }
+
+        // Reconstruye TODOS los selects para reflejar los usados y evitar duplicados
+        function refreshAllSelects(){
+            const selects = getAllProductSelects();
+            const chosen  = selectedIds();
+
+            selects.forEach(sel => {
+                const current = (sel.value||'').trim();
+                const exclude = new Set(chosen); exclude.delete(current); // no excluir mi propio valor
+                sel.innerHTML = buildOptionsHtml(exclude, current);
+            });
+
+            // Recalcular preview (imagen/nombre) para cada fila
+            selects.forEach(sel => onProductoChange.call(sel));
+
+            // Re-evaluar botón Guardar
+            evalReadyCreate();
+        }
 
         let nextIndex = @Model.Lineas.Count;
 
@@ -167,31 +197,35 @@
                 <input type="hidden" name="Lineas.Index" value="${i}" />
                 <td>
                     <select name="Lineas[${i}].ProductoId"
-                            class="form-control producto js-prod" data-row="${i}" required>
-                        <option value="">— Seleccione —</option>
-                        ${productosOptionsHtml}
-                    </select>
-                    <div class="text-muted small mt-1 js-prod-name" data-row="${i}"></div>
+                            class="form-control producto js-prod" data-row="${i}" required></select>
                 </td>
                 <td>
                     <img class="img-thumbnail js-prod-img" data-row="${i}"
                          src="" alt="Sin imagen"
-                         style="max-height:60px;max-width:120px;object-fit:contain;" />
+                         style="max-height:80px;max-width:80px;object-fit:contain;" />
                 </td>
                 <td class="text-end">
                     <input name="Lineas[${i}].Cantidad" type="number" min="1"
                            class="form-control cantidad text-end" required />
                 </td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+                    <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>`;
             tbody.appendChild(tr);
 
-            // wire up change para imagen/nombre
-            tr.querySelector('.js-prod').addEventListener('change', onProductoChange);
-            ready();
+            // Armar opciones excluyendo lo ya seleccionado en otras filas
+            const sel = tr.querySelector('.js-prod');
+            const exclude = selectedIds();
+            sel.innerHTML = buildOptionsHtml(exclude, ""); // sin valor actual
+            sel.addEventListener('change', function(){
+                onProductoChange.call(this);
+                refreshAllSelects(); // sincroniza el resto
+            });
+
+            refreshAllSelects();      // sincroniza todos los selects
+            evalReadyCreate();        // habilitar/disable Guardar
         }
 
         // =========================
@@ -200,7 +234,8 @@
         function eliminarFila(btn) {
             const fila = btn.closest("tr");
             fila.remove();
-            ready();
+            refreshAllSelects();  // libera el producto eliminado en demás combos
+            evalReadyCreate();
         }
 
         // =========================
@@ -225,7 +260,10 @@
 
         // Inicializar listeners para filas renderizadas por Razor
         document.querySelectorAll('.js-prod').forEach(sel => {
-            sel.addEventListener('change', onProductoChange);
+            sel.addEventListener('change', function(){
+                onProductoChange.call(this);
+                refreshAllSelects();
+            });
             if (sel.value) onProductoChange.call(sel);
         });
 
@@ -233,37 +271,47 @@
         // Habilitar "Guardar" si:
         //  - Proveedor seleccionado
         //  - Al menos una línea con Producto y Cantidad > 0
+        //  - (implícito) sin duplicados por refreshAllSelects()
         // =========================
-        (function () {
+        function evalReadyCreate() {
             const btn  = document.getElementById('btnGuardar');
             const form = document.getElementById('frmCompra');
 
-            function hayLineaValida() {
-                const filas = Array.from(document.querySelectorAll('#tblBody tr'));
-                for (const tr of filas) {
-                    const prod = tr.querySelector('select[name*=".ProductoId"]');
-                    const cant = tr.querySelector('input[name*=".Cantidad"]');
-                    const vProd = (prod?.value || '').trim();
-                    const vCant = parseInt(cant?.value ?? '0', 10);
-                    if (vProd && !isNaN(vCant) && vCant > 0) return true;
-                }
-                return false;
+            // Proveedor
+            const proveedorId = (document.getElementById('ProveedorId')?.value || '').trim();
+
+            // Al menos una línea válida
+            const filas = Array.from(document.querySelectorAll('#tblBody tr'));
+            let hayLinea = false;
+            for (const tr of filas) {
+                const prod = tr.querySelector('select[name*=".ProductoId"]');
+                const cant = tr.querySelector('input[name*=".Cantidad"]');
+                const vProd = (prod?.value || '').trim();
+                const vCant = parseInt(cant?.value ?? '0', 10);
+                if (vProd && !isNaN(vCant) && vCant > 0) { hayLinea = true; break; }
             }
 
-            function ready() {
-                const proveedorId = (document.getElementById('ProveedorId')?.value || '').trim();
-                const lineOk = hayLineaValida();
-                const valid  = (proveedorId.length > 0) && lineOk && (form ? form.checkValidity() : true);
+            // Con refreshAllSelects no debería haber duplicados,
+            // pero mantenemos la comprobación por robustez.
+            const vals = getAllProductSelects().map(s => (s.value||'').trim()).filter(Boolean);
+            const sinDuplicados = (new Set(vals).size === vals.length);
 
-                if (!btn) return;
-                btn.disabled = !valid;
-                btn.classList.toggle('enabled', valid);
-            }
+            const valid  = (proveedorId.length > 0) && hayLinea && sinDuplicados && (form ? form.checkValidity() : true);
 
-            document.addEventListener('input', (e) => { if (e.target.closest('#frmCompra')) ready(); });
-            document.addEventListener('change', (e) => { if (e.target.closest('#frmCompra')) ready(); });
-            ready();
-        })();
+            if (!btn) return;
+            btn.disabled = !valid;
+            btn.classList.toggle('enabled', valid);
+        }
+
+        // Eventos globales para reevaluar "Guardar"
+        document.addEventListener('input', (e) => { if (e.target.closest('#frmCompra')) evalReadyCreate(); });
+        document.addEventListener('change', (e) => { if (e.target.closest('#frmCompra')) evalReadyCreate(); });
+
+        // Primera sincronización al cargar
+        document.addEventListener('DOMContentLoaded', function(){
+            refreshAllSelects();
+            evalReadyCreate();
+        });
 
         // =========================
         // PRG: prevenir doble submit
@@ -278,14 +326,16 @@
             });
         })();
 
+        // =========================
+        // SweetAlert2 
+        // =========================
         (function () {
-            // Leemos TempData de forma segura serializándola a literales JS
             const title    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SwalTitle"] as string ?? ""));
             const htmlText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SwalText"] as string ?? ""));
             const urlIndex = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SwalIndexUrl"] as string ?? ""));
             const urlNew   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SwalCreateUrl"] as string ?? ""));
 
-            if (!title && !htmlText) return; // nada que mostrar
+            if (!title && !htmlText) return;
 
             Swal.fire({
                 icon: 'success',
@@ -298,9 +348,10 @@
                 allowEscapeKey: false,
                 allowEnterKey: false
             }).then(r => {
-                if (r.isConfirmed && urlIndex)       window.location.href = urlIndex;
-                else if (r.isDenied && urlNew)       window.location.href = urlNew;
+                if (r.isConfirmed && urlIndex) window.location.href = urlIndex;
+                else if (r.isDenied && urlNew)  window.location.href = urlNew;
             });
         })();
     </script>
 }
+
