@@ -147,16 +147,24 @@ public class ComprasController : Controller
 
         if (compra == null) return NotFound();
 
+        // 🔹 Trae también el nombre e imagen del producto y el precio de venta
         var lineas = await _db.DETALLE_COMPRA
             .Where(d => d.COMPRA_ID == id)
-            .Select(d => new CompraLineaVM
-            {
-                ProductoId = d.PRODUCTO_ID,
-                Cantidad = d.CANTIDAD,
-                PrecioCompra = d.PRECIO_COMPRA,
-                FechaVencimiento = d.FECHA_VENCIMIENTO,
-                CantidadRecibida = d.CANTIDAD_RECIBIDA
-            }).ToListAsync();
+            .Join(_db.PRODUCTO,
+                  d => d.PRODUCTO_ID,
+                  p => p.PRODUCTO_ID,
+                  (d, p) => new CompraLineaVM
+                  {
+                      ProductoId = d.PRODUCTO_ID,
+                      ProductoNombre = p.PRODUCTO_NOMBRE,    // ← nombre visible
+                      ImagenProducto = p.IMAGEN_PRODUCTO,    // ← imagen
+                      Cantidad = d.CANTIDAD,
+                      PrecioCompra = d.PRECIO_COMPRA,
+                      PrecioVenta = d.PRECIO_VENTA,       // ← precio venta
+                      FechaVencimiento = d.FECHA_VENCIMIENTO,
+                      CantidadRecibida = d.CANTIDAD_RECIBIDA
+                  })
+            .ToListAsync();
 
         var vm = new CompraDetailsVM
         {
@@ -172,18 +180,17 @@ public class ComprasController : Controller
             Observaciones = compra.OBSERVACIONES_COMPRA,
             Lineas = lineas,
 
-            // Flags de UI según flujo
             PuedeAgregarEliminar = compra.ESTADO_COMPRA_ID is "BOR" or "REV" or "APR" or "ENV",
             PuedeEditarPrecio = compra.ESTADO_COMPRA_ID is "CON",
             PuedeMarcarRecibida = compra.ESTADO_COMPRA_ID is "CON",
             PuedeCargarInventario = compra.ESTADO_COMPRA_ID == "REC" && !compra.CARGADA_INVENTARIO,
-            PuedeAnular = (compra.ESTADO_COMPRA_ID != "CER" && compra.ESTADO_COMPRA_ID != "ANU"
-                           && compra.ESTADO_COMPRA_ID != "REC")
+            PuedeAnular = (compra.ESTADO_COMPRA_ID != "CER" && compra.ESTADO_COMPRA_ID != "ANU" && compra.ESTADO_COMPRA_ID != "REC")
                           || (compra.ESTADO_COMPRA_ID == "REC" && !compra.CARGADA_INVENTARIO)
         };
 
         return View(vm);
     }
+
 
     // =====================================
     // Helper: Genera IDs tipo CO00000000 (prefijo + 8 dígitos)
@@ -210,6 +217,8 @@ public class ComprasController : Controller
         var siguiente = maxNum + 1;
         return prefijo + siguiente.ToString(new string('0', ancho));
     }
+
+    //create
 
     [HttpGet]
     public async Task<IActionResult> Create()
@@ -663,20 +672,38 @@ public class ComprasController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var lineas = await _db.DETALLE_COMPRA
-            .Where(d => d.COMPRA_ID == id)
-            .Select(d => new CompraLineaVM
+        //var lineas = await _db.DETALLE_COMPRA
+        //    .Where(d => d.COMPRA_ID == id)
+        //    .Select(d => new CompraLineaVM
+        //    {
+        //        ProductoId = d.PRODUCTO_ID,
+        //        Cantidad = d.CANTIDAD,
+        //        PrecioCompra = d.PRECIO_COMPRA,
+        //        FechaVencimiento = d.FECHA_VENCIMIENTO
+        //    }).ToListAsync();
+
+        
+        var lineas = await (
+            from d in _db.DETALLE_COMPRA
+            join p in _db.PRODUCTO on d.PRODUCTO_ID equals p.PRODUCTO_ID
+            where d.COMPRA_ID == id
+            select new CompraLineaVM
             {
                 ProductoId = d.PRODUCTO_ID,
                 Cantidad = d.CANTIDAD,
                 PrecioCompra = d.PRECIO_COMPRA,
-                FechaVencimiento = d.FECHA_VENCIMIENTO
-            }).ToListAsync();
+                FechaVencimiento = d.FECHA_VENCIMIENTO,
+
+                ImagenProducto = p.IMAGEN_PRODUCTO,
+                ProductoNombre = p.PRODUCTO_NOMBRE
+            }
+        ).ToListAsync();
 
         var vm = new CompraConfirmarVM
         {
             CompraId = id,
             FechaEntregaCompra = compra.FECHA_ENTREGA_COMPRA ?? DateOnly.FromDateTime(DateTime.Today),
+            FechaCompra = compra.FECHA_COMPRA,
             Lineas = lineas
         };
 
@@ -710,8 +737,20 @@ public class ComprasController : Controller
             ModelState.AddModelError(string.Empty, "Debe existir al menos una línea.");
         if (vm.Lineas != null && vm.Lineas.Any(l => l.PrecioCompra == null || l.PrecioCompra < 0))
             ModelState.AddModelError(string.Empty, "Todas las líneas deben tener PRECIO_COMPRA válido (>= 0).");
+        if (vm.FechaEntregaCompra < DateOnly.FromDateTime(compra.FECHA_COMPRA))
+            ModelState.AddModelError(nameof(vm.FechaEntregaCompra),
+                $"La fecha de entrega no puede ser anterior a la fecha de compra ({compra.FECHA_COMPRA:dd/MM/yyyy}).");
 
-        if (!ModelState.IsValid) return View(vm);
+        //if (!ModelState.IsValid)
+
+        //    return View(vm);
+
+        if (!ModelState.IsValid)
+        {
+            // Volver a mostrar vista con errores
+            vm.Lineas = vm.Lineas ?? new();
+            return View(vm);
+        }
 
         // Mapear precios a detalle (y recalculo referencial)
         var preciosPorProd = vm.Lineas.ToDictionary(l => l.ProductoId, l => l.PrecioCompra!.Value);
@@ -759,14 +798,21 @@ public class ComprasController : Controller
         {
             CompraId = id,
             Lineas = await _db.DETALLE_COMPRA
-                .Where(d => d.COMPRA_ID == id)
-                .Select(d => new CompraLineaVM
-                {
-                    ProductoId = d.PRODUCTO_ID,
-                    Cantidad = d.CANTIDAD,
-                    PrecioCompra = d.PRECIO_COMPRA,
-                    CantidadRecibida = d.CANTIDAD_RECIBIDA
-                }).ToListAsync()
+            .Where(d => d.COMPRA_ID == id)
+            .Join(_db.PRODUCTO,
+                  d => d.PRODUCTO_ID,
+                  p => p.PRODUCTO_ID,
+                  (d, p) => new CompraLineaVM
+                  {
+                      ProductoId = d.PRODUCTO_ID,
+                      ProductoNombre = p.PRODUCTO_NOMBRE,
+                      ImagenProducto = p.IMAGEN_PRODUCTO,
+                      Cantidad = d.CANTIDAD,
+                      PrecioCompra = d.PRECIO_COMPRA,
+                      PrecioVenta = d.PRECIO_VENTA,
+                      CantidadRecibida = d.CANTIDAD_RECIBIDA,
+                  })
+            .ToListAsync()
         };
 
         return View(vm);
@@ -805,6 +851,7 @@ public class ComprasController : Controller
 
         // Mapeo rápido: ProductoId -> CantidadRecibida
         var mapRec = vm.Lineas.ToDictionary(x => x.ProductoId, x => x.CantidadRecibida);
+        var mapVenta = vm.Lineas.ToDictionary(x => x.ProductoId, x => x.PrecioVenta);
 
         // Validaciones fuertes por renglón
         foreach (var d in compra.DETALLE_COMPRA)
@@ -824,6 +871,16 @@ public class ComprasController : Controller
                 ModelState.AddModelError(string.Empty, $"Ingresa la cantidad recibida para {d.PRODUCTO_ID}.");
             if (rec > d.CANTIDAD)
                 ModelState.AddModelError(string.Empty, $"La cantidad recibida de {d.PRODUCTO_ID} no puede superar la pedida ({d.CANTIDAD}).");
+
+            if (!mapVenta.TryGetValue(d.PRODUCTO_ID, out var pv) || pv is null)
+            {
+                ModelState.AddModelError(string.Empty, $"Ingresa el precio de venta para {d.PRODUCTO_ID}.");
+            }
+            else if (d.PRECIO_COMPRA.HasValue && pv.Value < d.PRECIO_COMPRA.Value)
+            {
+                ModelState.AddModelError(string.Empty,
+                    $"El precio de venta de {d.PRODUCTO_ID} no puede ser menor al precio de compra ({d.PRECIO_COMPRA:0.##}).");
+            }
         }
 
         if (!ModelState.IsValid)
@@ -835,6 +892,9 @@ public class ComprasController : Controller
             var rec = mapRec[d.PRODUCTO_ID] ?? 0;
             d.CANTIDAD_RECIBIDA = rec;
             d.SUBTOTAL = (d.PRECIO_COMPRA ?? 0) * rec;
+            // GUARDAR PRECIO_VENTA
+            var pv = mapVenta[d.PRODUCTO_ID];
+            if (pv.HasValue) d.PRECIO_VENTA = pv.Value;
         }
 
         // Cambiar estado a REC; faltantes se consideran cancelados (política)
@@ -843,6 +903,56 @@ public class ComprasController : Controller
         compra.FECHA_MODIFICACION = DateTime.Now;
 
         await _db.SaveChangesAsync();
+
+        // ====== Actualizar PRECIO_HISTORICO si el usuario ingresó PrecioVenta ======
+        var cambiosPrecio = vm.Lineas
+            .Where(l => l.PrecioVenta.HasValue) // solo los que el usuario llenó
+            .Select(l => new { l.ProductoId, Precio = l.PrecioVenta!.Value })
+            .ToList();
+
+        if (cambiosPrecio.Count > 0)
+        {
+            var user = User?.Identity?.Name ?? "system";
+            var now = DateTime.Now;
+            var ids = cambiosPrecio.Select(c => c.ProductoId).Distinct().ToList();
+
+            // Traer vigentes actuales para cerrarlos si cambia el valor
+            var vigentes = await _db.PRECIO_HISTORICO
+                .Where(ph => ids.Contains(ph.PRODUCTO_ID) && ph.HASTA == null && !ph.ELIMINADO && ph.ESTADO)
+                .ToListAsync();
+
+            foreach (var c in cambiosPrecio)
+            {
+                var vigente = vigentes.FirstOrDefault(v => v.PRODUCTO_ID == c.ProductoId);
+
+                // Si ya es el mismo precio vigente, no hacemos nada
+                if (vigente != null && vigente.PRECIO == c.Precio) continue;
+
+                // Cerrar vigente (si había)
+                if (vigente != null)
+                {
+                    vigente.HASTA = now;
+                    vigente.USUARIO_MODIFICACION = user;
+                    vigente.FECHA_MODIFICACION = now;
+                }
+
+                // Insertar nuevo vigente
+                var nuevo = new PRECIO_HISTORICO
+                {
+                    PRECIO_ID = Guid.NewGuid().ToString("N").Substring(0, 10),
+                    PRODUCTO_ID = c.ProductoId,
+                    PRECIO = c.Precio,
+                    DESDE = now,
+                    ESTADO = true,
+                    USUARIO_CREACION = user,
+                    FECHA_CREACION = now
+                };
+                _db.PRECIO_HISTORICO.Add(nuevo);
+            }
+
+            await _db.SaveChangesAsync();
+        }
+        // ====== /PRECIO_HISTORICO ======
 
         TempData["ok"] = "Recepción registrada. Ahora puedes cargar a inventario.";
         return RedirectToAction(nameof(Details), new { id });

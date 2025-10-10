@@ -163,6 +163,7 @@
         <table class="table table-sm align-middle ua-table">
             <thead class="table-light">
                 <tr>
+                    <th>Código</th>
                     <th>Producto</th>
                     <th class="text-center">Imagen</th>
                     <th class="text-center">Cant. Pedida</th>
@@ -199,11 +200,13 @@
 
                     <tr>
                         <td>@l.ProductoId</td>
+                        <td>@l.ProductoNombre</td>
 
                         <!-- Imagen -->
-                        <td>
-                            <img class="img-thumbnail js-prod-img ua-img-thumb-fila-details"
-                                 src="" alt="N"/>
+                        <td class="text-center">
+                            <img class="img-thumbnail ua-img-thumb-fila-details"
+                                 src="@(l.ImagenProducto ?? "")"
+                                 alt="@l.ProductoNombre" />
                         </td>
 
                         <td class="text-center">@cant</td>
@@ -218,6 +221,7 @@
             <tfoot>
                 <tr>
                     <td class="text-center">Totales:</td>
+                    <td></td>
                     <td></td>
                     <td class="text-center">@totalPedida</td>
                     <td></td>

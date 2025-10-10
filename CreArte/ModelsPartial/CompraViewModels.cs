@@ -16,15 +16,12 @@ namespace CreArte.ModelsPartial
 
         // Campo para Recibir (se usa en la pantalla de RECIBIDA)
         [Range(0, int.MaxValue)] public int? CantidadRecibida { get; set; }
+
+        public string? ImagenProducto { get; set; }
+        
+        public string? ProductoNombre { get; set; }
     }
-    //public class CompraLineaVM
-    //{
-    //    public string ProductoId { get; set; } = default!;
-    //    public int Cantidad { get; set; }                   // Pedida
-    //    public decimal? PrecioCompra { get; set; }          // Confirmada (obligatoria antes de REC)
-    //    public int? CantidadRecibida { get; set; }          // Se captura en RECIBIR (>=0 y <= Cantidad)
-    //    public DateOnly? FechaVencimiento { get; set; }     // Referencial
-    //}
+
     public class CompraCreateVM
     {
         [Required] public string CompraId { get; set; } = default!;
@@ -45,6 +42,7 @@ namespace CreArte.ModelsPartial
 
         // Todas las líneas deben traer PrecioCompra definido y >= 0
         public List<CompraLineaVM> Lineas { get; set; } = new();
+        public DateTime FechaCompra { get; set; }
     }
 
     //public class CompraRecibirVM

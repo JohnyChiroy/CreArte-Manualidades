@@ -311,31 +311,6 @@
         <tr><td colspan="6" class="text-center py-4">No hay registros para mostrar.</td></tr>
     }
 </tbody>
-
-
-           @*  <tbody>
-                @if (Model.Items != null && Model.Items.Any())
-                {
-                    foreach (var a in Model.Items)
-                    {
-                        <tr>
-                            <td><input type="checkbox" class="form-check-input row-chk ua-rowchk" value="@a.AREA_ID" /></td>
-                            <td>@a.AREA_ID</td>
-                            <td>@a.AREA_NOMBRE</td>
-                            <td>@a.AREA_DESCRIPCION</td>
-                            <td>@a.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
-                            <td>
-                                @if (a.ESTADO) { <span class="ua-badge-activo">Activo</span> }
-                                else { <span class="ua-badge-inactivo">Inactivo</span> }
-                            </td>
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr><td colspan="5" class="text-center py-4">No hay registros para mostrar.</td></tr>
-                }
-            </tbody> *@
         </table>
     </div>
 
@@ -457,7 +432,7 @@
     });
 
     // ============================
-    // 👇 NUEVO: abrir Details en modal SweetAlert2
+    // abrir Details en modal SweetAlert2
     // ============================
     async function openDetailsModal(id) { // 👈 NUEVO
         if (!window.Swal) {
@@ -487,7 +462,7 @@
         }
     }
 
-    // 3) VER → ahora abre modal con partial (antes navegaba)  // 👈 NUEVO
+    // 3) VER → ahora abre modal con partial (antes navegaba)  
     if (btnVer) {
         btnVer.addEventListener('click', function (e) {
             e.preventDefault();
@@ -495,7 +470,7 @@
                 if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info");
                 return;
             }
-            openDetailsModal(selectedId); // 👈 NUEVO
+            openDetailsModal(selectedId); 
         });
     }
 
