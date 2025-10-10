@@ -8,10 +8,6 @@
 
 @section Styles {
     <style>
-        /* Color corporativo morado (usado para estado CON = Confirmada) */
-        .badge.bg-purple {
-            background-color: #BF265E !important;
-        }
         /* Ajustes menores para la cabecera k/v */
         .ua-kv-mini .lbl {
             font-size: .8rem;
@@ -45,7 +41,7 @@
             {
                 <form asp-action="ToReview" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="ua-btn" title="Enviar a revisión">
+                    <button type="submit" class="btn-revision" title="Enviar a revisión">
                         <i class="bi bi-clipboard"></i> <span>Enviar a revisión</span>
                     </button>
                 </form>
@@ -57,7 +53,7 @@
                 <form asp-action="Approve" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline"
                       onsubmit="return confirm('¿Seguro que deseas Aprobar esta compra?');">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="ua-btn" title="Aprobar compra">
+                    <button type="submit" class="btn-aprobado" title="Aprobar compra">
                         <i class="bi bi-check2-square"></i> <span>Aprobar</span>
                     </button>
                 </form>
@@ -68,16 +64,16 @@
             {
                 <form asp-action="Send" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="ua-btn" title="Enviar a proveedor">
+                    <button type="submit" class="btn-enviado" title="Enviar a proveedor">
                         <i class="bi bi-send"></i> <span>Enviar</span>
                     </button>
                 </form>
             }
 
             @* 4) Confirmar: disponible en APR / ENV / CON *@
-            @if (Model.EstadoId is "APR" or "ENV" or "CON")
+            @if (Model.EstadoId is "ENV" or "CON")
             {
-                <a asp-action="Confirm" asp-controller="Compras" asp-route-id="@Model.CompraId" class="ua-btn" title="Confirmar (fecha y precios)">
+                <a asp-action="Confirm" asp-controller="Compras" asp-route-id="@Model.CompraId" class="btn-confirmado" title="Confirmar (fecha y precios)">
                     <i class="bi bi-clipboard-check"></i> <span>Confirmar</span>
                 </a>
             }
@@ -88,7 +84,7 @@
                 <form asp-action="Anular" asp-controller="Compras" asp-route-id="@Model.CompraId" method="post" class="d-inline"
                       onsubmit="return confirm('¿Seguro que deseas anular esta compra?');">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="ua-btn">
+                    <button type="submit" class="btn-anular">
                         <i class="bi bi-x-circle"></i> <span>Anular</span>
                     </button>
                 </form>
@@ -98,27 +94,13 @@
 
 
     <!-- =========================
-         CABECERA (k/v estilo UA)
+         encabezado
          ========================= -->
     <div class="ua-row" style="margin-top:12px;">
         <div class="ua-field">
             <div class="ua-kv-mini">
                 <div class="lbl">Proveedor</div>
                 <div class="val">@Model.ProveedorNombre</div>
-            </div>
-        </div>
-
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Fecha compra</div>
-                <div class="val">@Model.FechaCompra.ToString("dd/MM/yyyy")</div>
-            </div>
-        </div>
-
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Fecha entrega</div>
-                <div class="val">@(Model.FechaEntregaCompra?.ToString("dd/MM/yyyy") ?? "-")</div>
             </div>
         </div>
 
@@ -133,20 +115,35 @@
 
         <div class="ua-field">
             <div class="ua-kv-mini">
+                <div class="lbl">Fecha compra</div>
+                <div class="val">@Model.FechaCompra.ToString("dd/MM/yyyy")</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
                 <div class="lbl">Inventario</div>
                 <div class="val">
                     @if (Model.CargadaInventario)
                     {
-                        <span class="badge bg-success">Cargada</span>
+                        <span class="badge bg-cargada">Cargada</span>
                     }
                     else
                     {
 
-                        <span class="badge bg-secondary">Pendiente</span>
+                        <span class="badge bg-pendiente">Pendiente</span>
                     }
                 </div>
             </div>
         </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha entrega</div>
+                <div class="val">@(Model.FechaEntregaCompra?.ToString("dd/MM/yyyy") ?? "-")</div>
+            </div>
+        </div>
+        
     </div>
 
     <!-- Observaciones -->
@@ -162,7 +159,6 @@
     <!-- =========================
          LÍNEAS (tabla UA + totales)
          ========================= -->
-    <h5 class="mt-4">Productos</h5>
     <div class="table-responsive">
         <table class="table table-sm align-middle ua-table">
             <thead class="table-light">
@@ -170,7 +166,8 @@
                     <th>Producto</th>
                     <th class="text-center">Imagen</th>
                     <th class="text-center">Cant. Pedida</th>
-                    <th class="text-center">Precio</th>
+                    <th class="text-center">Precio Compra</th>
+                    <th class="text-center">Precio Venta</th>
                     <th class="text-center">Cant. Recibida</th>
                     @* <th>Vencimiento</th> *@
                     <th class="text-center">Subtotal (regla vigente)</th>
@@ -192,6 +189,7 @@
                     var cant = l.Cantidad;
                     var rec = l.CantidadRecibida ?? 0;
                     var precio = l.PrecioCompra ?? 0m;
+                    var precioV = l.PrecioVenta ?? 0m;
                     var baseCalculo = l.CantidadRecibida.HasValue ? rec : cant;
                     var subtotal = baseCalculo * precio;
 
@@ -204,13 +202,13 @@
 
                         <!-- Imagen -->
                         <td>
-                            <img class="img-thumbnail js-prod-img"
-                                 src="" alt="Sin imagen"
-                                 style="max-height:40px;max-width:40px;object-fit:contain;" />
+                            <img class="img-thumbnail js-prod-img ua-img-thumb-fila-details"
+                                 src="" alt="N"/>
                         </td>
 
                         <td class="text-center">@cant</td>
                         <td class="text-center">@precio.ToString("N2")</td>
+                        <td class="text-center">@precioV.ToString("N2")</td>
                         <td class="text-center">@((l.CantidadRecibida.HasValue ? rec : (int?)null)?.ToString() ?? "-")</td>
                         @* <td>@(l.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "-")</td> *@
                         <td class="text-end">@subtotal.ToString("N2")</td>
@@ -222,6 +220,7 @@
                     <td class="text-center">Totales:</td>
                     <td></td>
                     <td class="text-center">@totalPedida</td>
+                    <td></td>
                     <td></td>
                     <td class="text-center">@totalRecibida</td>
                     <td class="text-end">@totalMonto.ToString("N2")</td>
@@ -248,7 +247,7 @@
         @* Recibir (solo si procede) *@
         @if (Model.PuedeEditarPrecio || Model.PuedeMarcarRecibida)
         {
-            <a asp-action="Recibir" asp-controller="Compras" asp-route-id="@Model.CompraId" class="ua-btn">
+            <a asp-action="Recibir" asp-controller="Compras" asp-route-id="@Model.CompraId" class="btn-recibir">
                 <i class="bi bi-truck"></i> <span>Recibir productos</span>
             </a>
         }
@@ -257,10 +256,10 @@
         @if (Model.PuedeCargarInventario)
         {
             <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@Model.CompraId"
-                  method="post" class="d-inline"
+                  method="post" 
                   onsubmit="return confirm('Esta acción actualizará inventario y cerrará la compra. ¿Continuar?');">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn-save">
+                <button type="submit" class="btn-cargar">
                     <i class="bi bi-box-arrow-in-down"></i> <span>Cargar a Inventario</span>
                 </button>
             </form>
@@ -275,13 +274,13 @@
     private string GetEstadoClass(string estado) => estado switch
     {
         "BOR" => "secondary",
-        "REV" => "warning text-dark",
-        "APR" => "info text-dark",
-        "ENV" => "primary",
-        "CON" => "purple",               // <- usa .badge.bg-purple
-        "REC" => "success",
-        "CER" => "dark",
-        "ANU" => "danger",
+        "REV" => "revi",
+        "APR" => "apro",
+        "ENV" => "envi",
+        "CON" => "confi",
+        "REC" => "reci",
+        "CER" => "cerra",
+        "ANU" => "anu",
         _ => "light text-dark"
     };
 }

@@ -10,6 +10,7 @@ namespace CreArte.ModelsPartial
         [Required][Range(0, int.MaxValue)] public int Cantidad { get; set; }
         // Precio puede ser null en estados tempranos; será obligatorio al confirmar
         [Range(0, double.MaxValue)] public decimal? PrecioCompra { get; set; }
+        [Range(0, double.MaxValue)] public decimal? PrecioVenta { get; set; }
         //public DateTime? FechaVencimiento { get; set; }
         public DateOnly? FechaVencimiento { get; set; }
 

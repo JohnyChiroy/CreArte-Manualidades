@@ -271,13 +271,13 @@
                                     string clase = estado switch
                                     {
                                         "BOR" => "badge bg-secondary",
-                                        "REV" => "badge bg-warning text-dark",
-                                        "APR" => "badge bg-info text-dark",
-                                        "ENV" => "badge bg-primary",
-                                        "CON" => "badge bg-primary",
-                                        "REC" => "badge bg-success",
-                                        "CER" => "badge bg-dark",
-                                        "ANU" => "badge bg-danger",
+                                        "REV" => "badge bg-revi",
+                                        "APR" => "badge bg-apro",
+                                        "ENV" => "badge bg-envi",
+                                        "CON" => "badge bg-confi",
+                                        "REC" => "badge bg-reci",
+                                        "CER" => "badge bg-cerra",
+                                        "ANU" => "badge bg-anu",
                                         _     => "badge bg-light text-dark"
                                     };
                                 }
@@ -285,8 +285,8 @@
                             </td>
 
                             <td>
-                                @if (c.CARGADA_INVENTARIO) { <span class="badge bg-success">Cargada</span> }
-                                else { <span class="badge bg-secondary">Pendiente</span> }
+                                @if (c.CARGADA_INVENTARIO) { <span class="badge bg-cargada">Cargada</span> }
+                                else { <span class="badge bg-pendiente">Pendiente</span> }
                             </td>
 
                             @* <td>@(c.OBSERVACIONES_COMPRA ?? "-")</td> *@

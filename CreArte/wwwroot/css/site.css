@@ -139,7 +139,197 @@
         background: #FF007D;
     }
 
-    .btn-save {
+.btn-anular {
+    background: #242259;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-anular:hover {
+    background: #332973;
+}
+
+.btn-revision {
+    background: #23B6B1;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-revision:hover {
+        background: #23B6B1;
+    }
+
+.btn-aprobado {
+    background: #03C1FF;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-aprobado:hover {
+        color: white;
+    }
+
+.btn-enviado {
+    background: #F2B90F;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-enviado:hover {
+        background: #FFEA00;
+    }
+
+.btn-confirmado {
+    background: #C5D930;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-confirmado:hover {
+        background: #D1E632;
+    }
+
+.btn-recibir {
+    background: #03C1FF;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-recibir:hover {
+        color: white;
+    }
+
+.btn-cargar {
+    background: #C5D930;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-cargar:hover {
+        background: #D1E632;
+    }
+
+.btn-cargar {
+    background: #C5D930;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-cargar:hover {
+        background: #D1E632;
+    }
+
+.btn-pendiente {
+    background: #BF265E;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-pendiente:hover {
+        background: #FF007D;
+    }
+
+.btn-cargado {
+    background: #C5D930;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-cargado:hover {
+        background: #D1E632;
+    }
+
+.btn-save {
         background: #d8d8d8;
         color: #888;
         border: none;
@@ -152,7 +342,7 @@
         gap: 8px;
         transition: background .2s ease,color .2s ease;
         text-decoration: none;
-    }
+}
 
     .btn-save.enabled {
         background: #C5D930;
@@ -331,3 +521,94 @@ textarea:disabled {
     border-bottom: 1px solid white;
 }
 /* línea divisoria entre filas */
+
+/*.ua-img-thumb-fila {
+    width: 50px;*/ /*ajusta 90–120px a tu gusto */
+    /*height: 50px;
+    object-fit: cover;*/ /*recorta sin deformar */
+    /*object-position: center;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}*/
+
+/* Centrar contenido del td */
+#tblLineas td {
+    vertical-align: middle; /* centra verticalmente */
+    text-align: center; /* centra horizontalmente */
+}
+
+/* Ajustes específicos de la imagen */
+.ua-img-thumb-fila {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    object-position: center;
+    display: inline-block; /* o block, pero inline-block se ajusta mejor aquí */
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}
+.ua-img-thumb-fila-details {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    object-position: center;
+    display: inline-block; /* o block, pero inline-block se ajusta mejor aquí */
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}
+
+
+
+/*badges de estados*/
+/* revisado*/
+.badge.bg-revi {
+    background-color: #23B6B1 !important;
+    color: white !important;
+}
+/* aprobada*/
+.badge.bg-apro {
+    background-color: #03C1FF !important;
+    color: white !important;
+}
+/* confirmada*/
+.badge.bg-envi {
+    background-color: #F2B90F !important;
+    color: black !important;
+}
+/* confirmada*/
+.badge.bg-confi {
+    background-color: #C5D930 !important;
+    color: black !important;
+}
+/*recibida*/
+.badge.bg-reci {
+    background-color: #03C1FF !important;
+    color: white !important;
+}
+/* Confirmada*/
+.badge.bg-cerra {
+    background-color: #BF265E !important;
+    color: white !important;
+}
+/* anulada*/
+.badge.bg-anu {
+    background-color: #242259 !important;
+    color: white !important;
+}
+
+/*estado carga a inventario*/
+/* Pendiente*/
+.badge.bg-pendiente {
+    background-color: #BF265E !important;
+    color: white !important;
+}
+
+/* Cargada*/
+.badge.bg-cargada {
+    background-color: #C5D930 !important;
+    color: black !important;
+}

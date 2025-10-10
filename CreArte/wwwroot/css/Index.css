@@ -392,8 +392,8 @@
 .ua-img-thumb {
     width: 50px;  /*ajusta 90–120px a tu gusto */
     height: 50px;
-    object-fit: cover;  recorta sin deformar 
-    object-position: center;
+    object-fit: cover;  /*recorta sin deformar */
+    object-position: center; 
     display: block;
     border-radius: 8px;
     border: 1px solid #eee;

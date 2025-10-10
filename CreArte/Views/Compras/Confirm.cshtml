@@ -5,34 +5,32 @@
 }
 
 <div class="ua-card">
-    <h2 class="mb-3">Confirmar compra @Model.CompraId</h2>
+    <h2 class="mb-3">Confirmar @Model.CompraId</h2>
 
     <form asp-action="Confirm" method="post" autocomplete="off">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="CompraId" />
-
+        <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle"></i>
+            Debes completar el <strong>precio de compra</strong> de todas las líneas.
+        </div>
         <div class="row mb-3">
             <div class="col-md-4">
-                <label asp-for="FechaEntregaCompra" class="form-label">Fecha de entrega</label>
+                <label asp-for="FechaEntregaCompra" class="form-label"><strong>Fecha de entrega*</strong></label>
                 <input asp-for="FechaEntregaCompra" type="date" class="form-control" />
                 <span asp-validation-for="FechaEntregaCompra" class="text-danger small"></span>
-            </div>
-            <div class="col-md-8 align-self-end">
-                <div class="alert alert-info py-2">
-                    <i class="bi bi-info-circle"></i>
-                    Debes completar el <strong>precio de compra</strong> de todas las líneas.
-                </div>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
+            <table class="table table-sm  ua-table-compra align-middle text-center">
                 <thead class="table-light">
                     <tr>
                         <th>Producto</th>
-                        <th class="text-end">Cantidad</th>
-                        <th class="text-end">Precio compra</th>
-                        <th>Vencimiento</th>
+                        <th class="text-center">Imagen</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Precio compra*</th>
+                        @* <th>Vencimiento</th> *@
                     </tr>
                 </thead>
                 <tbody>
@@ -43,7 +41,14 @@
                                 @Model.Lineas[i].ProductoId
                                 <input type="hidden" name="Lineas[@i].ProductoId" value="@Model.Lineas[i].ProductoId" />
                             </td>
-                            <td class="text-end">
+
+                            <!-- Imagen -->
+                            <td>
+                                <img class="img-thumbnail js-prod-img ua-img-thumb-fila-details"
+                                     src="" alt="N" />
+                            </td>
+
+                            <td class="text-center">
                                 @Model.Lineas[i].Cantidad
                                 <input type="hidden" name="Lineas[@i].Cantidad" value="@Model.Lineas[i].Cantidad" />
                             </td>
@@ -52,10 +57,10 @@
                                        value="@(Model.Lineas[i].PrecioCompra?.ToString("0.##") ?? "")"
                                        class="form-control form-control-sm text-end" />
                             </td>
-                            <td>
+                            @* <td>
                                 @(Model.Lineas[i].FechaVencimiento?.ToString("dd/MM/yyyy") ?? "-")
                                 <input type="hidden" name="Lineas[@i].FechaVencimiento" value="@(Model.Lineas[i].FechaVencimiento?.ToString("yyyy-MM-dd") ?? "")" />
-                            </td>
+                            </td> *@
                         </tr>
                     }
                 </tbody>
@@ -77,11 +82,3 @@
     <partial name="_ValidationScriptsPartial" />
 }
 
-<style>
-    .ua-card {
-        background: #fff;
-        padding: 1.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 3px 6px rgba(0,0,0,.1)
-    }
-</style>
