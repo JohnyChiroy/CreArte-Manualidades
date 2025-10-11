@@ -1,0 +1,105 @@
+﻿@model CreArte.Models.INVENTARIO
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Details</title>
+</head>
+<body>
+
+<div>
+    <h4>INVENTARIO</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.STOCK_ACTUAL)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.STOCK_ACTUAL)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.STOCK_MINIMO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.STOCK_MINIMO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.COSTO_UNITARIO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.COSTO_UNITARIO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_VENCIMIENTO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_VENCIMIENTO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_CREACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_CREACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_CREACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ELIMINADO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ELIMINADO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ESTADO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ESTADO)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.PRODUCTO)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.PRODUCTO.PRODUCTO_ID)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a asp-action="Edit" asp-route-id="@Model?.INVENTARIO_ID">Edit</a> |
+    <a asp-action="Index">Back to List</a>
+</div>
+</body>
+</html>

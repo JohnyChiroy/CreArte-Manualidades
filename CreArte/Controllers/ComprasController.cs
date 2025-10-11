@@ -999,13 +999,13 @@ public class ComprasController : Controller
                 // 5.1) KARDEX: un movimiento por línea
                 var mov = new KARDEX
                 {
-                    KARDEX_ID = Guid.NewGuid().ToString("N")[..10], // ID de 10 chars
+                    KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = d.PRODUCTO_ID,
                     FECHA = DateTime.Now,
-                    TIPO_MOVIMIENTO = "EntradaCompra",              // tipifiquemos así
-                    CANTIDAD = d.CANTIDAD_RECIBIDA!.Value,         // ya validado
-                    COSTO_UNITARIO = d.PRECIO_COMPRA!.Value,       // ya validado
-                    REFERENCIA = id,                                // COMPRA_ID para rastreo
+                    TIPO_MOVIMIENTO = "EntradaCompra",
+                    CANTIDAD = d.CANTIDAD_RECIBIDA!.Value,
+                    COSTO_UNITARIO = d.PRECIO_COMPRA!.Value, // se mantiene para registro histórico
+                    REFERENCIA = id,
                     USUARIO_CREACION = user,
                     ESTADO = true
                 };
@@ -1023,7 +1023,7 @@ public class ComprasController : Controller
                         PRODUCTO_ID = d.PRODUCTO_ID,
                         STOCK_ACTUAL = 0,
                         STOCK_MINIMO = 0,
-                        COSTO_UNITARIO = 0,      // por política, NO lo actualizamos aquí
+                        COSTO_UNITARIO = 0,
                         ESTADO = true,
                         USUARIO_CREACION = user
                     };
@@ -1031,8 +1031,15 @@ public class ComprasController : Controller
                 }
 
                 // Sumar lo recibido
-                inv.STOCK_ACTUAL += d.CANTIDAD_RECIBIDA!.Value;
-                // IMPORTANTE: NO tocar inv.COSTO_UNITARIO (tu política así lo define)
+                var recibida = d.CANTIDAD_RECIBIDA!.Value;
+                inv.STOCK_ACTUAL += recibida;
+
+                // 🔹 NUEVO: actualizar costo unitario SOLO si se recibió algo (> 0)
+                //     y se tiene PRECIO_VENTA registrado en el detalle
+                if (recibida > 0 && d.PRECIO_VENTA.HasValue)
+                {
+                    inv.COSTO_UNITARIO = d.PRECIO_VENTA.Value;
+                }
             }
 
             // 5.3) Marcar compra como cargada y cerrar
@@ -1045,7 +1052,7 @@ public class ComprasController : Controller
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
-            TempData["ok"] = "Inventario actualizado y compra cerrada.";
+            TempData["ok"] = "Inventario actualizado con el último precio de venta y compra cerrada.";
         }
         catch (Exception ex)
         {
@@ -1055,6 +1062,7 @@ public class ComprasController : Controller
 
         return RedirectToAction(nameof(Details), new { id });
     }
+
 
     // -------------------------------------------
     // POST /Compras/Anular/{id}

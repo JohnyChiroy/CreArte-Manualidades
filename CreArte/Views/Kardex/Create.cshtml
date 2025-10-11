@@ -1,0 +1,98 @@
+﻿@model CreArte.Models.KARDEX
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Create</title>
+</head>
+<body>
+
+<h4>KARDEX</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="KARDEX_ID" class="control-label"></label>
+                <input asp-for="KARDEX_ID" class="form-control" />
+                <span asp-validation-for="KARDEX_ID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="PRODUCTO_ID" class="control-label"></label>
+                <select asp-for="PRODUCTO_ID" class ="form-control" asp-items="ViewBag.PRODUCTO_ID"></select>
+            </div>
+            <div class="form-group">
+                <label asp-for="TIPO_MOVIMIENTO" class="control-label"></label>
+                <input asp-for="TIPO_MOVIMIENTO" class="form-control" />
+                <span asp-validation-for="TIPO_MOVIMIENTO" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="CANTIDAD" class="control-label"></label>
+                <input asp-for="CANTIDAD" class="form-control" />
+                <span asp-validation-for="CANTIDAD" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="COSTO_UNITARIO" class="control-label"></label>
+                <input asp-for="COSTO_UNITARIO" class="form-control" />
+                <span asp-validation-for="COSTO_UNITARIO" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="REFERENCIA" class="control-label"></label>
+                <input asp-for="REFERENCIA" class="form-control" />
+                <span asp-validation-for="REFERENCIA" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_CREACION" class="control-label"></label>
+                <input asp-for="USUARIO_CREACION" class="form-control" />
+                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
+                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
+                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
+                <input asp-for="FECHA_MODIFICACION" class="form-control" />
+                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
+                </label>
+            </div>
+            <div class="form-group">
+                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
+                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
+                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
+                <input asp-for="FECHA_ELIMINACION" class="form-control" />
+                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
+                </label>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+</body>
+</html>
