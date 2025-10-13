@@ -15,6 +15,24 @@
 <aside class="app-sidebar" id="sidebar">
     @* <div class="sidebar-title">Módulos</div> *@
 
+    <!-- Compras -->
+    <a asp-controller="Compras" asp-action="Index"
+       class="nav-item @(currentController == "compras" ? "is-active" : "")">
+        <i class="bi bi-basket"></i> <span>Compras</span>
+    </a>
+
+    <!-- Inventario -->
+    <a asp-controller="Inventario" asp-action="Index"
+       class="nav-item @(currentController == "inventario" ? "is-active" : "")">
+        <i class="bi bi-stack"></i> <span>Inventario</span>
+    </a>
+
+    <!-- Kardex -->
+    <a asp-controller="Kardex" asp-action="Index"
+       class="nav-item @(currentController == "kardex" ? "is-active" : "")">
+        <i class="bi bi-building-gear"></i> <span>Kardex</span>
+    </a>
+
     <!-- Items del menú -->
     <nav class="sidebar-nav">
         <!-- Caja -->
@@ -32,19 +50,7 @@
         <!-- Pedidos -->
         <a asp-controller="Pedidos" asp-action="Index"
            class="nav-item @(currentController == "pedidos" ? "is-active" : "")">
-            <i class="bi bi-card-checklist"></i> <span>Pedidos</span>
-        </a>
-
-        <!-- Inventario -->
-        <a asp-controller="Inventario" asp-action="Index"
-           class="nav-item @(currentController == "inventario" ? "is-active" : "")">
-            <i class="bi bi-stack"></i> <span>Inventario</span>
-        </a>
-
-        <!-- Compras -->
-        <a asp-controller="Compras" asp-action="Index"
-           class="nav-item @(currentController == "compras" ? "is-active" : "")">
-            <i class="bi bi-basket"></i> <span>Compras</span>
+            <i class="bi bi-calendar2-week"></i> <span>Pedidos</span>
         </a>
 
         <!-- Reportes -->

@@ -1,115 +1,455 @@
-﻿@model IEnumerable<CreArte.Models.INVENTARIO>
+﻿@model CreArte.ModelsPartial.InventarioIndexVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Inventario";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
-
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Index</title>
-</head>
-<body>
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.STOCK_ACTUAL)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.STOCK_MINIMO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.COSTO_UNITARIO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_VENCIMIENTO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ELIMINADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ESTADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PRODUCTO)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.STOCK_ACTUAL)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.STOCK_MINIMO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.COSTO_UNITARIO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_VENCIMIENTO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ELIMINADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ESTADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.PRODUCTO.PRODUCTO_ID)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.INVENTARIO_ID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.INVENTARIO_ID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.INVENTARIO_ID">Delete</a>
-            </td>
-        </tr>
+@functions{
+    // ============================
+    // Helpers para orden (asc/desc)
+    // ============================
+    string NextDir(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
 }
-    </tbody>
-</table>
-</body>
-</html>
+
+<div class="container-fluid py-3">
+
+    <div class="ua-toolbar">
+        <h2 class="m-0"></h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- STOCK ALTO: limpia SoloStockBajo -->
+            <a href="#" class="ua-btn ua-btn-new" id="btnStockAlto" title="Quitar filtro de stock bajo">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v20h2V2H7zm4 2v16h2V4h-2zm4 4v12h2V8h-2z"/></svg>
+                STOCK ALTO
+            </a>
+
+            <!-- STOCK BAJO: fuerza SoloStockBajo=true -->
+            <a href="#" class="ua-btn ua-btn-edit" id="btnStockBajo" title="Mostrar sólo stock bajo">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v20h2V2H7zm4 8v12h2V10h-2zm4 6v6h2v-6h-2z"/></svg>
+                STOCK BAJO
+            </a>
+        </div>
+
+        <!-- VER: navega a Details del seleccionado -->
+        <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer" title="Ver detalle">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+            VER
+        </a>
+
+        <!-- Buscador global – mantiene Sort/Dir -->
+        <form method="get" asp-controller="Inventario" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="Sort" value="@(Model.Sort ?? "producto")" />
+            <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "asc")" />
+            <input name="Search" value="@Model.Search" placeholder="Buscar por Nombre o ID de Producto..." />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- ===========================================
+         Form oculto con estado de filtros/orden
+         (patrón Productos)
+         =========================================== -->
+    <form id="uaFilterForm" method="get" asp-controller="Inventario" asp-action="Index">
+        <!-- Estado base de navegación/orden -->
+        <input type="hidden" name="Search"   value="@Model.Search" />
+        <input type="hidden" name="Page"     value="1" />
+        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+        <input type="hidden" name="Sort"     value="@(Model.Sort ?? "producto")" />
+        <input type="hidden" name="Dir"      value="@(Model.Dir  ?? "asc")" />
+
+        <!-- Valores actuales (para UI/JS) -->
+        <input type="hidden" id="ua_val_activos"  value="@(Model.SoloActivos.ToString().ToLower())" />
+        <input type="hidden" id="ua_val_bajo"     value="@(Model.SoloStockBajo.ToString().ToLower())" />
+        <input type="hidden" id="ua_val_vence"    value="@(Model.VenceAntesDe?.ToString("yyyy-MM-dd"))" />
+        <!-- Nota: no cambiamos nombres ni tipos del VM -->
+    </form>
+
+    <!-- ===========================================
+         Tabla principal (encabezados UA)
+         =========================================== -->
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+<thead>
+    <tr>
+        <!-- Checkbox maestro -->
+        <th class="ua-col-check text-center align-middle" style="width:48px;">
+            <input type="checkbox" class="form-check-input" id="chkAll"
+                    onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+        </th>
+
+<!-- ID INV. (solo muestra; sin orden) -->
+<th style="width:140px;">
+    <div class="ua-th">
+        <span class="ua-title">NO.</span>
+    </div>
+</th>
+
+        
+        <!-- IMG -->
+        <th style="width:64px;">
+            <div class="ua-th">
+                <span class="ua-title">IMG</span>
+            </div>
+        </th>
+
+        <!-- PRODUCTO – orden -->
+        <th>
+            <div class="ua-th">
+                @{
+                    var next_prod = NextDir("producto", Model.Sort, Model.Dir);
+                    var href_prod = Url.Action("Index", "Inventario", new {
+                        Search = Model.Search,
+                        SoloActivos   = Model.SoloActivos,
+                        SoloStockBajo = Model.SoloStockBajo,
+                        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                        Sort = "producto", Dir = next_prod, Page = 1, PageSize = Model.PageSize
+                    });
+                    var isActive_prod = (Model.Sort ?? "producto").Equals("producto", StringComparison.OrdinalIgnoreCase);
+                }
+                <a class="ua-sort @(isActive_prod ? "" : "inactive")" href="@href_prod">
+                    <span class="ua-title">NOMBRE</span>
+                    <span class="ua-arrow">@Arrow("producto", Model.Sort, Model.Dir)</span>
+                </a>
+            </div>
+        </th>
+
+        <!-- STOCK – orden -->
+        <th class="text-end" style="width:120px;">
+            <div class="ua-th">
+                @{
+                    var next_stock = NextDir("stock", Model.Sort, Model.Dir);
+                    var href_stock = Url.Action("Index", "Inventario", new {
+                        Search = Model.Search,
+                        SoloActivos   = Model.SoloActivos,
+                        SoloStockBajo = Model.SoloStockBajo,
+                        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                        Sort = "stock", Dir = next_stock, Page = 1, PageSize = Model.PageSize
+                    });
+                    var isActive_stock = (Model.Sort ?? "producto").Equals("stock", StringComparison.OrdinalIgnoreCase);
+                }
+                <a class="ua-sort @(isActive_stock ? "" : "inactive")" href="@href_stock">
+                    <span class="ua-title">STOCK</span>
+                    <span class="ua-arrow">@Arrow("stock", Model.Sort, Model.Dir)</span>
+                </a>
+            </div>
+        </th>
+
+        <!-- MÍNIMO – orden -->
+        <th class="text-end" style="width:120px;">
+            <div class="ua-th">
+                @{
+                    var next_min = NextDir("minimo", Model.Sort, Model.Dir);
+                    var href_min = Url.Action("Index", "Inventario", new {
+                        Search = Model.Search,
+                        SoloActivos   = Model.SoloActivos,
+                        SoloStockBajo = Model.SoloStockBajo,
+                        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                        Sort = "minimo", Dir = next_min, Page = 1, PageSize = Model.PageSize
+                    });
+                    var isActive_min = (Model.Sort ?? "producto").Equals("minimo", StringComparison.OrdinalIgnoreCase);
+                }
+                <a class="ua-sort @(isActive_min ? "" : "inactive")" href="@href_min">
+                    <span class="ua-title">MÍNIMO</span>
+                    <span class="ua-arrow">@Arrow("minimo", Model.Sort, Model.Dir)</span>
+                </a>
+            </div>
+        </th>
+
+        <!-- COSTO – orden -->
+        <th class="text-end" style="width:140px;">
+            <div class="ua-th">
+                @{
+                    var next_cost = NextDir("costo", Model.Sort, Model.Dir);
+                    var href_cost = Url.Action("Index", "Inventario", new {
+                        Search = Model.Search,
+                        SoloActivos   = Model.SoloActivos,
+                        SoloStockBajo = Model.SoloStockBajo,
+                        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                        Sort = "costo", Dir = next_cost, Page = 1, PageSize = Model.PageSize
+                    });
+                    var isActive_cost = (Model.Sort ?? "producto").Equals("costo", StringComparison.OrdinalIgnoreCase);
+                }
+                <a class="ua-sort @(isActive_cost ? "" : "inactive")" href="@href_cost">
+                    <span class="ua-title">COSTO Q</span>
+                    <span class="ua-arrow">@Arrow("costo", Model.Sort, Model.Dir)</span>
+                </a>
+            </div>
+        </th>
+
+        <!-- ESTADO – orden + filtro -->
+        <th style="width:150px;">
+            <div class="ua-th ua-popover-wrap">
+                @{
+                    var next_estado = NextDir("estado", Model.Sort, Model.Dir);
+                    var href_estado = Url.Action("Index", "Inventario", new {
+                        Search = Model.Search,
+                        SoloActivos   = Model.SoloActivos,
+                        SoloStockBajo = Model.SoloStockBajo,
+                        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                        Sort = "estado", Dir = next_estado, Page = 1, PageSize = Model.PageSize
+                    });
+                    var isActive_estado = (Model.Sort ?? "producto").Equals("estado", StringComparison.OrdinalIgnoreCase);
+                }
+                <a class="ua-sort @(isActive_estado ? "" : "inactive")" href="@href_estado">
+                    <span class="ua-title">ESTADO</span>
+                    <span class="ua-arrow">@Arrow("estado", Model.Sort, Model.Dir)</span>
+                </a>
+                <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                </button>
+                <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                    <select id="fEstado" class="ua-input">
+                        <option value="">(Todos)</option>
+                        <option value="true"  selected="@(Model.SoloActivos ? "selected" : null)">Activo</option>
+                        <option value="false" selected="@(!Model.SoloActivos ? "selected" : null)">Inactivo</option>
+                    </select>
+                    <div class="ua-pop-actions">
+                        <button type="button" class="ua-btn-sm" onclick="uaClearEstado()">Limpiar</button>
+                        <button type="button" class="ua-btn-sm primary" onclick="uaApplyEstado()">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+        </th>
+    </tr>
+</thead>
+
+
+            <tbody>
+@if (Model.Items == null || !Model.Items.Any())
+{
+    <tr>
+        <td colspan="8" class="text-center py-4 text-muted">
+            <i class="bi bi-inbox"></i> No se encontraron registros.
+        </td>
+    </tr>
+}
+else
+{
+    @foreach (var x in Model.Items)
+{
+    <tr class="ua-rowitem @(x.StockBajo ? "table-warning" : "")"
+        data-id="@x.INVENTARIO_ID">
+
+        <!-- Checkbox de fila -->
+        <td class="text-center">
+            <input type="checkbox" class="form-check-input ua-rowchk" value="@x.INVENTARIO_ID" />
+        </td>
+        
+        <!-- ID INV. (nueva columna) -->
+        <td class="text-center">@x.INVENTARIO_ID</td>
+
+        <!-- Imagen -->
+        <td class="text-center">
+            @if (!string.IsNullOrWhiteSpace(x.ImagenUrl))
+            {
+                <img src="@x.ImagenUrl" alt="img @x.ProductoNombre"
+                     class="img-thumbnail ua-img-thumb d-block mx-auto" />
+            }
+            else
+            {
+                <div class="ua-img-thumb d-flex align-items-center justify-content-center">—</div>
+            }
+        </td>
+
+        <!-- Producto (nombre + ID de producto debajo) -->
+        <td>
+            <div class="fw-semibold">@x.ProductoNombre</div>
+            <div class="text-muted">@x.PRODUCTO_ID</div>
+        </td>
+
+        <!-- Métricas -->
+        <td class="text-center">@x.STOCK_ACTUAL</td>
+        <td class="text-center">@x.STOCK_MINIMO</td>
+        <td class="text-center">@x.COSTO_UNITARIO.ToString("N2")</td>
+
+        <!-- Estado -->
+        <td>
+            @if (x.ESTADO)
+            { <span class="ua-badge-activo">Activo</span> }
+            else
+            { <span class="ua-badge-inactivo">Inactivo</span> }
+        </td>
+    </tr>
+}
+
+}
+</tbody>
+        </table>
+
+        
+        <!-- 🔹 Por página (nuevo) – respeta tus estilos, usamos form-control nativa -->
+        <div class="d-flex align-items-center ms-2">
+            <label class="me-2 small text-muted">Por página</label>
+            <select asp-for="PageSize"
+                    asp-items="Model.PageSizeOptions"
+                    class="form-select form-select-sm"
+                    style="width:90px"
+                    onchange="uaChangePageSize(this.value)">
+            </select>
+        </div>
+    </div>
+
+    <!-- ===========================================
+         Paginación (patrón Productos)
+         =========================================== -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de inventario">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Inventario", new {
+                               Search = Model.Search,
+                               SoloActivos   = Model.SoloActivos,
+                               SoloStockBajo = Model.SoloStockBajo,
+                               VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Inventario", new {
+                               Search = Model.Search,
+                               SoloActivos   = Model.SoloActivos,
+                               SoloStockBajo = Model.SoloStockBajo,
+                               VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts{
+<script>
+/* ==========================================
+   POPovers abrir/cerrar (patrón Productos)
+   ========================================== */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* ==========================================
+   Selección de fila + habilitar VER
+   ========================================== */
+(function () {
+    const btnVer = document.getElementById('btnVer');
+    let selectedId = null;
+
+    function toggleButtons(enable){
+        if (btnVer) btnVer.classList.toggle('is-disabled', !enable);
+    }
+    function applySelection(row) {
+        document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+        row.classList.add('row-selected');
+        document.querySelectorAll('.ua-rowchk').forEach(c => {
+            if (c.closest('.ua-rowitem') !== row) c.checked = false;
+        });
+        selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+        toggleButtons(!!selectedId);
+    }
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('.ua-rowitem');
+        if (!row) return;
+        if (e.target.closest('a,button,select,textarea,label,input')) return;
+        const chk = row.querySelector('.ua-rowchk');
+        if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    document.addEventListener('change', function (e) {
+        const chk = e.target.closest('.ua-rowchk');
+        if (!chk) return;
+        const row = chk.closest('.ua-rowitem'); if (!row) return;
+        if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+    });
+
+    if (btnVer) {
+        btnVer.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!selectedId) { if (window.Swal) Swal.fire("Seleccione un registro","Debe elegir una fila para ver.","info"); return; }
+            // RUTA: GET /Inventario/Details/{id}
+            window.location.href = '@Url.Action("Details", "Inventario")/' + encodeURIComponent(selectedId);
+        });
+    }
+})();
+
+/* ==========================================
+   Helper submitFilter — preserva query
+   ========================================== */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // siempre volvemos a la primera página al filtrar/ordenar
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+
+/* ===== Cambio de PageSize (nuevo) ===== */
+function uaChangePageSize(size){
+    submitFilter({ PageSize: String(size) });
+}
+
+/* ===== Acciones de toolbar ===== */
+// STOCK BAJO = true
+document.getElementById('btnStockBajo')?.addEventListener('click', function(e){
+    e.preventDefault();
+    submitFilter({ SoloStockBajo: 'true' });
+});
+// STOCK ALTO = quitar filtro
+document.getElementById('btnStockAlto')?.addEventListener('click', function(e){
+    e.preventDefault();
+    submitFilter({ SoloStockBajo: null });
+});
+
+/* ===== Filtros popover ===== */
+// VENCE (fecha <=)
+function uaApplyVence(){
+    const v = (document.getElementById('fVence')?.value || '').trim();
+    submitFilter({ VenceAntesDe: v || null });
+}
+function uaClearVence(){ submitFilter({ VenceAntesDe: null }); }
+
+// ESTADO (Activo/Inactivo) — mapea a SoloActivos
+function uaApplyEstado(){
+    const v = (document.getElementById('fEstado')?.value || '').trim();
+    if (v === '') submitFilter({ SoloActivos: null });
+    else submitFilter({ SoloActivos: v });
+}
+function uaClearEstado(){ submitFilter({ SoloActivos: null }); }
+</script>
+}

@@ -1,105 +1,88 @@
-﻿@model CreArte.Models.INVENTARIO
+﻿@using CreArte.ModelsPartial
+@model InventarioDetailsVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle de inventario";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Inventario de @Model.ProductoNombre</h2>
+        <div>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+    <div class="row g-3">
+        <div class="col-md-3 text-center">
+            @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
+            {
+                <img src="@Model.ImagenUrl" class="img-thumbnail" style="max-width:180px;max-height:180px;object-fit:cover" />
+            }
+            else
+            {
+                <div class="border bg-light d-flex align-items-center justify-content-center" style="width:180px;height:180px;border-radius:8px;">—</div>
+            }
+        </div>
 
-<div>
-    <h4>INVENTARIO</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.STOCK_ACTUAL)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.STOCK_ACTUAL)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.STOCK_MINIMO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.STOCK_MINIMO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.COSTO_UNITARIO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.COSTO_UNITARIO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_VENCIMIENTO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_VENCIMIENTO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PRODUCTO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PRODUCTO.PRODUCTO_ID)
-        </dd>
-    </dl>
+        <div class="col-md-9">
+            <div class="row mb-2">
+                <div class="col-md-4">
+                    <div class="text-muted small">Inventario ID</div>
+                    <div class="fw-semibold">@Model.INVENTARIO_ID</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">Producto ID</div>
+                    <div class="fw-semibold">@Model.PRODUCTO_ID</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">Estado</div>
+                    @if (Model.ESTADO)
+                    {
+                        <span class="badge bg-success">Activo</span>
+                    }
+                    else
+                    {
+
+                        <span class="badge bg-secondary">Inactivo</span>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <div class="text-muted small">Stock actual</div>
+                    <div class="fw-semibold">@Model.STOCK_ACTUAL</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small">Stock mínimo</div>
+                    <div class="fw-semibold">@Model.STOCK_MINIMO</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small">Costo unitario (Q)</div>
+                    <div class="fw-semibold">@Model.COSTO_UNITARIO.ToString("N2")</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small">Vence</div>
+                    <div class="fw-semibold">@((Model.FECHA_VENCIMIENTO?.ToString("dd/MM/yyyy")) ?? "-")</div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <a asp-action="AjusteEntrada" asp-route-productoId="@Model.PRODUCTO_ID" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Entrada
+                </a>
+                <a asp-action="AjusteSalida" asp-route-productoId="@Model.PRODUCTO_ID" class="btn btn-danger btn-sm">
+                    <i class="bi bi-dash-circle"></i> Salida
+                </a>
+                <!-- (Opcional) Enlace a vista Kardex del producto -->
+                <a asp-controller="Kardex" asp-action="Producto" asp-route-id="@Model.PRODUCTO_ID" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-clock-history"></i> Ver Kardex
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.INVENTARIO_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>

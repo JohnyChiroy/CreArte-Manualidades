@@ -1,13 +1,4 @@
-﻿@* ===============================================
-   RUTA: Views/Usuarios/Create.cshtml
-   DESCRIPCIÓN: Formulario de creación de USUARIO.
-   - IDs autogenerados por el Controller (US########)
-   - Política de contraseñas (8+ con mayúscula, minúscula, dígito, símbolo)
-   - Validaciones cliente + server consistentes
-   - ESTADO con "pill" + switch
-   - PRG con SweetAlert2 (TempData["Swal*"])
-   =============================================== *@
-@model CreArte.ModelsPartial.UsuarioCreateVM
+﻿@model CreArte.ModelsPartial.UsuarioCreateVM
 @{
     ViewData["Title"] = "Crear Usuario";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -16,7 +7,6 @@
 <div class="ua-card">
     <h2 style="margin:0 0 12px 0;">Nuevo Usuario</h2>
 
-    <!-- El Controller reasigna USUARIO_ID en servidor -->
     <form asp-action="Create" asp-controller="Usuarios" method="post" id="frmUsuario" data-guard="true" autocomplete="off">
         @Html.AntiForgeryToken()
 
@@ -75,9 +65,7 @@
             </div>
         </div>
 
-        @* ==============================
-           Relaciones: Rol / Empleado
-           ============================== *@
+           @* Relaciones: Rol / Empleado *@
         <div class="ua-row" style="margin-top:8px;">
             <div class="ua-field">
                 <label asp-for="ROL_ID"><strong>Rol:*</strong></label>

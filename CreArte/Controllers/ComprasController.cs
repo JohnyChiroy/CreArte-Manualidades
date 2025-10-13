@@ -1002,7 +1002,7 @@ public class ComprasController : Controller
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = d.PRODUCTO_ID,
                     FECHA = DateTime.Now,
-                    TIPO_MOVIMIENTO = "EntradaCompra",
+                    TIPO_MOVIMIENTO = "ENTRADA",
                     CANTIDAD = d.CANTIDAD_RECIBIDA!.Value,
                     COSTO_UNITARIO = d.PRECIO_COMPRA!.Value, // se mantiene para registro histórico
                     REFERENCIA = id,

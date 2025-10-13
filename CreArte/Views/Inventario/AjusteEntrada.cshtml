@@ -1,0 +1,50 @@
+﻿@model CreArte.ModelsPartial.InventarioAjusteVM
+@{
+    ViewData["Title"] = "Ajuste de Entrada";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Ajuste de Entrada</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <form asp-action="AjusteEntrada" method="post" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <input type="hidden" asp-for="TIPO_MOVIMIENTO" />
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Producto ID</label>
+                <input class="form-control" asp-for="PRODUCTO_ID" readonly />
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Cantidad (unidades)</label>
+                <input class="form-control" asp-for="CANTIDAD" type="number" min="1" step="1" />
+                <span class="text-danger" asp-validation-for="CANTIDAD"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Costo unitario (Q)</label>
+                <input class="form-control" asp-for="COSTO_UNITARIO" type="number" min="0" step="0.01" />
+                <small class="text-muted">Puedes dejar 0 si no deseas actualizar el costo.</small>
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Registrar entrada
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

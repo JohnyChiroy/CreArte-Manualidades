@@ -1,0 +1,181 @@
+﻿@model CreArte.ModelsPartial.KardexProductoVM
+
+@{
+    ViewData["Title"] = "Kardex por producto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="ua-card">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Kardex – @Model.ProductoNombre</h2>
+        <div>
+            <a asp-controller="Inventario" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver a Inventario
+            </a>
+        </div>
+    </div>
+
+    <!-- Info de producto -->
+    <div class="row g-3 mb-2">
+        <div class="col-md-2 text-center">
+            @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
+            {
+                <img src="@Model.ImagenUrl" class="img-thumbnail" style="max-width:120px;max-height:120px;object-fit:cover" />
+            }
+            else
+            {
+                <div class="border bg-light d-flex align-items-center justify-content-center"
+                     style="width:120px;height:120px;border-radius:8px;">
+                    —
+                </div>
+            }
+        </div>
+        <div class="col-md-10">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-muted small">Producto ID</div>
+                    <div class="fw-semibold">@Model.PRODUCTO_ID</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small">Saldo inicial</div>
+                    <div class="fw-semibold">@Model.SaldoInicial</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="text-muted small">Rango:</div>
+                    <div class="fw-semibold">
+                        @((Model.Filtros.Desde?.ToString("dd/MM/yyyy")) ?? "—")
+                        &nbsp;al&nbsp;
+                        @((Model.Filtros.Hasta?.ToString("dd/MM/yyyy")) ?? "—")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <form method="get" asp-action="Producto" class="row gy-2 gx-2 align-items-end mb-3">
+        <input type="hidden" name="id" value="@Model.PRODUCTO_ID" />
+        <div class="col-md-3">
+            <label class="form-label">Desde</label>
+            <input type="date" class="form-control" name="desde" value="@(Model.Filtros.Desde?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Hasta</label>
+            <input type="date" class="form-control" name="hasta" value="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary">
+                <i class="bi bi-search"></i> Filtrar
+            </button>
+        </div>
+        @* boton exportar *@
+        <div class="col-md-4 text-end">
+            <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
+
+            <!-- Exportar CSV conservando los filtros actuales -->
+            <a class="btn btn-outline-primary"
+               asp-action="ProductoCsv"
+               asp-route-id="@Model.PRODUCTO_ID"
+               asp-route-desde="@(Model.Filtros.Desde?.ToString("yyyy-MM-dd"))"
+               asp-route-hasta="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))">
+                <i class="bi bi-filetype-csv"></i> Exportar CSV
+            </a>
+        </div>
+    </form>
+
+    <!-- Totales del rango -->
+    <div class="row g-3 mb-2">
+        <div class="col-md-3">
+            <div class="ua-stat p-3 border rounded-3">
+                <div class="text-muted small">Entradas</div>
+                <div class="fs-5 fw-semibold">@Model.TotalEntradas</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ua-stat p-3 border rounded-3">
+                <div class="text-muted small">Salidas</div>
+                <div class="fs-5 fw-semibold">@Model.TotalSalidas</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ua-stat p-3 border rounded-3">
+                <div class="text-muted small">Ajustes</div>
+                <div class="fs-5 fw-semibold">@Model.TotalAjustes</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="ua-stat p-3 border rounded-3">
+                <div class="text-muted small">Saldo final</div>
+                <div class="fs-5 fw-semibold">@Model.SaldoFinal</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-responsive">
+        <table class="table align-middle ua-table">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 160px;">Fecha</th>
+                    <th style="width: 110px;">Tipo</th>
+                    <th class="text-end" style="width: 110px;">Cantidad</th>
+                    <th class="text-end" style="width: 140px;">Costo Q</th>
+                    <th>Referencia</th>
+                    <th class="text-end" style="width: 140px;">Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Movimientos.Count == 0)
+                {
+                    <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos en el rango.</td></tr>
+                }
+                else
+                {
+                    // Fila de saldo inicial (informativa)
+                    <tr class="table-secondary">
+                        <td colspan="5" class="text-end fw-semibold">Saldo inicial</td>
+                        <td class="text-end fw-semibold">@Model.SaldoInicial</td>
+                    </tr>
+
+                    foreach (var m in Model.Movimientos)
+                    {
+                        <tr>
+                            <td>@m.FECHA</td>
+                            <td>
+                                @if (m.TIPO_MOVIMIENTO == "ENTRADA")
+                                {
+                                    <span class="badge bg-success">Entrada</span>
+                                }
+                                else if (m.TIPO_MOVIMIENTO == "SALIDA")
+                                {
+
+                                    <span class="badge bg-danger">Salida</span>
+                                }
+                                else
+                                {
+
+                                    <span class="badge bg-info text-dark">Ajuste</span>
+                                }
+                            </td>
+                            <td class="text-end">@m.CANTIDAD</td>
+                            <td class="text-end">@(m.COSTO_UNITARIO?.ToString("N2") ?? "-")</td>
+                            <td>@(m.REFERENCIA ?? "—")</td>
+                            <td class="text-end fw-semibold">@m.SALDO_ACUMULADO</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .ua-stat {
+            background: #fafafa;
+        }
+    </style>
+}

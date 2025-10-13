@@ -1,121 +1,453 @@
-﻿@model IEnumerable<CreArte.Models.KARDEX>
+﻿@model CreArte.ModelsPartial.KardexIndexVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Kardex";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
-
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Index</title>
-</head>
-<body>
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.TIPO_MOVIMIENTO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.CANTIDAD)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.COSTO_UNITARIO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.REFERENCIA)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ELIMINADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ESTADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PRODUCTO)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.TIPO_MOVIMIENTO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.CANTIDAD)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.COSTO_UNITARIO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.REFERENCIA)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ELIMINADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ESTADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.PRODUCTO.PRODUCTO_ID)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.KARDEX_ID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.KARDEX_ID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.KARDEX_ID">Delete</a>
-            </td>
-        </tr>
+@functions{
+    // ===== Helpers para setear dirección de orden y flecha visual =====
+    string NextDir(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string? currentSort, string? currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
 }
-    </tbody>
-</table>
-</body>
-</html>
+
+<div class="container-fluid py-3">
+
+    <!-- =========================
+         Toolbar (mismo patrón Inventario)
+         ========================= -->
+    <div class="ua-toolbar">
+        <h2 class="m-0"></h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- ENTRADAS: fuerza TipoMovimiento=ENTRADA -->
+            <a href="#" class="ua-btn ua-btn-new" id="btnEntradas" title="Mostrar sólo ENTRADAS">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                ENTRADAS
+            </a>
+
+            <!-- AJUSTE: fuerza TipoMovimiento=AJUSTE -->
+            <a href="#" class="ua-btn ua-btn-view" id="btnAjuste" title="Mostrar sólo AJUSTES">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h18v2H3v-2zm2-6h14v2H5v-2zm2-6h10v2H7V5z"/></svg>
+                AJUSTE
+            </a>
+
+            <!-- SALIDAS: fuerza TipoMovimiento=SALIDA -->
+            <a href="#" class="ua-btn ua-btn-edit" id="btnSalidas" title="Mostrar sólo SALIDAS">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5z"/></svg>
+                SALIDAS
+            </a>
+        </div>
+
+        <!-- Buscador global – mantiene Sort/Dir -->
+        <form method="get" asp-controller="Kardex" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+            <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+            <input name="SearchProducto" value="@Model.SearchProducto" placeholder="Buscar por producto o ID…" />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- =========================
+         Form oculto (estado para JS)
+         ========================= -->
+    <form id="uaFilterForm" method="get" asp-controller="Kardex" asp-action="Index">
+        <input type="hidden" name="SearchProducto" value="@Model.SearchProducto" />
+        <input type="hidden" name="TipoMovimiento" value="@Model.TipoMovimiento" />
+        <input type="hidden" name="Desde" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" name="Hasta" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" name="Referencia" value="@Model.Referencia" />
+        <input type="hidden" name="Page" value="1" />
+        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+        <input type="hidden" name="Sort" value="@(Model.Sort ?? "fecha")" />
+        <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+    </form>
+
+    <!-- =========================
+         Tabla principal (ua-table)
+         ========================= -->
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+            <thead>
+                <tr>
+                    <!-- Checkbox maestro -->
+                    <th class="ua-col-check text-center align-middle" style="width:48px;">
+                        <input type="checkbox" class="form-check-input" id="chkAll"
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                    </th>
+
+                    <!-- FECHA — orden + filtro (Desde/Hasta) -->
+                    <th style="width:200px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_fecha = NextDir("fecha", Model.Sort, Model.Dir);
+                                var href_fecha = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "fecha", Dir = next_fecha, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_fecha = (Model.Sort ?? "fecha").Equals("fecha", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_fecha ? "" : "inactive")" href="@href_fecha">
+                                <span class="ua-title">FECHA</span>
+                                <span class="ua-arrow">@Arrow("fecha", Model.Sort, Model.Dir)</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popFecha" title="Filtrar fechas">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popFecha" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <label class="ua-label">Desde</label>
+                                <input class="ua-input" type="date" id="fDesde" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+                                <label class="ua-label">Hasta</label>
+                                <input class="ua-input" type="date" id="fHasta" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearFecha()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyFecha()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- PRODUCTO — orden + filtro (usa SearchProducto) -->
+                    <th style="min-width:220px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_prod = NextDir("producto", Model.Sort, Model.Dir);
+                                var href_prod = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "producto", Dir = next_prod, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_prod = (Model.Sort ?? "fecha").Equals("producto", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_prod ? "" : "inactive")" href="@href_prod">
+                                <span class="ua-title">PRODUCTO</span>
+                                <span class="ua-arrow">@Arrow("producto", Model.Sort, Model.Dir)</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popProducto" title="Filtrar producto">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popProducto" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" id="fProducto" type="text" placeholder="ID o nombre…" value="@Model.SearchProducto" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearProducto()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyProducto()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- TIPO — orden + filtro (select) -->
+                    <th style="width:150px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_tipo = NextDir("tipo", Model.Sort, Model.Dir);
+                                var href_tipo = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "tipo", Dir = next_tipo, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_tipo = (Model.Sort ?? "fecha").Equals("tipo", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_tipo ? "" : "inactive")" href="@href_tipo">
+                                <span class="ua-title">TIPO</span>
+                                <span class="ua-arrow">@Arrow("tipo", Model.Sort, Model.Dir)</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popTipo" title="Filtrar tipo">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popTipo" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <select id="fTipo" class="ua-input">
+                                    <option value="">(Todos)</option>
+                                    <option value="ENTRADA" selected="@(Model.TipoMovimiento=="ENTRADA"?"selected":null)">Entrada</option>
+                                    <option value="SALIDA"  selected="@(Model.TipoMovimiento=="SALIDA" ?"selected":null)">Salida</option>
+                                    <option value="AJUSTE"  selected="@(Model.TipoMovimiento=="AJUSTE" ?"selected":null)">Ajuste</option>
+                                </select>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearTipo()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyTipo()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- CANTIDAD — orden -->
+                    <th class="text-end" style="width:130px;">
+                        <div class="ua-th">
+                            @{
+                                var next_cant = NextDir("cantidad", Model.Sort, Model.Dir);
+                                var href_cant = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "cantidad", Dir = next_cant, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_cant = (Model.Sort ?? "fecha").Equals("cantidad", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_cant ? "" : "inactive")" href="@href_cant">
+                                <span class="ua-title">CANTIDAD</span>
+                                <span class="ua-arrow">@Arrow("cantidad", Model.Sort, Model.Dir)</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- COSTO — orden -->
+                    <th class="text-end" style="width:150px;">
+                        <div class="ua-th">
+                            @{
+                                var next_cost = NextDir("costo", Model.Sort, Model.Dir);
+                                var href_cost = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "costo", Dir = next_cost, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_cost = (Model.Sort ?? "fecha").Equals("costo", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_cost ? "" : "inactive")" href="@href_cost">
+                                <span class="ua-title">COSTO Q</span>
+                                <span class="ua-arrow">@Arrow("costo", Model.Sort, Model.Dir)</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- REFERENCIA — orden + filtro (texto) -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_ref = NextDir("referencia", Model.Sort, Model.Dir);
+                                var href_ref = Url.Action("Index", "Kardex", new {
+                                    SearchProducto = Model.SearchProducto,
+                                    TipoMovimiento = Model.TipoMovimiento,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Referencia = Model.Referencia,
+                                    Sort = "referencia", Dir = next_ref, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_ref = (Model.Sort ?? "fecha").Equals("referencia", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_ref ? "" : "inactive")" href="@href_ref">
+                                <span class="ua-title">REFERENCIA</span>
+                                <span class="ua-arrow">@Arrow("referencia", Model.Sort, Model.Dir)</span>
+                            </a>
+                            <button type="button" class="ua-filter-btn" data-pop="popRef" title="Filtrar referencia">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popRef" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fRef" placeholder="Ej. CO00000021" value="@Model.Referencia" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearRef()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyRef()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+            @if (Model.Items == null || Model.Items.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox"></i> Sin resultados
+                </td></tr>
+            }
+            else
+            {
+                foreach (var x in Model.Items)
+                {
+                    <tr class="ua-rowitem" data-id="@x.PRODUCTO_ID">
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ua-rowchk" value="@x.PRODUCTO_ID" />
+                        </td>
+
+                        <td>@x.FECHA</td>
+
+                        <td>
+                            <div class="fw-semibold">@x.ProductoNombre</div>
+                            <div class="text-muted">@x.PRODUCTO_ID</div>
+                        </td>
+
+                        <td>
+                            @if (x.TIPO_MOVIMIENTO == "ENTRADA")
+                            { <span class="ua-badge-activo">Entrada</span> }
+                            else if (x.TIPO_MOVIMIENTO == "SALIDA")
+                            { <span class="ua-badge-alerta">Salida</span> }
+                            else
+                            { <span class="ua-badge-informativo">Ajuste</span> }
+                        </td>
+
+                        <td class="text-center">@x.CANTIDAD</td>
+                        <td class="text-center">@(x.COSTO_UNITARIO?.ToString("N2") ?? "-")</td>
+                        <td>@(x.REFERENCIA ?? "—")</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+
+        <!-- Por página (como en Inventario) -->
+        <div class="d-flex align-items-center ms-2">
+            <label class="me-2 small text-muted">Por página</label>
+            <select asp-for="PageSize"
+                    asp-items="Model.PageSizeOptions"
+                    class="form-select form-select-sm"
+                    style="width:90px"
+                    onchange="uaChangePageSize(this.value)">
+            </select>
+        </div>
+    </div>
+
+    <!-- =========================
+         Paginación (ua-pagination)
+         ========================= -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de kardex">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Kardex", new {
+                               SearchProducto = Model.SearchProducto,
+                               TipoMovimiento = Model.TipoMovimiento,
+                               Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                               Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                               Referencia = Model.Referencia,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = p, PageSize = Model.PageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Kardex", new {
+                               SearchProducto = Model.SearchProducto,
+                               TipoMovimiento = Model.TipoMovimiento,
+                               Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                               Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                               Referencia = Model.Referencia,
+                               Sort = Model.Sort, Dir = Model.Dir, Page = Model.Page + 1, PageSize = Model.PageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Styles{
+<style>
+    /* Igual que Inventario: evitar saltos raros */
+    .ua-table td, .ua-table th { white-space: nowrap; }
+
+    /* Badges consistentes con tus estilos */
+    .ua-badge-activo{ background:#198754; color:#fff; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
+    .ua-badge-alerta{ background:#dc3545; color:#fff; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
+    .ua-badge-informativo{ background:#0dcaf0; color:#1b1b1b; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
+</style>
+}
+
+@section Scripts{
+<script>
+/* =========================
+   POPovers abrir/cerrar (mismo patrón)
+   ========================= */
+(function() {
+    document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-pop');
+            const pop = document.getElementById(id);
+            const openNow = pop.classList.contains('open');
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+            if (!openNow) { pop.classList.add('open'); }
+        });
+    });
+    document.addEventListener('click', function(e){
+        if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+            document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+        }
+    });
+})();
+
+/* =========================
+   Helper: aplicar filtros/orden preservando query
+   ========================= */
+function submitFilter(params) {
+    const url = new URL(window.location.href);
+    const q = url.searchParams;
+    q.set('Page', '1'); // al filtrar/ordenar, volvemos a la primera página
+    Object.keys(params).forEach(k => {
+        if (params[k] === null || params[k] === '') q.delete(k);
+        else q.set(k, params[k]);
+    });
+    window.location.href = url.pathname + '?' + q.toString();
+}
+
+/* ===== Cambio de PageSize (igual que Inventario) ===== */
+function uaChangePageSize(size){
+    submitFilter({ PageSize: String(size) });
+}
+
+/* ===== Toolbar ===== */
+document.getElementById('btnEntradas')?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'ENTRADA' }); });
+document.getElementById('btnAjuste')?.addEventListener('click',   e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE'  }); });
+document.getElementById('btnSalidas')?.addEventListener('click',  e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'SALIDA'  }); });
+
+/* ===== Filtros de popover ===== */
+// Fecha
+function uaApplyFecha(){
+    const d = (document.getElementById('fDesde')?.value || '').trim();
+    const h = (document.getElementById('fHasta')?.value || '').trim();
+    submitFilter({ Desde: d || null, Hasta: h || null });
+}
+function uaClearFecha(){ submitFilter({ Desde: null, Hasta: null }); }
+
+// Producto
+function uaApplyProducto(){
+    const v = (document.getElementById('fProducto')?.value || '').trim();
+    submitFilter({ SearchProducto: v || null });
+}
+function uaClearProducto(){ submitFilter({ SearchProducto: null }); }
+
+// Tipo
+function uaApplyTipo(){
+    const v = (document.getElementById('fTipo')?.value || '').trim();
+    submitFilter({ TipoMovimiento: v || null });
+}
+function uaClearTipo(){ submitFilter({ TipoMovimiento: null }); }
+
+// Referencia
+function uaApplyRef(){
+    const v = (document.getElementById('fRef')?.value || '').trim();
+    submitFilter({ Referencia: v || null });
+}
+function uaClearRef(){ submitFilter({ Referencia: null }); }
+</script>
+}
