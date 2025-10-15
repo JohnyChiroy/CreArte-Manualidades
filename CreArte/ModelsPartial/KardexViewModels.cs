@@ -28,6 +28,7 @@ namespace CreArte.ModelsPartial
         public string PRODUCTO_ID { get; set; } = null!;
         public string ProductoNombre { get; set; } = null!;
         public string? ImagenUrl { get; set; }
+        public string? INVENTARIO_ID { get; set; }
         public KardexProductoFilterVM Filtros { get; set; } = new();
         public int SaldoInicial { get; set; }
         public List<KardexMovimientoVM> Movimientos { get; set; } = new();

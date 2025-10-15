@@ -9,26 +9,47 @@
 <div class="ua-card">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="m-0">Inventario de @Model.ProductoNombre</h2>
+
         <div>
+            <!-- Botón volver (lo mantengo tal cual) -->
             <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left"></i> Volver
             </a>
         </div>
     </div>
 
+    <!-- (Opcional) Alerta si el stock está igual o por debajo del mínimo -->
+    @* Mantiene tu estética Bootstrap; si no lo quieres, borra este bloque *@
+    @if (Model.STOCK_ACTUAL <= Model.STOCK_MINIMO)
+    {
+        <div class="alert alert-warning py-2">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            El stock está por debajo del mínimo (Actual: <strong>@Model.STOCK_ACTUAL</strong>,
+            Mínimo: <strong>@Model.STOCK_MINIMO</strong>).
+        </div>
+    }
+
     <div class="row g-3">
+        <!-- Columna imagen -->
         <div class="col-md-3 text-center">
             @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
             {
-                <img src="@Model.ImagenUrl" class="img-thumbnail" style="max-width:180px;max-height:180px;object-fit:cover" />
+                <img src="@Model.ImagenUrl"
+                     class="img-thumbnail"
+                     style="max-width:180px;max-height:180px;object-fit:cover" />
             }
             else
             {
-                <div class="border bg-light d-flex align-items-center justify-content-center" style="width:180px;height:180px;border-radius:8px;">—</div>
+                <div class="border bg-light d-flex align-items-center justify-content-center"
+                     style="width:180px;height:180px;border-radius:8px;">
+                    —
+                </div>
             }
         </div>
 
+        <!-- Columna datos -->
         <div class="col-md-9">
+            <!-- IDs + Estado -->
             <div class="row mb-2">
                 <div class="col-md-4">
                     <div class="text-muted small">Inventario ID</div>
@@ -46,12 +67,12 @@
                     }
                     else
                     {
-
                         <span class="badge bg-secondary">Inactivo</span>
                     }
                 </div>
             </div>
 
+            <!-- Métricas -->
             <div class="row mb-2">
                 <div class="col-md-3">
                     <div class="text-muted small">Stock actual</div>
@@ -71,15 +92,37 @@
                 </div>
             </div>
 
+            <!-- ===========================
+                 - Ver Kardex (producto)
+               =========================== -->
             <div class="d-flex gap-2 mt-3">
-                <a asp-action="AjusteEntrada" asp-route-productoId="@Model.PRODUCTO_ID" class="btn btn-success btn-sm">
+                <!-- ENTRADA -->
+                <a asp-action="AjusteEntrada"
+                   asp-route-productoId="@Model.PRODUCTO_ID"
+                   class="btn btn-success btn-sm">
                     <i class="bi bi-plus-circle"></i> Entrada
                 </a>
-                <a asp-action="AjusteSalida" asp-route-productoId="@Model.PRODUCTO_ID" class="btn btn-danger btn-sm">
+
+                <!-- SALIDA -->
+                <a asp-action="AjusteSalida"
+                   asp-route-productoId="@Model.PRODUCTO_ID"
+                   class="btn btn-danger btn-sm">
                     <i class="bi bi-dash-circle"></i> Salida
                 </a>
-                <!-- (Opcional) Enlace a vista Kardex del producto -->
-                <a asp-controller="Kardex" asp-action="Producto" asp-route-id="@Model.PRODUCTO_ID" class="btn btn-outline-secondary btn-sm">
+
+                <!-- AJUSTE PRECIO (no modifica stock) -->
+                <!-- Inventario/AjustePrecio?productoId=... -->
+                <a asp-action="AjustePrecio"
+                   asp-route-productoId="@Model.PRODUCTO_ID"
+                   class="btn btn-warning btn-sm text-dark">
+                    <i class="bi bi-currency-dollar"></i> Ajuste Precio
+                </a>
+
+                <!-- Ver Kardex del producto -->
+                <a asp-controller="Kardex"
+                   asp-action="Producto"
+                   asp-route-id="@Model.PRODUCTO_ID"
+                   class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-clock-history"></i> Ver Kardex
                 </a>
             </div>

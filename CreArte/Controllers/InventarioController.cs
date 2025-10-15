@@ -3,6 +3,7 @@ using CreArte.Models;
 using CreArte.ModelsPartial;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace CreArte.Controllers
 {
@@ -182,7 +183,7 @@ namespace CreArte.Controllers
                 var usuario = User?.Identity?.Name ?? "sistema";
                 var ahora = DateTime.Now;
 
-                // 1) Cargar o crear inventario del producto
+                // 1) Cargar o crear inventario
                 var inv = await _db.INVENTARIO
                     .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
 
@@ -203,32 +204,31 @@ namespace CreArte.Controllers
                     _db.INVENTARIO.Add(inv);
                 }
 
-                // 2) Actualizar stock y (si envías costo) actualizar COSTO_UNITARIO
+                // 2) Modificar stock y costo (opcional)
                 inv.STOCK_ACTUAL += vm.CANTIDAD;
-
-                // Respetando tu decisión: COSTO_UNITARIO puede ser 0 o null
                 if (vm.COSTO_UNITARIO.HasValue)
                     inv.COSTO_UNITARIO = vm.COSTO_UNITARIO.Value;
 
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
-                // 3) Registrar línea en KARDEX (ENTRADA)
+                // 3) Registrar línea en KARDEX (**AJUSTE ENTRADA**)
                 var kardex = new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = vm.PRODUCTO_ID,
                     FECHA = ahora,
-                    TIPO_MOVIMIENTO = "ENTRADA",
+                    TIPO_MOVIMIENTO = "AJUSTE ENTRADA",  // <- ANTES: "ENTRADA"
                     CANTIDAD = vm.CANTIDAD,
-                    COSTO_UNITARIO = vm.COSTO_UNITARIO, // puede ir 0 o null
-                    REFERENCIA = null,                   // no usaremos origen/ref_id
+                    COSTO_UNITARIO = vm.COSTO_UNITARIO,  // puede ir 0 o null
+                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(), // <- guarda Razón
                     USUARIO_CREACION = usuario,
                     FECHA_CREACION = ahora,
                     ESTADO = true,
                     ELIMINADO = false
                 };
                 _db.KARDEX.Add(kardex);
+
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
@@ -266,7 +266,7 @@ namespace CreArte.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AjusteSalida(InventarioAjusteVM vm, CancellationToken ct)
         {
-            // En SALIDA, ignoramos validación de costo (lo puedes usar o no)
+            // No exigimos COSTO en salida
             ModelState.Remove(nameof(vm.COSTO_UNITARIO));
             if (!ModelState.IsValid) return View(vm);
 
@@ -283,7 +283,7 @@ namespace CreArte.Controllers
                 if (inv == null)
                     throw new InvalidOperationException("No existe inventario para este producto.");
 
-                // 2) Validar y descontar
+                // 2) Validar stock
                 if (inv.STOCK_ACTUAL < vm.CANTIDAD)
                     throw new InvalidOperationException("Stock insuficiente para realizar la salida.");
 
@@ -291,23 +291,23 @@ namespace CreArte.Controllers
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
-                // 3) Registrar KARDEX (SALIDA)
+                // 3) Registrar KARDEX (**AJUSTE SALIDA**)
                 var kardex = new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = vm.PRODUCTO_ID,
                     FECHA = ahora,
-                    TIPO_MOVIMIENTO = "SALIDA",
+                    TIPO_MOVIMIENTO = "AJUSTE SALIDA",   // <- ANTES: "SALIDA"
                     CANTIDAD = vm.CANTIDAD,
-                    // Si quieres guardar costo también en SALIDA, puedes usar el costo actual del inventario:
-                    COSTO_UNITARIO = inv.COSTO_UNITARIO, // opcional
-                    REFERENCIA = null,
+                    COSTO_UNITARIO = inv.COSTO_UNITARIO, // opcional, referencia del costo vigente
+                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(), // <- guarda Razón
                     USUARIO_CREACION = usuario,
                     FECHA_CREACION = ahora,
                     ESTADO = true,
                     ELIMINADO = false
                 };
                 _db.KARDEX.Add(kardex);
+
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
@@ -318,6 +318,133 @@ namespace CreArte.Controllers
             catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(vm);
+            }
+        }
+
+        // =======================================================
+        // GET: /Inventario/AjustePrecio?productoId=PR00000001
+        // Muestra formulario para cambiar costo unitario.
+        // =======================================================
+        [HttpGet]
+        public async Task<IActionResult> AjustePrecio(string productoId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(productoId)) return NotFound();
+
+            // Traemos costo actual (si hay inventario)
+            var inv = await _db.INVENTARIO
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.PRODUCTO_ID == productoId && i.ELIMINADO == false, ct);
+
+            var vm = new InventarioAjustePrecioVM
+            {
+                PRODUCTO_ID = productoId,
+                CostoActual = inv?.COSTO_UNITARIO ?? 0
+            };
+
+            return View(vm); 
+        }
+
+        // POST: /Inventario/AjustePrecio
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> AjustePrecio(InventarioAjustePrecioVM vm, CancellationToken ct)
+        {
+            // 1) Este campo es solo informativo: que no bloquee el POST
+            ModelState.Remove(nameof(InventarioAjustePrecioVM.CostoActual));
+
+            // 2) Si falló el parseo del número por tema de coma/punto, inténtalo manualmente
+            if (!ModelState.IsValid)
+            {
+                var raw = Request.Form[nameof(InventarioAjustePrecioVM.NuevoCostoUnitario)];
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    // Intenta con cultura actual (ej. es-ES usa coma)
+                    if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.CurrentCulture, out var v1))
+                    {
+                        vm.NuevoCostoUnitario = v1;
+                        ModelState.Clear(); // ya lo resolvimos, limpiamos errores de binding
+                    }
+                    else if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var v2))
+                    {
+                        vm.NuevoCostoUnitario = v2;
+                        ModelState.Clear();
+                    }
+                }
+            }
+
+            if (!ModelState.IsValid)
+            {
+                // 3) Si aún hay errores, recarga el costo actual para no mostrar 0.00
+                var invNow = await _db.INVENTARIO
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
+
+                vm.CostoActual = invNow?.COSTO_UNITARIO ?? 0m;
+                return View(vm);
+            }
+
+            // ======== LÓGICA ORIGINAL (sin cambios) ========
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var usuario = User?.Identity?.Name ?? "sistema";
+                var ahora = DateTime.Now;
+
+                var inv = await _db.INVENTARIO
+                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
+
+                if (inv == null)
+                {
+                    inv = new INVENTARIO
+                    {
+                        INVENTARIO_ID = Guid.NewGuid().ToString("N")[..10],
+                        PRODUCTO_ID = vm.PRODUCTO_ID,
+                        STOCK_ACTUAL = 0,
+                        STOCK_MINIMO = 0,
+                        COSTO_UNITARIO = 0,
+                        ESTADO = true,
+                        ELIMINADO = false,
+                        USUARIO_CREACION = usuario,
+                        FECHA_CREACION = ahora
+                    };
+                    _db.INVENTARIO.Add(inv);
+                }
+
+                inv.COSTO_UNITARIO = vm.NuevoCostoUnitario;
+                inv.USUARIO_MODIFICACION = usuario;
+                inv.FECHA_MODIFICACION = ahora;
+
+                _db.KARDEX.Add(new KARDEX
+                {
+                    KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
+                    PRODUCTO_ID = vm.PRODUCTO_ID,
+                    FECHA = ahora,
+                    TIPO_MOVIMIENTO = "AJUSTE PRECIO",
+                    CANTIDAD = 0,
+                    COSTO_UNITARIO = vm.NuevoCostoUnitario,
+                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(),
+                    USUARIO_CREACION = usuario,
+                    FECHA_CREACION = ahora,
+                    ESTADO = true,
+                    ELIMINADO = false
+                });
+
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+
+                TempData["ok"] = "Ajuste de precio realizado correctamente.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync(ct);
+                // Recarga costo actual para no mostrar 0
+                var invNow = await _db.INVENTARIO
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
+                vm.CostoActual = invNow?.COSTO_UNITARIO ?? 0m;
+
                 ModelState.AddModelError(string.Empty, ex.Message);
                 return View(vm);
             }

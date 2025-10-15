@@ -29,19 +29,19 @@
 
         <div class="d-flex align-items-center gap-2">
             <!-- ENTRADAS: fuerza TipoMovimiento=ENTRADA -->
-            <a href="#" class="ua-btn ua-btn-new" id="btnEntradas" title="Mostrar sólo ENTRADAS">
+            <a href="#" class="ua-btn btn-agregate" id="btnEntradas" title="Mostrar sólo ENTRADAS">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 ENTRADAS
             </a>
 
             <!-- AJUSTE: fuerza TipoMovimiento=AJUSTE -->
-            <a href="#" class="ua-btn ua-btn-view" id="btnAjuste" title="Mostrar sólo AJUSTES">
+            <a href="#" class="ua-btn btn-enviado" id="btnAjuste" title="Mostrar sólo AJUSTES">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h18v2H3v-2zm2-6h14v2H5v-2zm2-6h10v2H7V5z"/></svg>
                 AJUSTE
             </a>
 
             <!-- SALIDAS: fuerza TipoMovimiento=SALIDA -->
-            <a href="#" class="ua-btn ua-btn-edit" id="btnSalidas" title="Mostrar sólo SALIDAS">
+            <a href="#" class="ua-btn btn-anular" id="btnSalidas" title="Mostrar sólo SALIDAS">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5z"/></svg>
                 SALIDAS
             </a>
@@ -293,11 +293,11 @@
 
                         <td>
                             @if (x.TIPO_MOVIMIENTO == "ENTRADA")
-                            { <span class="ua-badge-activo">Entrada</span> }
+                            { <span class="badge bg-apro">Entrada</span> }
                             else if (x.TIPO_MOVIMIENTO == "SALIDA")
-                            { <span class="ua-badge-alerta">Salida</span> }
+                            { <span class="badge bg-anu">Salida</span> }
                             else
-                            { <span class="ua-badge-informativo">Ajuste</span> }
+                            { <span class="badge bg-envi">Ajuste</span> }
                         </td>
 
                         <td class="text-center">@x.CANTIDAD</td>
@@ -360,18 +360,6 @@
         </nav>
     }
 </div>
-
-@section Styles{
-<style>
-    /* Igual que Inventario: evitar saltos raros */
-    .ua-table td, .ua-table th { white-space: nowrap; }
-
-    /* Badges consistentes con tus estilos */
-    .ua-badge-activo{ background:#198754; color:#fff; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
-    .ua-badge-alerta{ background:#dc3545; color:#fff; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
-    .ua-badge-informativo{ background:#0dcaf0; color:#1b1b1b; border-radius:12px; padding:.25rem .5rem; font-size:.8rem; }
-</style>
-}
 
 @section Scripts{
 <script>

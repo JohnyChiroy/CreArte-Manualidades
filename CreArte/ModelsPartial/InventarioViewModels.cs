@@ -70,18 +70,45 @@ namespace CreArte.ModelsPartial
     {
         [Required] public string PRODUCTO_ID { get; set; } = null!;
 
-        // Usaremos solo estos tres valores
+        // Usaremos estos valores: ENTRADA | SALIDA  (y seguimos soportando "AJUSTE" si hicieras algo puntual)
         [Required, RegularExpression("ENTRADA|SALIDA|AJUSTE")]
         public string TIPO_MOVIMIENTO { get; set; } = "AJUSTE";
 
         [Required, Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser > 0")]
         public int CANTIDAD { get; set; }
 
-        // Para ENTRADA puedes dejarlo en 0 o null (según tu política), aquí no forzamos validación
+        // Para ENTRADA puedes dejarlo en 0 o null; en SALIDA no lo exigimos.
         public decimal? COSTO_UNITARIO { get; set; }
 
-        // Campo opcional para mostrar/guardar una nota si luego lo necesitas (no se inserta en BD)
-        [StringLength(300)]
-        public string? Observacion { get; set; }
+        // este es el campo que se grabará en KARDEX.REFERENCIA
+        //[Display(Name = "Razón"), StringLength(300)]
+        //public string? Razon { get; set; }
+
+        [Display(Name = "Razón"), StringLength(300)]
+        [Required(ErrorMessage = "La razón es obligatoria.")]
+        public string? Razon { get; set; }
+    }
+
+    // ===================== AJUSTE DE PRECIO =====================
+    //No modifica stock, SOLO cambia el costo en INVENTARIO
+    //Inserta en KARDEX TIPO_MOVIMIENTO = "AJUSTE PRECIO" con CANTIDAD=0
+    public class InventarioAjustePrecioVM
+    {
+        [Required] public string PRODUCTO_ID { get; set; } = null!;
+
+        // (Opcional para mostrar en la vista; no es obligatorio tenerlo)
+        [Display(Name = "Costo actual")]
+        public decimal? CostoActual { get; set; }
+
+        [Required, Display(Name = "Nuevo costo unitario")]
+        [Range(0, double.MaxValue, ErrorMessage = "El costo no puede ser negativo.")]
+        public decimal NuevoCostoUnitario { get; set; }
+
+        //[Display(Name = "Razón"), StringLength(300)]
+        //public string? Razon { get; set; }
+
+        [Display(Name = "Razón"), StringLength(300)]
+        [Required(ErrorMessage = "La razón es obligatoria.")]
+        public string? Razon { get; set; }
     }
 }

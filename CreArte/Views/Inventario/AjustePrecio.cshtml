@@ -1,0 +1,60 @@
+﻿@model CreArte.ModelsPartial.InventarioAjustePrecioVM
+@{
+    ViewData["Title"] = "Ajuste de Precio";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-3">
+    <h3 class="mb-3">Ajuste de Precio (sin mover stock)</h3>
+
+    <!-- Formulario: POST /Inventario/AjustePrecio -->
+    <form asp-action="AjustePrecio" method="post" class="row g-3">
+
+        @Html.AntiForgeryToken()
+
+        <!-- PRODUCTO_ID (readonly visible + hidden real) -->
+        <div class="col-md-4">
+            <label class="form-label">Producto ID</label>
+            <input class="form-control" value="@Model.PRODUCTO_ID" readonly />
+            <input type="hidden" asp-for="PRODUCTO_ID" />
+        </div>
+
+        <!-- COSTO ACTUAL (solo lectura informativo) -->
+        <div class="col-md-4">
+            <label class="form-label">Costo actual</label>
+            @* <input class="form-control" value="@Model.CostoActual.ToString("N2")" readonly /> *@
+            <input class="form-control" value="@((Model.CostoActual ?? 0m).ToString("N2"))" readonly />
+        </div>
+
+        <!-- NUEVO COSTO UNITARIO -->
+        <div class="col-md-4">
+            @* <label asp-for="NuevoCostoUnitario" class="form-label"></label>
+            <input asp-for="NuevoCostoUnitario" class="form-control" />
+            <span asp-validation-for="NuevoCostoUnitario" class="text-danger"></span> *@
+            <label asp-for="NuevoCostoUnitario" class="form-label"></label>
+            <input asp-for="NuevoCostoUnitario"
+                   class="form-control"
+                   type="number"
+                   step="0.01"
+                   inputmode="decimal" />
+            <span asp-validation-for="NuevoCostoUnitario" class="text-danger"></span>
+        </div>
+
+        <!-- RAZÓN -->
+        <div class="col-12">
+            <label asp-for="Razon" class="form-label"></label>
+            <textarea asp-for="Razon" class="form-control" rows="3"
+                      placeholder="Ej.: Actualización por lista del proveedor, redondeo de costos, etc."></textarea>
+            <span asp-validation-for="Razon" class="text-danger"></span>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar ajuste de precio</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

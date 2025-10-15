@@ -4,43 +4,42 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<div class="ua-card">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="m-0">Ajuste de Salida</h2>
-        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
-    </div>
+<div class="container py-3">
+    <h3 class="mb-3">Ajuste de Salida</h3>
 
-    <form asp-action="AjusteSalida" method="post" autocomplete="off">
+    <!-- Formulario: POST /Inventario/AjusteSalida -->
+    <form asp-action="AjusteSalida" method="post" class="row g-3">
+
         @Html.AntiForgeryToken()
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        <input type="hidden" asp-for="TIPO_MOVIMIENTO" />
+        <!-- PRODUCTO_ID (solo lectura) -->
+        <div class="col-md-6">
+            <label class="form-label">Producto ID</label>
+            <input class="form-control" value="@Model.PRODUCTO_ID" readonly />
+            <input type="hidden" asp-for="PRODUCTO_ID" />
+        </div>
 
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Producto ID</label>
-                <input class="form-control" asp-for="PRODUCTO_ID" readonly />
-            </div>
+        <!-- TIPO_MOVIMIENTO fijo (SALIDA) -->
+        <input type="hidden" asp-for="TIPO_MOVIMIENTO" value="SALIDA" />
 
-            <div class="col-md-4">
-                <label class="form-label">Cantidad (unidades)</label>
-                <input class="form-control" asp-for="CANTIDAD" type="number" min="1" step="1" />
-                <span class="text-danger" asp-validation-for="CANTIDAD"></span>
-            </div>
+        <!-- CANTIDAD -->
+        <div class="col-md-6">
+            <label asp-for="CANTIDAD" class="form-label"></label>
+            <input asp-for="CANTIDAD" class="form-control" />
+            <span asp-validation-for="CANTIDAD" class="text-danger"></span>
+        </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Costo unitario (opcional)</label>
-                <input class="form-control" asp-for="COSTO_UNITARIO" type="number" min="0" step="0.01" />
-                <small class="text-muted">Si lo dejas vacío/0, se usará el costo actual del inventario.</small>
-            </div>
+        <!-- RAZÓN -->
+        <div class="col-12">
+            <label asp-for="Razon" class="form-label"></label>
+            <textarea asp-for="Razon" class="form-control" rows="3"
+                      placeholder="Ej.: Ajuste por merma, daño, obsolescencia, etc."></textarea>
+            <span asp-validation-for="Razon" class="text-danger"></span>
+        </div>
 
-            <div class="col-12">
-                <button class="btn btn-primary">
-                    <i class="bi bi-dash-circle"></i> Registrar salida
-                </button>
-            </div>
+        <div class="col-12 d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar ajuste</button>
         </div>
     </form>
 </div>

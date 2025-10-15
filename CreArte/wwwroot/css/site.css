@@ -612,3 +612,14 @@ textarea:disabled {
     background-color: #C5D930 !important;
     color: black !important;
 }
+
+/* cuadro de imagen para kardex*/
+.ua-img-thumb-tgrande {
+    width: 160px;
+    height: 160px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}

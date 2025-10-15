@@ -5,177 +5,308 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<div class="ua-card">
-    <!-- Encabezado -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="m-0">Kardex – @Model.ProductoNombre</h2>
+<div class="container-fluid py-3">
+    <!-- =======================================================
+         Toolbar (mismo look&feel UA pero sin cambiar tu backend)
+         ======================================================= -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Kardex - @Model.PRODUCTO_ID – @Model.ProductoNombre</h2>
         <div>
-            <a asp-controller="Inventario" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            @* <a asp-controller="Inventario" asp-action="Index" class="btn btn-enviado">
                 <i class="bi bi-arrow-left"></i> Volver a Inventario
-            </a>
+            </a> *@
+                @if (!string.IsNullOrWhiteSpace(Model.INVENTARIO_ID))
+    {
+        <!-- Ruta directa a Details -->
+        <a asp-controller="Inventario"
+           asp-action="Details"
+           asp-route-id="@Model.INVENTARIO_ID"
+           class="btn btn-enviado">
+            <i class="bi bi-box-seam"></i> Volver a Inventario
+        </a>
+    }
+    else
+    {
+        <!-- Fallback: ir al Index de Inventario filtrando por PRODUCTO_ID -->
+        <a asp-controller="Inventario"
+           asp-action="Index"
+           asp-route-Search="@Model.PRODUCTO_ID"
+           class="btn btn-enviado">
+            <i class="bi bi-box-seam"></i> Volver a Inventario
+        </a>
+    }
         </div>
     </div>
 
-    <!-- Info de producto -->
-    <div class="row g-3 mb-2">
-        <div class="col-md-2 text-center">
-            @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
-            {
-                <img src="@Model.ImagenUrl" class="img-thumbnail" style="max-width:120px;max-height:120px;object-fit:cover" />
-            }
-            else
-            {
-                <div class="border bg-light d-flex align-items-center justify-content-center"
-                     style="width:120px;height:120px;border-radius:8px;">
-                    —
-                </div>
-            }
-        </div>
-        <div class="col-md-10">
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="text-muted small">Producto ID</div>
-                    <div class="fw-semibold">@Model.PRODUCTO_ID</div>
-                </div>
-                <div class="col-md-3">
-                    <div class="text-muted small">Saldo inicial</div>
-                    <div class="fw-semibold">@Model.SaldoInicial</div>
-                </div>
-                <div class="col-md-6">
-                    <div class="text-muted small">Rango:</div>
-                    <div class="fw-semibold">
-                        @((Model.Filtros.Desde?.ToString("dd/MM/yyyy")) ?? "—")
-                        &nbsp;al&nbsp;
-                        @((Model.Filtros.Hasta?.ToString("dd/MM/yyyy")) ?? "—")
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Filtros -->
-    <form method="get" asp-action="Producto" class="row gy-2 gx-2 align-items-end mb-3">
-        <input type="hidden" name="id" value="@Model.PRODUCTO_ID" />
-        <div class="col-md-3">
-            <label class="form-label">Desde</label>
-            <input type="date" class="form-control" name="desde" value="@(Model.Filtros.Desde?.ToString("yyyy-MM-dd"))" />
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Hasta</label>
-            <input type="date" class="form-control" name="hasta" value="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))" />
-        </div>
-        <div class="col-md-2 d-grid">
-            <button class="btn btn-primary">
-                <i class="bi bi-search"></i> Filtrar
-            </button>
-        </div>
-        @* boton exportar *@
-        <div class="col-md-4 text-end">
-            <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                <i class="bi bi-printer"></i> Imprimir
+
+@*         <!-- Derecha: Imprimir / CSV (conservan filtros) -->
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="ua-btn" onclick="window.print()" title="Imprimir">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 8H5V3h14v5zm0 2a3 3 0 0 1 3 3v5h-4v3H6v-3H2v-5a3 3 0 0 1 3-3h14zm-4 9v-3H9v3h6z" /></svg>
+                IMPRIMIR
             </button>
 
-            <!-- Exportar CSV conservando los filtros actuales -->
-            <a class="btn btn-outline-primary"
+            <a class="ua-btn ua-btn-view"
                asp-action="ProductoCsv"
                asp-route-id="@Model.PRODUCTO_ID"
                asp-route-desde="@(Model.Filtros.Desde?.ToString("yyyy-MM-dd"))"
-               asp-route-hasta="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))">
-                <i class="bi bi-filetype-csv"></i> Exportar CSV
+               asp-route-hasta="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))"
+               title="Exportar CSV">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v12h2V4h8V2zm3 4h-7a2 2 0 0 0-2 2v12l5-3 5 3V8a2 2 0 0 0-2-2z" /></svg>
+                CSV
             </a>
-        </div>
-    </form>
-
-    <!-- Totales del rango -->
-    <div class="row g-3 mb-2">
-        <div class="col-md-3">
-            <div class="ua-stat p-3 border rounded-3">
-                <div class="text-muted small">Entradas</div>
-                <div class="fs-5 fw-semibold">@Model.TotalEntradas</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="ua-stat p-3 border rounded-3">
-                <div class="text-muted small">Salidas</div>
-                <div class="fs-5 fw-semibold">@Model.TotalSalidas</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="ua-stat p-3 border rounded-3">
-                <div class="text-muted small">Ajustes</div>
-                <div class="fs-5 fw-semibold">@Model.TotalAjustes</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="ua-stat p-3 border rounded-3">
-                <div class="text-muted small">Saldo final</div>
-                <div class="fs-5 fw-semibold">@Model.SaldoFinal</div>
-            </div>
-        </div>
+        </div> *@
     </div>
 
-    <!-- Tabla -->
-    <div class="table-responsive">
-        <table class="table align-middle ua-table">
-            <thead class="table-light">
-                <tr>
-                    <th style="width: 160px;">Fecha</th>
-                    <th style="width: 110px;">Tipo</th>
-                    <th class="text-end" style="width: 110px;">Cantidad</th>
-                    <th class="text-end" style="width: 140px;">Costo Q</th>
-                    <th>Referencia</th>
-                    <th class="text-end" style="width: 140px;">Saldo</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (Model.Movimientos.Count == 0)
+    <!-- =======================================================
+         Cabecera con datos del producto (visual coherente UA)
+         ======================================================= -->
+        <div class="row g-3 align-items-center">
+            <div class="col-md-2 text-center">
+                @* Miniatura con el mismo tamaño/estilo que en otras vistas *@
+                @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
                 {
-                    <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos en el rango.</td></tr>
+                <img src="@Model.ImagenUrl" class="img-thumbnail ua-img-thumb-tgrande" alt="img @Model.ProductoNombre" />
                 }
                 else
                 {
-                    // Fila de saldo inicial (informativa)
-                    <tr class="table-secondary">
-                        <td colspan="5" class="text-end fw-semibold">Saldo inicial</td>
-                        <td class="text-end fw-semibold">@Model.SaldoInicial</td>
-                    </tr>
-
-                    foreach (var m in Model.Movimientos)
-                    {
-                        <tr>
-                            <td>@m.FECHA</td>
-                            <td>
-                                @if (m.TIPO_MOVIMIENTO == "ENTRADA")
-                                {
-                                    <span class="badge bg-success">Entrada</span>
-                                }
-                                else if (m.TIPO_MOVIMIENTO == "SALIDA")
-                                {
-
-                                    <span class="badge bg-danger">Salida</span>
-                                }
-                                else
-                                {
-
-                                    <span class="badge bg-info text-dark">Ajuste</span>
-                                }
-                            </td>
-                            <td class="text-end">@m.CANTIDAD</td>
-                            <td class="text-end">@(m.COSTO_UNITARIO?.ToString("N2") ?? "-")</td>
-                            <td>@(m.REFERENCIA ?? "—")</td>
-                            <td class="text-end fw-semibold">@m.SALDO_ACUMULADO</td>
-                        </tr>
-                    }
+                    <div class="ua-img-thumb d-flex align-items-center justify-content-center">—</div>
                 }
-            </tbody>
+            </div>
+
+            <div class="col-md-10">
+               @*  <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-muted">Producto</div>
+                        <div class="fw-semibold">@Model.ProductoNombre</div>
+                        <div class="text-muted">@Model.PRODUCTO_ID</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted">EXISTENCIA INICIAL</div>
+                        <div class="fw-semibold">@Model.SaldoInicial</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted">Rango</div>
+                        <div class="fw-semibold">
+                            @((Model.Filtros.Desde?.ToString("dd/MM/yyyy")) ?? "—")
+                            &nbsp;al&nbsp;
+                            @((Model.Filtros.Hasta?.ToString("dd/MM/yyyy")) ?? "—")
+                        </div>
+                    </div>
+                </div> *@
+        <div class="row g-3 my-3 justify-content-rigth text-center">
+            <div class="col-6 col-md-2">
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#03C1FF">
+                    <div class="small" style="color:white">Entradas</div>
+                    <div class="fs-5 fw-semibold" style="color:white">@Model.TotalEntradas</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#332973">
+                    <div class="small" style="color:white">Salidas</div>
+                    <div class="fs-5 fw-semibold" style="color:white">@Model.TotalSalidas</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#F2B90F">
+                    <div class="small">Ajustes</div>
+                    <div class="fs-5 fw-semibold">@Model.TotalAjustes</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#23B6B1">
+                    <div class="small" style="color:white">Saldo final</div>
+                    <div class="fs-5 fw-semibold" style="color:white">@Model.SaldoFinal</div>
+                </div>
+            </div>
+        </div>
+            </div>
+        </div>
+
+    <!-- =======================================================
+         Totales (cards compactas)
+         ======================================================= -->
+
+    <!-- =======================================================
+         Tabla con filtro en encabezado (sólo FECHA, porque el
+         controller acepta únicamente id/desde/hasta)
+         ======================================================= -->
+    <div class="table-responsive">
+        <table class="table ua-table align-middle">
+            <thead>
+                <tr>
+                    <!-- FECHA — filtro popover -->
+                    <th style="width: 200px;">
+                        <div class="ua-th ua-popover-wrap">
+                            <span class="ua-title">FECHA</span>
+                            <!-- Botón filtro (popover UA) -->
+                            <button type="button" class="ua-filter-btn" data-pop="popFecha" title="Filtrar por fechas">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z" /></svg>
+                            </button>
+                            <!-- Contenido del popover -->
+                            <div id="popFecha" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <label class="ua-label">Desde</label>
+                                <input class="ua-input" type="date" id="fDesde" value="@(Model.Filtros.Desde?.ToString("yyyy-MM-dd"))" />
+                                <label class="ua-label">Hasta</label>
+                                <input class="ua-input" type="date" id="fHasta" value="@(Model.Filtros.Hasta?.ToString("yyyy-MM-dd"))" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearFecha()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyFecha()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- TIPO (solo display; no filtro/orden para no romper backend) -->
+                    <th style="width: 110px;">
+                        <div class="ua-th"><span class="ua-title">TIPO</span></div>
+                    </th>
+
+                    <!-- CANTIDAD (display) -->
+                    <th class="text-end" style="width: 110px;">
+                        <div class="ua-th"><span class="ua-title">CANTIDAD</span></div>
+                    </th>
+
+                    <!-- COSTO (display) -->
+                    <th class="text-end" style="width: 140px;">
+                        <div class="ua-th"><span class="ua-title">COSTO Q</span></div>
+                    </th>
+
+                    <!-- REFERENCIA (display) -->
+                    <th>
+                        <div class="ua-th"><span class="ua-title">REFERENCIA</span></div>
+                    </th>
+
+                    <!-- SALDO (display) -->
+                    <th class="text-end" style="width: 140px;">
+                        <div class="ua-th"><span class="ua-title">EXISTENCIA</span></div>
+                    </th>
+                </tr>
+            </thead>
+
+        <tbody>
+            @if (Model.Movimientos == null || Model.Movimientos.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox"></i> Sin movimientos en el rango.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var m in Model.Movimientos)
+                {
+                    string badgeClass;
+                    string badgeText;
+
+                    switch (m.TIPO_MOVIMIENTO)
+                    {
+                        case "ENTRADA":
+                            badgeClass = "bg-primary";
+                            badgeText = "Entrada";
+                            break;
+                        case "SALIDA":
+                            badgeClass = "bg-danger";
+                            badgeText = "Salida";
+                            break;
+                        case "AJUSTE ENTRADA":
+                            badgeClass = "bg-info text-dark";
+                            badgeText = "Ajuste Entrada";
+                            break;
+                        case "AJUSTE SALIDA":
+                            badgeClass = "bg-warning text-dark";
+                            badgeText = "Ajuste Salida";
+                            break;
+                        case "AJUSTE PRECIO":
+                            badgeClass = "bg-secondary";
+                            badgeText = "Ajuste Precio";
+                            break;
+                        default:
+                            badgeClass = "bg-light text-dark border";
+                            badgeText = m.TIPO_MOVIMIENTO;
+                            break;
+                    }
+
+                    <tr>
+                        <td>@m.FECHA.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><span class="badge @badgeClass">@badgeText</span></td>
+                        <td class="text-center">
+                            @if (m.CANTIDAD == 0)
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                            else
+                            {
+                                @m.CANTIDAD
+                            }
+                        </td>
+                        <td class="text-center">@(m.COSTO_UNITARIO?.ToString("N2") ?? "-")</td>
+                        <td>@(string.IsNullOrWhiteSpace(m.REFERENCIA) ? "—" : m.REFERENCIA)</td>
+                        <td class="text-center fw-semibold">@m.SALDO_ACUMULADO</td>
+                    </tr>
+                }
+            }
+        </tbody>
+
         </table>
     </div>
-</div>
 
-@section Styles {
-    <style>
-        .ua-stat {
-            background: #fafafa;
+@section Scripts {
+    <script>
+        /* =======================================================
+           POPovers abrir/cerrar — patrón común UA
+           ======================================================= */
+        (function() {
+            document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-pop');
+                    const pop = document.getElementById(id);
+                    const openNow = pop.classList.contains('open');
+                    document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+                    if (!openNow) { pop.classList.add('open'); }
+                });
+            });
+            document.addEventListener('click', function(e){
+                if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+                    document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+                }
+            });
+        })();
+
+        /* =======================================================
+           Helper: enviar filtros preservando sólo lo que soporta
+           tu acción /Kardex/Producto (id, desde, hasta).
+           ======================================================= */
+        function submitFilter(params) {
+            // Construimos la URL con los parámetros permitidos
+            const url = new URL(window.location.href);
+            const q = url.searchParams;
+
+            // Siempre preservamos el id del producto
+            q.set('id', '@Model.PRODUCTO_ID');
+
+            // Aplica cambios entrantes (desde/hasta)
+            Object.keys(params).forEach(k => {
+                if (params[k] === null || params[k] === '') q.delete(k);
+                else q.set(k, params[k]);
+            });
+
+            // Navega a /Kardex/Producto con la query resultante
+            url.pathname = '@Url.Action("Producto", "Kardex")';
+            window.location.href = url.pathname + '?' + q.toString();
         }
-    </style>
+
+        /* =======================================================
+           Filtro FECHA (desde/hasta)
+           ======================================================= */
+        function uaApplyFecha(){
+            const d = (document.getElementById('fDesde')?.value || '').trim();
+            const h = (document.getElementById('fHasta')?.value || '').trim();
+            submitFilter({ desde: d || null, hasta: h || null });
+        }
+        function uaClearFecha(){ submitFilter({ desde: null, hasta: null }); }
+    </script>
 }

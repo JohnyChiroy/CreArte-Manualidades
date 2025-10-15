@@ -31,6 +31,13 @@ namespace CreArte.Controllers
 
             if (prod == null) return NotFound();
 
+        //     Regla: tomamos el inventario más “reciente” por FECHA_MODIFICACION o FECHA_CREACION
+         var invId = await _db.INVENTARIO
+        .Where(i => i.PRODUCTO_ID == id && !i.ELIMINADO)
+        .OrderByDescending(i => i.FECHA_MODIFICACION ?? i.FECHA_CREACION)
+        .Select(i => i.INVENTARIO_ID)
+        .FirstOrDefaultAsync();
+
             // 2) Rango de fechas normalizado
             //    - Si no se envía, usamos todo el histórico
             //    - Hasta incluye el día completo
@@ -48,9 +55,12 @@ namespace CreArte.Controllers
                     .Select(k => new { k.TIPO_MOVIMIENTO, k.CANTIDAD })
                     .ToListAsync();
 
-                saldoInicial = prev.Sum(m => m.TIPO_MOVIMIENTO == "SALIDA"
-                                             ? -m.CANTIDAD
-                                             : +m.CANTIDAD); // ENTRADA/AJUSTE suman
+                // Nuevo mapeo de signo por tipo
+                saldoInicial = prev.Sum(m =>
+                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
+                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
+                    0 // AJUSTE PRECIO u otros no afectan stock
+                );
             }
             else
             {
@@ -79,19 +89,26 @@ namespace CreArte.Controllers
                 .ToListAsync();
 
             // 5) Totales + saldo acumulado por línea (en memoria)
-            int totalE = 0, totalS = 0, totalA = 0;
+            int totalE = 0, totalS = 0, totalA = 0; // TotalA = puedes usarlo para contar ajustes precio si quieres
             int saldoAcum = saldoInicial;
 
             var filas = new List<KardexMovimientoVM>(movs.Count);
             foreach (var m in movs)
             {
-                // Actualizar totales
-                if (m.TIPO_MOVIMIENTO == "ENTRADA") totalE += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "SALIDA") totalS += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "AJUSTE") totalA += m.CANTIDAD;
+                // Totales por tipo (AJUSTE PRECIO no cambia cantidades)
+                if (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA")
+                    totalE += m.CANTIDAD;
+                else if (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA")
+                    totalS += m.CANTIDAD;
+                else if (m.TIPO_MOVIMIENTO == "AJUSTE PRECIO")
+                    totalA += 0; // si quieres contarlos, crea TotalAjustesPrecio aparte
 
-                // Calcular saldo acumulado después de aplicar esta línea
-                int delta = m.TIPO_MOVIMIENTO == "SALIDA" ? -m.CANTIDAD : +m.CANTIDAD;
+                // Saldo acumulado (AJUSTE PRECIO = 0)
+                int delta =
+                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
+                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
+                    0;
+
                 saldoAcum += delta;
 
                 filas.Add(new KardexMovimientoVM
@@ -112,6 +129,7 @@ namespace CreArte.Controllers
                 PRODUCTO_ID = prod.PRODUCTO_ID,
                 ProductoNombre = prod.PRODUCTO_NOMBRE,
                 ImagenUrl = prod.IMAGEN_PRODUCTO,
+                INVENTARIO_ID = invId,
                 Filtros = new KardexProductoFilterVM { PRODUCTO_ID = id, Desde = desde, Hasta = hasta },
                 SaldoInicial = saldoInicial,
                 Movimientos = filas,
@@ -138,6 +156,13 @@ namespace CreArte.Controllers
             if (prod == null)
                 throw new InvalidOperationException("Producto no encontrado.");
 
+            //Traer INVENTARIO_ID para el botón de regreso
+            var invId = await _db.INVENTARIO
+                .Where(i => i.PRODUCTO_ID == id && !i.ELIMINADO)
+                .OrderByDescending(i => i.FECHA_MODIFICACION ?? i.FECHA_CREACION)
+                .Select(i => i.INVENTARIO_ID)
+                .FirstOrDefaultAsync(ct);
+
             // 2) Normalización de fechas
             DateTime? fDesde = desde?.Date;
             DateTime? fHasta = hasta?.Date.AddDays(1).AddTicks(-1);
@@ -151,7 +176,12 @@ namespace CreArte.Controllers
                     .Select(k => new { k.TIPO_MOVIMIENTO, k.CANTIDAD })
                     .ToListAsync(ct);
 
-                saldoInicial = prev.Sum(m => m.TIPO_MOVIMIENTO == "SALIDA" ? -m.CANTIDAD : +m.CANTIDAD);
+                // 👇 Nuevo mapeo de signo por tipo
+                saldoInicial = prev.Sum(m =>
+                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
+                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
+                    0
+                );
             }
 
             // 4) Movimientos del rango
@@ -171,11 +201,20 @@ namespace CreArte.Controllers
 
             foreach (var m in movs)
             {
-                if (m.TIPO_MOVIMIENTO == "ENTRADA") totalE += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "SALIDA") totalS += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "AJUSTE") totalA += m.CANTIDAD;
+                // 👇 Totales por tipo
+                if (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA")
+                    totalE += m.CANTIDAD;
+                else if (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA")
+                    totalS += m.CANTIDAD;
+                else if (m.TIPO_MOVIMIENTO == "AJUSTE PRECIO")
+                    totalA += 0; // opcional: agregar contador específico
 
-                int delta = m.TIPO_MOVIMIENTO == "SALIDA" ? -m.CANTIDAD : +m.CANTIDAD;
+                // 👇 Saldo acumulado
+                int delta =
+                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
+                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
+                    0;
+
                 saldoAcum += delta;
 
                 filas.Add(new KardexMovimientoVM
@@ -195,6 +234,7 @@ namespace CreArte.Controllers
                 PRODUCTO_ID = prod.PRODUCTO_ID,
                 ProductoNombre = prod.PRODUCTO_NOMBRE,
                 ImagenUrl = prod.IMAGEN_PRODUCTO,
+                INVENTARIO_ID = invId,
                 Filtros = new KardexProductoFilterVM { PRODUCTO_ID = id, Desde = desde, Hasta = hasta },
                 SaldoInicial = saldoInicial,
                 Movimientos = filas,
