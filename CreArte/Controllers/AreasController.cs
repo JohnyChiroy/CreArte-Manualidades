@@ -10,6 +10,9 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Security.Claims;                 // <- por si lo usa tu servicio internamente
 using CreArte.Services.Auditoria;            // <- IAuditoriaService
+using Rotativa.AspNetCore;                     // ViewAsPdf
+using Rotativa.AspNetCore.Options;             // para opciones de PDF
+
 
 namespace CreArte.Controllers
 {
@@ -258,21 +261,6 @@ namespace CreArte.Controllers
             return prefijo + siguiente.ToString(new string('0', ancho));
         }
 
-        // =====================================
-        // Helper: Cargar niveles para el <select>
-        // =====================================
-        //private async Task<List<SelectListItem>> CargarNivelesAsync()
-        //{
-        //    return await _context.NIVEL
-        //        .OrderBy(n => n.NIVEL_NOMBRE)
-        //        .Select(n => new SelectListItem
-        //        {
-        //            Text = n.NIVEL_NOMBRE,
-        //            Value = n.NIVEL_ID
-        //        })
-        //        .ToListAsync();
-        //}
-
         private async Task<List<SelectListItem>> CargarNivelesAsync()
         {
             return await _context.NIVEL
@@ -408,5 +396,172 @@ namespace CreArte.Controllers
         // =====================  HELPERS  ============================
         // ============================================================
         private bool AREAExists(string id) => _context.AREA.Any(e => e.AREA_ID == id);
+
+        // ===================================================================
+        // Helper reutilizable que construye el query de Áreas con filtros/orden
+        // Usado por Index y por ReportePDF para evitar duplicar la lógica.
+        // ===================================================================
+        private IQueryable<AREA> BuildAreasQuery(
+            string Search,
+            string Area,
+            DateTime? FechaInicio,
+            DateTime? FechaFin,
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc")
+        {
+            // (1) Base: solo no eliminados
+            var q = _context.AREA.AsNoTracking().Where(a => !a.ELIMINADO);
+
+            // (2) Búsqueda global
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+                q = q.Where(a =>
+                    EF.Functions.Like(a.AREA_ID, $"%{s}%") ||
+                    EF.Functions.Like(a.AREA_NOMBRE, $"%{s}%"));
+            }
+
+            // (3) Filtro por nombre especial ("__BLANKS__", "__NONBLANKS__", texto)
+            if (!string.IsNullOrWhiteSpace(Area))
+            {
+                if (Area == "__BLANKS__")
+                    q = q.Where(a => string.IsNullOrEmpty(a.AREA_NOMBRE));
+                else if (Area == "__NONBLANKS__")
+                    q = q.Where(a => !string.IsNullOrEmpty(a.AREA_NOMBRE));
+                else
+                {
+                    string s = Area.Trim();
+                    q = q.Where(a => EF.Functions.Like(a.AREA_NOMBRE, $"%{s}%"));
+                }
+            }
+
+            // (4) Rango de fechas (inclusivo)
+            if (FechaInicio.HasValue)
+                q = q.Where(a => a.FECHA_CREACION >= FechaInicio.Value.Date);
+
+            if (FechaFin.HasValue)
+                q = q.Where(a => a.FECHA_CREACION < FechaFin.Value.Date.AddDays(1));
+
+            // (5) Estado
+            if (Estado.HasValue)
+                q = q.Where(a => a.ESTADO == Estado.Value);
+
+            // (6) Ordenamiento
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc ? q.OrderBy(a => a.AREA_ID) : q.OrderByDescending(a => a.AREA_ID),
+                "area" => asc ? q.OrderBy(a => a.AREA_NOMBRE) : q.OrderByDescending(a => a.AREA_NOMBRE),
+                "estado" => asc ? q.OrderBy(a => a.ESTADO) : q.OrderByDescending(a => a.ESTADO),
+                _ => asc ? q.OrderBy(a => a.FECHA_CREACION) : q.OrderByDescending(a => a.FECHA_CREACION),
+            };
+
+            return q;
+        }
+
+
+        // ============================================================
+        // GET: /Areas/ReportePDF
+        // Genera PDF con Rotativa usando la vista "ReporteAreas.cshtml"
+        // Recibe los mismos filtros del Index (sin paginar).
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+            string Search,
+            string Area,
+            DateTime? FechaInicio,
+            DateTime? FechaFin,
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc")
+        {
+            // 1) Construimos el query con los mismos filtros/orden del Index
+            var q = BuildAreasQuery(Search, Area, FechaInicio, FechaFin, Estado, Sort, Dir);
+
+            // 2) Traemos TODO (sin Skip/Take)
+            var items = await q.ToListAsync();
+
+            // 3) Armamos un VM (reutilizamos AreaViewModels sin paginar)
+            var vm = new AreaViewModels
+            {
+                Items = items,
+                Search = Search,
+                Area = Area,
+                FechaInicio = FechaInicio,
+                FechaFin = FechaFin,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalPages = 1,
+                TotalItems = items.Count
+            };
+
+            // 4) Devolvemos un PDF a partir de la vista "ReporteAreas"
+            //var pdf = new ViewAsPdf("ReporteAreas", vm)
+            //{
+            //    FileName = $"Reporte_Areas_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
+
+            //    // --- Opciones del PDF ---
+            //    PageSize = Size.Letter,                            // Carta (puedes usar A4 si prefieres)
+            //    PageOrientation = Orientation.Portrait,            // Vertical
+            //    PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+
+            //    // Puedes agregar cabeceras/pies si lo requieres:
+            //    // CustomSwitches = "--print-media-type"
+            //};
+
+
+            var pdf = new ViewAsPdf("ReporteAreas", vm)
+            {
+                
+                ContentDisposition = ContentDisposition.Inline,                  // ✅ Abrir inline
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Landscape,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 }
+            };
+
+            return pdf;
+        }
+
+        // ============================================================
+        // GET: /Areas/ReportePreview
+        // Vista HTML para previsualizar el reporte (sin generar PDF).
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> ReportePreview(
+            string Search,
+            string Area,
+            DateTime? FechaInicio,
+            DateTime? FechaFin,
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc")
+        {
+            var q = BuildAreasQuery(Search, Area, FechaInicio, FechaFin, Estado, Sort, Dir);
+            var items = await q.ToListAsync();
+
+            var vm = new AreaViewModels
+            {
+                Items = items,
+                Search = Search,
+                Area = Area,
+                FechaInicio = FechaInicio,
+                FechaFin = FechaFin,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalPages = 1,
+                TotalItems = items.Count
+            };
+
+            // Reutilizamos la MISMA vista del PDF
+            return View("ReporteAreas", vm);
+        }
+
     }
 }

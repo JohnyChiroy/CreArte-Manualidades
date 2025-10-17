@@ -1,0 +1,340 @@
+﻿@model CreArte.ModelsPartial.AreaViewModels
+@{
+    // Usamos Layout = null para PDF limpio con Rotativa (mejor rendimiento y menos dependencias)
+    Layout = null;
+
+    // Título de reporte
+    var titulo = "Reporte de Áreas";
+}
+
+@* /* ================================================================
+   VISTA: Views/Areas/ReporteAreas.cshtml
+   OBJETIVO: Plantilla PDF (Rotativa) con encabezado y paleta CreArte
+   PALETA:
+     - Magenta     #BF265E
+     - Fucsia      #BF419E
+     - Azul noche  #242259
+     - Lima        #C5D930
+     - Dorado      #F2B90F
+   NOTA: wkhtmltopdf procesa mejor CSS simple (sin grid/flex complejos).
+================================================================ */ *@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo</title>
+
+    <style>
+        /* ============================
+                   1) Variables de color (simples)
+                   ============================ */
+        /* No hay CSS variables nativas, así que documentamos nombres.
+                   - color-primary:     #242259 (encabezado/thead)
+                   - color-accent-1:    #BF265E (barras/acento)
+                   - color-accent-2:    #BF419E (sub-acento)
+                   - color-success:     #C5D930 (estado activo)
+                   - color-warning:     #F2B90F (resaltadores/etiquetas)
+                */
+
+        /* ============================
+                   2) Reset básico para PDF
+                   ============================ */
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif; /* seguro para wkhtmltopdf */
+            font-size: 12px;
+            color: #111;
+            line-height: 1.35;
+        }
+
+        /* ============================
+                   3) Encabezado del reporte
+                   ============================ */
+        .report-header {
+            /* Barra superior delgada con acento magenta */
+            border-top: 8px solid #BF265E; /* magenta */
+            /* Franja de título en azul noche */
+            background: #242259; /* primario */
+            color: #fff;
+            padding: 16px 18px 14px 18px;
+        }
+
+        .report-title {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .report-sub {
+            margin: 6px 0 0 0;
+            font-size: 11px;
+            color: #E8E9FF; /* texto secundario sobre azul */
+        }
+
+        /* Línea decorativa bajo el encabezado con degradado simple */
+        .report-line {
+            height: 4px;
+            background: linear-gradient(90deg, #BF265E 0%, #BF419E 50%, #F2B90F 100%);
+        }
+
+        /* ============================
+                   4) Contenedor del contenido
+                   ============================ */
+        .container {
+            padding: 14px 18px 16px 18px;
+        }
+
+        /* Etiquetas de filtros (chips) */
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            border-radius: 10px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0; /* base cálida */
+        }
+
+        .chip--estado-activo {
+            background: #F5FFD1;
+            border-color: #E6F4AA;
+        }
+        /* lima muy claro */
+        .chip--estado-inactivo {
+            background: #FFE6EE;
+            border-color: #F5B4C8;
+        }
+        /* magenta muy claro */
+        .chip--accent {
+            background: #FFF4C6;
+            border-color: #F2B90F;
+        }
+        /* dorado claro */
+
+        /* Texto pequeño auxiliar */
+        .muted {
+            color: #666;
+            font-size: 10px;
+        }
+
+        /* ============================
+                   5) Tabla de datos
+                   ============================ */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        th, td {
+            border: 1px solid #DDDEE6;
+            padding: 7px 8px;
+            vertical-align: top;
+        }
+
+        /* Encabezado de tabla con el primario (azul noche) */
+        thead th {
+            background: #242259; /* primario */
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Filas cebra suaves para legibilidad en impresión */
+        tbody tr:nth-child(odd) {
+            background: #FCFCFF;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #F7F8FF;
+        }
+
+        /* Estado con badges minimalistas */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge--ok {
+            background: #C5D930; /* lima */
+            color: #101400;
+        }
+
+        .badge--no {
+            background: #BF265E; /* magenta */
+            color: #fff;
+        }
+
+        /* Celdas con ancho fijo / no wrap donde aplica */
+        .nowrap {
+            white-space: nowrap;
+        }
+
+        .w-12 {
+            width: 12%;
+        }
+
+        .w-16 {
+            width: 16%;
+        }
+
+        .w-22 {
+            width: 22%;
+        }
+
+        /* ============================
+                   6) Pie / total
+                   ============================ */
+        tfoot td {
+            border: 0;
+            padding-top: 10px;
+            font-weight: bold;
+            color: #242259; /* primario */
+        }
+
+        /* Nota final del reporte */
+        .note {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #555;
+        }
+
+        /* ============================
+                   7) Pequeño “sello” marca de agua de color
+                   (barra lateral sutil, no imagen, 100% compatible)
+                   ============================ */
+        .side-mark {
+            position: absolute;
+            top: 68px; /* justo bajo el header */
+            left: 0;
+            width: 6px;
+            height: 100%;
+            background: linear-gradient(#BF265E, #BF419E); /* magenta -> fucsia */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sello lateral degradado (decorativo y sutil) -->
+    <div class="side-mark"></div>
+
+    <!-- ===== Encabezado del reporte (bonito y con tu paleta) ===== -->
+    <header class="report-header">
+        <!-- Título principal -->
+        <h1 class="report-title">@titulo</h1>
+
+        <!-- Subtítulo con fecha/hora y breve contexto -->
+        <p class="report-sub">
+            Generado el @DateTime.Now.ToString("dd/MM/yyyy HH:mm") · Módulo: Áreas · Sistema CreArte Manualidades
+        </p>
+    </header>
+
+    <!-- Línea decorativa con degradado de tu paleta -->
+    <div class="report-line"></div>
+
+    <!-- ===== Cuerpo del reporte ===== -->
+    <main class="container">
+
+        <!-- Chips/etiquetas con el resumen de filtros aplicados -->
+        <div>
+            @* Filtro Estado *@
+            @if (Model.Estado.HasValue)
+            {
+                if (Model.Estado.Value)
+                {
+                    <span class="chip chip--estado-activo">Estado: Activo</span>
+                }
+                else
+                {
+                    <span class="chip chip--estado-inactivo">Estado: Inactivo</span>
+                }
+            }
+
+            @* Filtro de búsqueda global *@
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="chip chip--accent">Buscar: @Model.Search</span>
+            }
+
+            @* Filtro por Área (texto/contratos __BLANKS__/__NONBLANKS__) *@
+            @if (!string.IsNullOrWhiteSpace(Model.Area))
+            {
+                <span class="chip chip--accent">Filtro Área: @Model.Area</span>
+            }
+
+            @* Filtro de fechas *@
+            @if (Model.FechaInicio.HasValue || Model.FechaFin.HasValue)
+            {
+                <span class="chip">
+                    Fecha: @(Model.FechaInicio?.ToString("dd/MM/yyyy") ?? "—")
+                    a @(Model.FechaFin?.ToString("dd/MM/yyyy") ?? "—")
+                </span>
+            }
+        </div>
+
+        <!-- Tabla con los datos -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-12 nowrap">Código</th>
+                    <th class="w-22">Área</th>
+                    <th>Descripción</th>
+                    <th class="w-16 nowrap">Fecha creación</th>
+                    <th class="w-12">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var a in Model.Items)
+                    {
+                        <tr>
+                            <td class="nowrap">@a.AREA_ID</td>
+                            <td>@a.AREA_NOMBRE</td>
+                            <td>@a.AREA_DESCRIPCION</td>
+                            <td class="nowrap">@a.FECHA_CREACION.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (a.ESTADO)
+                                {
+                                    <span class="badge badge--ok">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--no">Inactivo</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding: 16px;">No hay datos para mostrar.</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5">Total de registros: @Model.Items?.Count</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="note">
+            * Reporte generado automáticamente por el sistema CreArte Manualidades.
+        </div>
+    </main>
+</body>
+</html>

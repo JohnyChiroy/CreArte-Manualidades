@@ -380,7 +380,7 @@
 /* Fila seleccionada (resalte suave con tu paleta) */
 .ua-rowitem.row-selected {
     background: rgba(197,217,48,0.12) !important; /* #C5D930 con 12% */
-    outline: 2px solid #BF265E !important;
+    outline: 2px solid #F2B90F !important; /* borde seleccionado amarillo */
 }
 
 /* Pastilla de estado ya definida en tu UI (solo referencia) */

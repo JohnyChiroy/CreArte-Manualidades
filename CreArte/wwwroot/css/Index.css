@@ -21,7 +21,7 @@
         align-items: center;
         gap: 10px;
         box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        margin-right: 100px;
+        margin-right: 40px; /*espacio entre botones*/
     }
 
         .ua-btn svg {
@@ -45,13 +45,23 @@
         color: white;
     }
 
+.ua-btn-exportar {
+    background: #23B6B1;
+    color: white;
+}
+
+.ua-btn-reporte {
+    background: #C5D930;
+    color: black;
+}
+
     .ua-btn:hover {
         opacity: .95;
         text-decoration: none
     }
 
     .ua-search {
-        max-width: 460px;
+        max-width: 400px; /*tamaño cuadro de busqueda*/
         width: 100%;
         border: 2px solid #dbdbdb;
         border-radius: 15px;
@@ -207,7 +217,7 @@
 
         .ua-option input {
             margin: 0;
-            accent-color: #C5D930
+            accent-color: #C5D930;
         } 
     /* Footer popover */
    /* .ua-pop-actions {
@@ -426,3 +436,35 @@
     border: 1px solid #eee;
     background: #fafafa;
 }
+
+
+/* ---------------------------
+   Barra superior Kardex
+   --------------------------- */
+.ua-toolbar-filtros {
+    display: flex;
+    /*flex-wrap: wrap;*/
+    text-align: center;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ua-btn-filtros {
+    border: none;
+    border-radius: 14px;
+    padding: 10px 16px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    margin-right: 25px;
+}
+
+    .ua-btn-filtros svg {
+        width: 18px;
+        height: 18px;
+    }

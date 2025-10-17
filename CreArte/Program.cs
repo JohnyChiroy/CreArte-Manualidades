@@ -5,6 +5,7 @@ using CreArte.Services.Mail;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Rotativa.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,15 +44,6 @@ builder.Services.AddHttpContextAccessor(); // necesario para CurrentUserService
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 
-//builder.Services
-//    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-//    .AddCookie(options =>
-//    {
-//        options.LoginPath = "/Auth/Login";        // ajusta a tu ruta
-//        options.AccessDeniedPath = "/Auth/Denied";
-//        // Opcional: nombre de la cookie, expiración, etc.
-//    });
-
 // 3) Cookie Authentication (LO CLAVE para que User.Identity tenga datos)
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -69,31 +61,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 // Razor Pages
 
-// 🔎 DIAGNÓSTICO CONFIG (antes de Build)
-//Console.WriteLine("=== CONFIG DIAG (antes de Build) ===");
-//Console.WriteLine($"ASPNETCORE_ENVIRONMENT = {builder.Environment.EnvironmentName}");
-//Console.WriteLine($"Smtp:User (cfg) = '{builder.Configuration["Smtp:User"] ?? "<VACÍO>"}'");
-//Console.WriteLine($"Smtp:From (cfg) = '{builder.Configuration["Smtp:From"] ?? "<VACÍO>"}'");
-
-
 //var app = builder.Build();
 var app = builder.Build();
 
-//#if DEBUG
-//{
-//    var smtp = app.Services.GetRequiredService<IOptions<SmtpOptions>>().Value;
-//    if (string.IsNullOrWhiteSpace(smtp.User))
-//    {
-//        Console.WriteLine("[SMTP] Advertencia: Smtp.User está vacío. Revisa appsettings/user-secrets.");
-//    }
-//    if (string.IsNullOrWhiteSpace(smtp.From))
-//    {
-//        Console.WriteLine("[SMTP] Advertencia: Smtp.From está vacío. Revisa appsettings/user-secrets.");
-//    }
-//}
-//#endif
-
-
+// Configuración de Rotativa: le pasamos el WebRoot y la carpeta "Rotativa"
+RotativaConfiguration.Setup(builder.Environment.WebRootPath, "Rotativa");
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

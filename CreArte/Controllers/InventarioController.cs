@@ -363,7 +363,7 @@ namespace CreArte.Controllers
                     if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.CurrentCulture, out var v1))
                     {
                         vm.NuevoCostoUnitario = v1;
-                        ModelState.Clear(); // ya lo resolvimos, limpiamos errores de binding
+                        ModelState.Clear(); 
                     }
                     else if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var v2))
                     {
@@ -411,10 +411,15 @@ namespace CreArte.Controllers
                     _db.INVENTARIO.Add(inv);
                 }
 
+                var costoAnterior = inv.COSTO_UNITARIO;
+                var costoNuevo = vm.NuevoCostoUnitario;
+
+                //Cambiar costo sin mover el stock
                 inv.COSTO_UNITARIO = vm.NuevoCostoUnitario;
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
+                //kardex
                 _db.KARDEX.Add(new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
@@ -429,6 +434,37 @@ namespace CreArte.Controllers
                     ESTADO = true,
                     ELIMINADO = false
                 });
+
+                // PRECIO_HISTORICO (solo si cambió el precio)
+                if (costoNuevo != costoAnterior)
+                {
+                    //Cerrar el vigente 
+                    var vigente = await _db.PRECIO_HISTORICO
+                        .Where(ph => ph.PRODUCTO_ID == vm.PRODUCTO_ID && ph.ELIMINADO == false && ph.HASTA == null)
+                        .OrderByDescending(ph => ph.DESDE)
+                        .FirstOrDefaultAsync(ct);
+
+                    if (vigente != null)
+                    {
+                        vigente.HASTA = ahora; // o ahora.AddTicks(-1) si prefieres no solapar
+                        vigente.USUARIO_MODIFICACION = usuario;
+                        vigente.FECHA_MODIFICACION = ahora;
+                    }
+
+                    // Insertar nuevo vigente
+                    _db.PRECIO_HISTORICO.Add(new PRECIO_HISTORICO
+                    {
+                        PRECIO_ID = Guid.NewGuid().ToString("N")[..10],
+                        PRODUCTO_ID = vm.PRODUCTO_ID,
+                        PRECIO = costoNuevo,
+                        DESDE = ahora,
+                        HASTA = null,
+                        USUARIO_CREACION = usuario,
+                        FECHA_CREACION = ahora,
+                        ESTADO = true,
+                        ELIMINADO = false
+                    });
+                }
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);

@@ -21,7 +21,7 @@
     }
 }
 
-@section Styles{
+@* @section Styles{
 <style>
 /* ---------------------------------------------------------
    PARCHE VISUAL para popovers (asegura interacción):
@@ -50,7 +50,7 @@
 .ua-btn-sm.primary{ background:#C5D930; color:#000; }
 .ua-option{ display:block; margin-top:4px; }
 </style>
-}
+} *@
 
 <div class="container-fluid py-3">
 
@@ -66,6 +66,8 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 NUEVO
             </a>
+           
+
             <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
     <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/>
@@ -78,6 +80,45 @@
         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/>
     </svg>
     MODIFICAR
+</a>
+
+<!-- =====================
+     BOTÓN: REPORTE PDF
+     - Mantiene filtros actuales
+     - Abre en nueva pestaña
+     ===================== -->
+<a class="ua-btn ua-btn-exportar"
+   target="_blank"
+   href="@Url.Action("ReportePDF", "Areas", new {
+        Search = Model.Search,
+        Area = Context.Request.Query["Area"].ToString(),
+        FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
+        FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
+        Estado = Model.Estado,
+        Sort = Model.Sort,
+        Dir  = Model.Dir
+   })">
+<svg viewBox="0 0 24 24" fill="currentColor">
+  <path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/>
+</svg>
+    EXPORTAR
+</a>
+
+<a class="ua-btn ua-btn-reporte"
+   target="_blank"
+   href="@Url.Action("ReportePreview", "Areas", new {
+        Search = Model.Search,
+        Area = Context.Request.Query["Area"].ToString(),
+        FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
+        FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
+        Estado = Model.Estado,
+        Sort = Model.Sort,
+        Dir  = Model.Dir
+   })">
+<svg viewBox="0 0 24 24" fill="currentColor">
+  <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+</svg>
+    REPORTE
 </a>
         </div>
 

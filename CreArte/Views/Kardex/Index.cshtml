@@ -24,10 +24,10 @@
     <!-- =========================
          Toolbar (mismo patrón Inventario)
          ========================= -->
-    <div class="ua-toolbar">
+    <div class="ua-toolbar-filtros">
         <h2 class="m-0"></h2>
 
-        <div class="d-flex align-items-center gap-2">
+        @* <div class="d-flex align-items-center gap-2">
             <!-- ENTRADAS: fuerza TipoMovimiento=ENTRADA -->
             <a href="#" class="ua-btn btn-agregate" id="btnEntradas" title="Mostrar sólo ENTRADAS">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
@@ -45,7 +45,35 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5z"/></svg>
                 SALIDAS
             </a>
-        </div>
+        </div> *@
+        
+        <div class="d-flex align-items-center gap-2">
+    <!-- ENTRADAS -->
+    <a href="#" class="ua-btn-filtros btn-agregate" id="btnEntradas" title="Mostrar sólo ENTRADAS">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+        ENTRADAS
+    </a>
+
+    <!-- AJUSTES (3 botones) -->
+    <a href="#" class="ua-btn-filtros btn-enviado" id="btnAjEntrada" title="Mostrar sólo AJUSTE ENTRADA">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h18v2H3v-2zm2-6h14v2H5v-2zm2-6h10v2H7V5z"/></svg>
+        A.ENTRADA
+    </a>
+    <a href="#" class="ua-btn-filtros btn-enviado" id="btnAjSalida" title="Mostrar sólo AJUSTE SALIDA">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h18v2H3v-2zm2-6h14v2H5v-2zm2-6h10v2H7V5z"/></svg>
+        A.SALIDA
+    </a>
+    <a href="#" class="ua-btn-filtros btn-enviado" id="btnAjPrecio" title="Mostrar sólo AJUSTE PRECIO">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h18v2H3v-2zm2-6h14v2H5v-2zm2-6h10v2H7V5z"/></svg>
+        A. PRECIO
+    </a>
+
+    <!-- SALIDAS -->
+    <a href="#" class="ua-btn-filtros btn-anular" id="btnSalidas" title="Mostrar sólo SALIDAS">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v2H5z"/></svg>
+        SALIDAS
+    </a>
+</div>
 
         <!-- Buscador global – mantiene Sort/Dir -->
         <form method="get" asp-controller="Kardex" asp-action="Index" class="ua-search d-flex align-items-center">
@@ -176,12 +204,24 @@
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             </button>
                             <div id="popTipo" class="ua-popover" aria-hidden="true" tabindex="-1">
-                                <select id="fTipo" class="ua-input">
+
+                                @* <select id="fTipo" class="ua-input">
                                     <option value="">(Todos)</option>
                                     <option value="ENTRADA" selected="@(Model.TipoMovimiento=="ENTRADA"?"selected":null)">Entrada</option>
                                     <option value="SALIDA"  selected="@(Model.TipoMovimiento=="SALIDA" ?"selected":null)">Salida</option>
                                     <option value="AJUSTE"  selected="@(Model.TipoMovimiento=="AJUSTE" ?"selected":null)">Ajuste</option>
-                                </select>
+                                </select> *@
+
+                                <select id="fTipo" class="ua-input">
+    <option value="">(Todos)</option>
+    <option value="ENTRADA"         selected="@(Model.TipoMovimiento=="ENTRADA" ? "selected": null)">Entrada</option>
+    <option value="SALIDA"          selected="@(Model.TipoMovimiento=="SALIDA"  ? "selected": null)">Salida</option>
+    <option value="AJUSTE ENTRADA"  selected="@(Model.TipoMovimiento=="AJUSTE ENTRADA" ? "selected": null)">Ajuste Entrada</option>
+    <option value="AJUSTE SALIDA"   selected="@(Model.TipoMovimiento=="AJUSTE SALIDA"  ? "selected": null)">Ajuste Salida</option>
+    <option value="AJUSTE PRECIO"   selected="@(Model.TipoMovimiento=="AJUSTE PRECIO"  ? "selected": null)">Ajuste Precio</option>
+</select>
+
+
                                 <div class="ua-pop-actions">
                                     <button type="button" class="ua-btn-sm" onclick="uaClearTipo()">Limpiar</button>
                                     <button type="button" class="ua-btn-sm primary" onclick="uaApplyTipo()">Aplicar</button>
@@ -291,14 +331,32 @@
                             <div class="text-muted">@x.PRODUCTO_ID</div>
                         </td>
 
-                        <td>
+                        @* <td>
                             @if (x.TIPO_MOVIMIENTO == "ENTRADA")
                             { <span class="badge bg-apro">Entrada</span> }
                             else if (x.TIPO_MOVIMIENTO == "SALIDA")
                             { <span class="badge bg-anu">Salida</span> }
                             else
                             { <span class="badge bg-envi">Ajuste</span> }
-                        </td>
+                        </td> *@
+                        <td>
+@{
+    var t = x.TIPO_MOVIMIENTO;
+    string badgeClass;
+    string label;
+    switch (t)
+    {
+        case "ENTRADA":         badgeClass = "bg-primary";             label = "Entrada";         break;
+        case "SALIDA":          badgeClass = "bg-danger";              label = "Salida";          break;
+        case "AJUSTE ENTRADA":  badgeClass = "bg-info text-dark";      label = "Ajuste Entrada";  break;
+        case "AJUSTE SALIDA":   badgeClass = "bg-warning text-dark";   label = "Ajuste Salida";   break;
+        case "AJUSTE PRECIO":   badgeClass = "bg-secondary";           label = "Ajuste Precio";   break;
+        default:                badgeClass = "bg-light text-dark border"; label = t;              break;
+    }
+}
+    <span class="badge @badgeClass">@label</span>
+</td>
+
 
                         <td class="text-center">@x.CANTIDAD</td>
                         <td class="text-center">@(x.COSTO_UNITARIO?.ToString("N2") ?? "-")</td>
@@ -404,9 +462,17 @@ function uaChangePageSize(size){
 }
 
 /* ===== Toolbar ===== */
+// document.getElementById('btnEntradas')?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'ENTRADA' }); });
+// document.getElementById('btnAjuste')?.addEventListener('click',   e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE'  }); });
+// document.getElementById('btnSalidas')?.addEventListener('click',  e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'SALIDA'  }); });
+
+// Botones rápidos
 document.getElementById('btnEntradas')?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'ENTRADA' }); });
-document.getElementById('btnAjuste')?.addEventListener('click',   e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE'  }); });
-document.getElementById('btnSalidas')?.addEventListener('click',  e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'SALIDA'  }); });
+document.getElementById('btnAjEntrada')?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE ENTRADA' }); });
+document.getElementById('btnAjSalida') ?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE SALIDA'  }); });
+document.getElementById('btnAjPrecio') ?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'AJUSTE PRECIO'  }); });
+document.getElementById('btnSalidas') ?.addEventListener('click', e => { e.preventDefault(); submitFilter({ TipoMovimiento: 'SALIDA'  }); });
+
 
 /* ===== Filtros de popover ===== */
 // Fecha
