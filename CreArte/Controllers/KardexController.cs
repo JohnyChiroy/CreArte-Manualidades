@@ -13,6 +13,15 @@ namespace CreArte.Controllers
         {
             _db = db;
         }
+        private static int DeltaPorTipo(string? tipo, int cantidad) => tipo switch
+        {
+            "ENTRADA" => +cantidad,
+            "AJUSTE ENTRADA" => +cantidad,
+            "SALIDA" => -cantidad,
+            "AJUSTE SALIDA" => -cantidad,
+            "AJUSTE PRECIO" => 0,
+            _ => 0
+        };
 
         // -------------------------------------------------------
         // GET: /Kardex/Producto/{id}?desde=yyyy-MM-dd&hasta=yyyy-MM-dd
@@ -88,28 +97,27 @@ namespace CreArte.Controllers
                 })
                 .ToListAsync();
 
-            // 5) Totales + saldo acumulado por línea (en memoria)
-            int totalE = 0, totalS = 0, totalA = 0; // TotalA = puedes usarlo para contar ajustes precio si quieres
-            int saldoAcum = saldoInicial;
+            // 5) Totales + saldo acumulado por línea
+            int totalEntradas = 0, totalSalidas = 0;
+            int totalAjEntrada = 0, totalAjSalida = 0, totalAjPrecio = 0;
 
+            int saldoAcum = saldoInicial;
             var filas = new List<KardexMovimientoVM>(movs.Count);
+
             foreach (var m in movs)
             {
-                // Totales por tipo (AJUSTE PRECIO no cambia cantidades)
-                if (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA")
-                    totalE += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA")
-                    totalS += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "AJUSTE PRECIO")
-                    totalA += 0; // si quieres contarlos, crea TotalAjustesPrecio aparte
+                // Contadores por tipo
+                switch (m.TIPO_MOVIMIENTO)
+                {
+                    case "ENTRADA": totalEntradas += m.CANTIDAD; break;
+                    case "SALIDA": totalSalidas += m.CANTIDAD; break;
+                    case "AJUSTE ENTRADA": totalAjEntrada += m.CANTIDAD; break;
+                    case "AJUSTE SALIDA": totalAjSalida += m.CANTIDAD; break;
+                    case "AJUSTE PRECIO": totalAjPrecio += 1; break; // conteo de eventos
+                }
 
-                // Saldo acumulado (AJUSTE PRECIO = 0)
-                int delta =
-                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
-                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
-                    0;
-
-                saldoAcum += delta;
+                // Saldo acumulado
+                saldoAcum += DeltaPorTipo(m.TIPO_MOVIMIENTO, m.CANTIDAD);
 
                 filas.Add(new KardexMovimientoVM
                 {
@@ -123,7 +131,7 @@ namespace CreArte.Controllers
                 });
             }
 
-            // 6) Construir VM
+            // 6) VM
             var vm = new KardexProductoVM
             {
                 PRODUCTO_ID = prod.PRODUCTO_ID,
@@ -133,10 +141,13 @@ namespace CreArte.Controllers
                 Filtros = new KardexProductoFilterVM { PRODUCTO_ID = id, Desde = desde, Hasta = hasta },
                 SaldoInicial = saldoInicial,
                 Movimientos = filas,
-                TotalEntradas = totalE,
-                TotalSalidas = totalS,
-                TotalAjustes = totalA
+                TotalEntradas = totalEntradas,
+                TotalSalidas = totalSalidas,
+                TotalAjustesEntrada = totalAjEntrada,
+                TotalAjustesSalida = totalAjSalida,
+                TotalAjustesPrecio = totalAjPrecio
             };
+
 
             return View(vm);
         }
@@ -195,27 +206,24 @@ namespace CreArte.Controllers
                 .ToListAsync(ct);
 
             // 5) Totales + saldo acumulado
-            int totalE = 0, totalS = 0, totalA = 0;
+            int totalEntradas = 0, totalSalidas = 0;
+            int totalAjEntrada = 0, totalAjSalida = 0, totalAjPrecio = 0;
+
             int saldoAcum = saldoInicial;
             var filas = new List<KardexMovimientoVM>(movs.Count);
 
             foreach (var m in movs)
             {
-                // 👇 Totales por tipo
-                if (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA")
-                    totalE += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA")
-                    totalS += m.CANTIDAD;
-                else if (m.TIPO_MOVIMIENTO == "AJUSTE PRECIO")
-                    totalA += 0; // opcional: agregar contador específico
+                switch (m.TIPO_MOVIMIENTO)
+                {
+                    case "ENTRADA": totalEntradas += m.CANTIDAD; break;
+                    case "SALIDA": totalSalidas += m.CANTIDAD; break;
+                    case "AJUSTE ENTRADA": totalAjEntrada += m.CANTIDAD; break;
+                    case "AJUSTE SALIDA": totalAjSalida += m.CANTIDAD; break;
+                    case "AJUSTE PRECIO": totalAjPrecio += 1; break;
+                }
 
-                // 👇 Saldo acumulado
-                int delta =
-                    (m.TIPO_MOVIMIENTO == "SALIDA" || m.TIPO_MOVIMIENTO == "AJUSTE SALIDA") ? -m.CANTIDAD :
-                    (m.TIPO_MOVIMIENTO == "ENTRADA" || m.TIPO_MOVIMIENTO == "AJUSTE ENTRADA") ? +m.CANTIDAD :
-                    0;
-
-                saldoAcum += delta;
+                saldoAcum += DeltaPorTipo(m.TIPO_MOVIMIENTO, m.CANTIDAD);
 
                 filas.Add(new KardexMovimientoVM
                 {
@@ -238,10 +246,13 @@ namespace CreArte.Controllers
                 Filtros = new KardexProductoFilterVM { PRODUCTO_ID = id, Desde = desde, Hasta = hasta },
                 SaldoInicial = saldoInicial,
                 Movimientos = filas,
-                TotalEntradas = totalE,
-                TotalSalidas = totalS,
-                TotalAjustes = totalA
+                TotalEntradas = totalEntradas,
+                TotalSalidas = totalSalidas,
+                TotalAjustesEntrada = totalAjEntrada,
+                TotalAjustesSalida = totalAjSalida,
+                TotalAjustesPrecio = totalAjPrecio
             };
+
         }
 
         // ============================================================
@@ -261,7 +272,7 @@ namespace CreArte.Controllers
             // Armar CSV (separador coma; si prefieres ; cámbialo)
             // Encabezados:
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("ProductoID,ProductoNombre,Desde,Hasta,SaldoInicial,TotalEntradas,TotalSalidas,TotalAjustes,SaldoFinal");
+            sb.AppendLine("ProductoID,ProductoNombre,Desde,Hasta,SaldoInicial,Entradas,Salidas,AjustesEntrada,AjustesSalida,AjustesPrecio,SaldoFinal");
             sb.AppendLine(string.Join(",",
                 EscapeCsv(vm.PRODUCTO_ID),
                 EscapeCsv(vm.ProductoNombre),
@@ -270,7 +281,9 @@ namespace CreArte.Controllers
                 vm.SaldoInicial.ToString(),
                 vm.TotalEntradas.ToString(),
                 vm.TotalSalidas.ToString(),
-                vm.TotalAjustes.ToString(),
+                vm.TotalAjustesEntrada.ToString(),
+                vm.TotalAjustesSalida.ToString(),
+                vm.TotalAjustesPrecio.ToString(),
                 vm.SaldoFinal.ToString()
             ));
 

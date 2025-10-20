@@ -5,7 +5,8 @@
     var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").ToLower();
 
     // Controladores hijos de "Configuración"
-    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "subcategorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente", "empresa" };
+    var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "subcategorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente"};
+    // var configChildren = new[] { "areas", "puestos", "niveles", "roles", "categorias", "subcategorias", "unidadesmedida", "tiposempaque", "marcas", "tiposproducto", "tiposcliente", "empresa" };
 
     // Si estás dentro de alguno de estos controladores, el menú Configuración deberá mostrarse abierto
     bool isConfigOpen = configChildren.Contains(currentController);
@@ -172,10 +173,10 @@
             </a>
 
             <!-- Empresa -->
-            <a asp-controller="Empresa" asp-action="Index"
+@*             <a asp-controller="Empresa" asp-action="Index"
                class="nav-item nav-item--sub @(currentController == "empresa" ? "is-active" : "")">
                 <i class="bi bi-building"></i> <span>Empresa</span>
-            </a>
+            </a> *@
         </div>
 
     </nav>

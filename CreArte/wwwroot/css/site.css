@@ -563,7 +563,7 @@ textarea:disabled {
 
 
 
-/*badges de estados*/
+/*badges de estados compras*/
 /* revisado*/
 .badge.bg-revi {
     background-color: #23B6B1 !important;
@@ -574,7 +574,7 @@ textarea:disabled {
     background-color: #03C1FF !important;
     color: white !important;
 }
-/* confirmada*/
+/* enviada*/
 .badge.bg-envi {
     background-color: #F2B90F !important;
     color: black !important;
@@ -589,7 +589,7 @@ textarea:disabled {
     background-color: #03C1FF !important;
     color: white !important;
 }
-/* Confirmada*/
+/* cerrada*/
 .badge.bg-cerra {
     background-color: #BF265E !important;
     color: white !important;
@@ -622,4 +622,43 @@ textarea:disabled {
     border-radius: 10px;
     border: 1px solid #eee;
     background: #fafafa;
+}
+
+/* cuadro de imagen para inventario Details*/
+.ua-img-thumb-tEGrande {
+    width: 180px;
+    height: 180px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}
+
+
+/*badges de Kardex*/
+/* Ajustes Entrada*/
+.badge.bg-AjEntrada {
+    background-color: #23B6B1 !important;
+    color: white !important;
+}
+/* Ajustes Salida*/
+.badge.bg-AjSalida {
+    background-color: #FF007D !important;
+    color: white !important;
+}
+/* Ajustes Precio*/
+.badge.bg-AjPrecio {
+    background-color: #FFEA00 !important;
+    color: black !important;
+}
+/*Entrada*/
+.badge.bg-Entrada {
+    background-color: #03C1FF !important;
+    color: white !important;
+}
+/*Salida*/
+.badge.bg-Salida {
+    background-color: #242259 !important;
+    color: white !important;
 }

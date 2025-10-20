@@ -353,7 +353,7 @@
                         </div>
                     </th>
 
-                    <!-- IVA% – orden -->
+                   @*  <!-- IVA% – orden -->
                     <th style="width:100px;">
     <div class="ua-th">
         @{
@@ -375,7 +375,7 @@
             <span class="ua-arrow">@Arrow("iva", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
         </a>
     </div>
-</th>
+</th> *@
 
 
 
@@ -446,7 +446,7 @@
                             <td>@p.MARCA?.MARCA_NOMBRE</td>
                             <td>@p.UNIDAD_MEDIDA?.UNIDAD_MEDIDA_NOMBRE</td>
                             <td>@(p.TIPO_EMPAQUE_ID == null ? "-" : p.TIPO_EMPAQUE?.TIPO_EMPAQUE_NOMBRE)</td>
-                            <td>@(p.PORCENTAJE_IVA.HasValue ? p.PORCENTAJE_IVA.Value.ToString("0.##") : "-")</td>
+                            @* <td>@(p.PORCENTAJE_IVA.HasValue ? p.PORCENTAJE_IVA.Value.ToString("0.##") : "-")</td> *@
                             <td>
                                 @if (p.ESTADO) { <span class="ua-badge-activo">Activo</span> }
                                 else { <span class="ua-badge-inactivo">Inactivo</span> }

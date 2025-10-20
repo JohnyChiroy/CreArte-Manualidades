@@ -21,7 +21,7 @@
         align-items: center;
         gap: 10px;
         box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        margin-right: 40px; /*espacio entre botones*/
+        margin-right: 30px; /*espacio entre botones*/
     }
 
         .ua-btn svg {
@@ -51,8 +51,8 @@
 }
 
 .ua-btn-reporte {
-    background: #C5D930;
-    color: black;
+    background: #FF007D;
+    color: white;
 }
 
     .ua-btn:hover {
@@ -454,7 +454,7 @@
     border: none;
     border-radius: 14px;
     padding: 10px 16px;
-    font-weight: 500;
+    font-weight: 500 !important;
     text-decoration: none;
     cursor: pointer;
     display: inline-flex;
@@ -467,4 +467,123 @@
     .ua-btn-filtros svg {
         width: 18px;
         height: 18px;
+    }
+
+.btn-Entrada {
+    background: #03C1FF;
+    color: white;
+    border: none;
+    padding: 7px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-Salida {
+    background: #BF265E;
+    color: white;
+    border: none;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-Salida:hover {
+        background: #FF007D;
+    }
+
+.btn-Entrada {
+    background: #03C1FF;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-Salida {
+    background: #242259;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-Salida:hover {
+        background: #332973;
+    }
+
+.btn-AjEntrada {
+    background: #23B6B1;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-AjEntrada:hover {
+        background: #23B6B1;
+    }
+
+.btn-AjSalida {
+    background: #FF007D;
+    color: white;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-AjSalida:hover {
+        background: #FF007D;
+    }
+
+.btn-AjPrecio {
+    background: #FFEA00;
+    color: black;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+    .btn-AjPrecio:hover {
+        background: #FFEA00;
     }

@@ -21,36 +21,6 @@
     }
 }
 
-@* @section Styles{
-<style>
-/* ---------------------------------------------------------
-   PARCHE VISUAL para popovers (asegura interacción):
-   - display:none por defecto, .open => display:block
-   - stacking alto y sin corte por overflow del contenedor
-   --------------------------------------------------------- */
-.ua-popover-wrap{ position:relative; }
-.ua-popover{
-    display:none; position:absolute; top:100%; left:0;
-    z-index:3000; background:#fff;
-    border:1px solid var(--ua-border, #e5e7eb);
-    border-radius:8px; padding:12px; min-width:260px;
-    box-shadow:0 8px 24px rgba(0,0,0,.12);
-}
-.ua-popover.open{ display:block; }
-
-/* Evita que el thead/tables corten el popover en algunos temas */
-.table-responsive{ overflow:visible; }
-
-/* Opcional: estética básica de inputs dentro de popover */
-.ua-popover .ua-input{
-    width:100%; border:1px solid #F2B90F; border-radius:6px; padding:8px 10px;
-}
-.ua-pop-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
-.ua-btn-sm{ border:0; border-radius:6px; padding:6px 10px; cursor:pointer; }
-.ua-btn-sm.primary{ background:#C5D930; color:#000; }
-.ua-option{ display:block; margin-top:4px; }
-</style>
-} *@
 
 <div class="container-fluid py-3">
 
@@ -66,7 +36,6 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
                 NUEVO
             </a>
-           
 
             <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
     <svg viewBox="0 0 24 24" fill="currentColor">

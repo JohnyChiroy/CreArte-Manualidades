@@ -30,7 +30,7 @@ namespace CreArte.ModelsPartial
 
         // ---------------- Orden ------------------
         // Claves permitidas: id, producto, stock, minimo, costo, vence, estado
-        public string? Sort { get; set; } = "producto";
+        public string? Sort { get; set; } = "stock";
         public string? Dir { get; set; } = "asc"; // asc|desc
 
         // --------------- Paginación --------------
@@ -111,4 +111,21 @@ namespace CreArte.ModelsPartial
         [Required(ErrorMessage = "La razón es obligatoria.")]
         public string? Razon { get; set; }
     }
+
+    //View Model para el historial de precios
+    public class PrecioHistoricoItemVM
+    {
+        public string PRECIO_ID { get; set; } = null!;
+        public decimal PRECIO { get; set; }
+        public DateTime DESDE { get; set; }
+        public DateTime? HASTA { get; set; }
+        public string USUARIO { get; set; } = null!;
+    }
+    public class PrecioHistoricoVM
+    {
+        public string PRODUCTO_ID { get; set; } = null!;
+        public string? INVENTARIO_ID { get; set; }
+        public List<PrecioHistoricoItemVM> Items { get; set; } = new();
+    }
+
 }

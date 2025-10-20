@@ -85,10 +85,10 @@ namespace CreArte.Controllers
             bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
             q = (Sort?.ToLower()) switch
             {
-                "id"     => asc ? q.OrderBy(a => a.AREA_ID)       : q.OrderByDescending(a => a.AREA_ID),
-                "area"   => asc ? q.OrderBy(a => a.AREA_NOMBRE)   : q.OrderByDescending(a => a.AREA_NOMBRE),
-                "estado" => asc ? q.OrderBy(a => a.ESTADO)        : q.OrderByDescending(a => a.ESTADO),
-                _        => asc ? q.OrderBy(a => a.FECHA_CREACION): q.OrderByDescending(a => a.FECHA_CREACION),
+                "id" => asc ? q.OrderBy(a => a.AREA_ID) : q.OrderByDescending(a => a.AREA_ID),
+                "area" => asc ? q.OrderBy(a => a.AREA_NOMBRE) : q.OrderByDescending(a => a.AREA_NOMBRE),
+                "estado" => asc ? q.OrderBy(a => a.ESTADO) : q.OrderByDescending(a => a.ESTADO),
+                _ => asc ? q.OrderBy(a => a.FECHA_CREACION) : q.OrderByDescending(a => a.FECHA_CREACION),
             };
 
             // 7) Paginación
@@ -322,14 +322,14 @@ namespace CreArte.Controllers
 
             // Normalizar
             var nuevoNombre = (vm.AREA_NOMBRE ?? "").Trim();
-            var nuevaDesc   = string.IsNullOrWhiteSpace(vm.AREA_DESCRIPCION) ? null : vm.AREA_DESCRIPCION.Trim();
-            var nuevoNivel  = (vm.NIVEL_ID ?? "").Trim();
+            var nuevaDesc = string.IsNullOrWhiteSpace(vm.AREA_DESCRIPCION) ? null : vm.AREA_DESCRIPCION.Trim();
+            var nuevoNivel = (vm.NIVEL_ID ?? "").Trim();
             var nuevoEstado = vm.ESTADO;
 
             bool hayCambios =
-                !string.Equals(dbArea.AREA_NOMBRE,       nuevoNombre) ||
-                !string.Equals(dbArea.AREA_DESCRIPCION,   nuevaDesc)   ||
-                !string.Equals(dbArea.NIVEL_ID,           nuevoNivel)  ||
+                !string.Equals(dbArea.AREA_NOMBRE, nuevoNombre) ||
+                !string.Equals(dbArea.AREA_DESCRIPCION, nuevaDesc) ||
+                !string.Equals(dbArea.NIVEL_ID, nuevoNivel) ||
                  dbArea.ESTADO != nuevoEstado;
 
             if (!hayCambios)
@@ -337,15 +337,15 @@ namespace CreArte.Controllers
                 // Modal informativo (1 botón) en Edit
                 TempData["SwalOneBtnFlag"] = "nochange";
                 TempData["SwalTitle"] = "Sin cambios";
-                TempData["SwalText"]  = "No se modificó ningún dato.";
+                TempData["SwalText"] = "No se modificó ningún dato.";
                 return RedirectToAction(nameof(Edit), new { id });
             }
 
             // Aplicar cambios editables
-            dbArea.AREA_NOMBRE       = nuevoNombre;
-            dbArea.AREA_DESCRIPCION  = nuevaDesc;
-            dbArea.NIVEL_ID          = nuevoNivel;
-            dbArea.ESTADO            = nuevoEstado;
+            dbArea.AREA_NOMBRE = nuevoNombre;
+            dbArea.AREA_DESCRIPCION = nuevaDesc;
+            dbArea.NIVEL_ID = nuevoNivel;
+            dbArea.ESTADO = nuevoEstado;
 
             // Auditoría de modificación CENTRALIZADA
             // - Setea: USUARIO_MODIFICACION y FECHA_MODIFICACION.
@@ -356,7 +356,7 @@ namespace CreArte.Controllers
             // Modal de éxito (1 botón) en Edit
             TempData["SwalOneBtnFlag"] = "updated";
             TempData["SwalTitle"] = "¡Área actualizada!";
-            TempData["SwalText"]  = $"\"{dbArea.AREA_NOMBRE}\" se actualizó correctamente.";
+            TempData["SwalText"] = $"\"{dbArea.AREA_NOMBRE}\" se actualizó correctamente.";
 
             // PRG → volver a Edit para mostrar el modal y, al Aceptar, redirigir a Index (lo hace _SwalBootstrap)
             return RedirectToAction(nameof(Edit), new { id = dbArea.AREA_ID });
@@ -468,26 +468,29 @@ namespace CreArte.Controllers
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> ReportePDF(
-            string Search,
-            string Area,
-            DateTime? FechaInicio,
-            DateTime? FechaFin,
-            bool? Estado,
-            string Sort = "id",
-            string Dir = "asc")
+    string Search,
+    string Area,
+    DateTime? FechaInicio,
+    DateTime? FechaFin,
+    bool? Estado,
+    string Sort = "id",
+    string Dir = "asc")
         {
-            // 1) Construimos el query con los mismos filtros/orden del Index
+            // 1) Construir query con tus helpers/criterios (puedes seguir usando BuildAreasQuery)
             var q = BuildAreasQuery(Search, Area, FechaInicio, FechaFin, Estado, Sort, Dir);
 
-            // 2) Traemos TODO (sin Skip/Take)
+            // 2) Traer todos los datos (reporte no va paginado)
             var items = await q.ToListAsync();
 
-            // 3) Armamos un VM (reutilizamos AreaViewModels sin paginar)
-            var vm = new AreaViewModels
+            // 3) Totales típicos
+            int totActivas = items.Count(a => a.ESTADO);
+            int totInactivas = items.Count(a => !a.ESTADO);
+
+            // 4) Armar el ViewModel GENÉRICO
+            var vm = new ReporteViewModel<AREA>
             {
                 Items = items,
                 Search = Search,
-                Area = Area,
                 FechaInicio = FechaInicio,
                 FechaFin = FechaFin,
                 Estado = Estado,
@@ -495,32 +498,33 @@ namespace CreArte.Controllers
                 Dir = Dir,
                 Page = 1,
                 PageSize = items.Count,
+                TotalItems = items.Count,
                 TotalPages = 1,
-                TotalItems = items.Count
+
+                // Metadatos del reporte
+                ReportTitle = "Reporte de Áreas",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala |   creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
             };
 
-            // 4) Devolvemos un PDF a partir de la vista "ReporteAreas"
-            //var pdf = new ViewAsPdf("ReporteAreas", vm)
-            //{
-            //    FileName = $"Reporte_Areas_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
+            // 5) Registrar totales (etiquetas libres)
+            vm.AddTotal("Activos", totActivas);
+            vm.AddTotal("Inactivos", totInactivas);
 
-            //    // --- Opciones del PDF ---
-            //    PageSize = Size.Letter,                            // Carta (puedes usar A4 si prefieres)
-            //    PageOrientation = Orientation.Portrait,            // Vertical
-            //    PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+            // 6) Filtros adicionales que quieras mostrar como chips
+            if (!string.IsNullOrWhiteSpace(Area)) vm.ExtraFilters["Área"] = Area;
 
-            //    // Puedes agregar cabeceras/pies si lo requieres:
-            //    // CustomSwitches = "--print-media-type"
-            //};
-
-
+            // 7) Generar PDF inline
             var pdf = new ViewAsPdf("ReporteAreas", vm)
             {
-                
-                ContentDisposition = ContentDisposition.Inline,                  // ✅ Abrir inline
+                ContentDisposition = ContentDisposition.Inline,
                 PageSize = Size.Letter,
-                PageOrientation = Orientation.Landscape,
-                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 }
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches = $"--footer-center \"Página [page] de [toPage]\"" +
+                                 $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                                 $" --footer-font-size 9 --footer-spacing 3 --footer-line"
             };
 
             return pdf;
@@ -543,11 +547,10 @@ namespace CreArte.Controllers
             var q = BuildAreasQuery(Search, Area, FechaInicio, FechaFin, Estado, Sort, Dir);
             var items = await q.ToListAsync();
 
-            var vm = new AreaViewModels
+            var vm = new ReporteViewModel<AREA>
             {
                 Items = items,
                 Search = Search,
-                Area = Area,
                 FechaInicio = FechaInicio,
                 FechaFin = FechaFin,
                 Estado = Estado,
@@ -555,8 +558,14 @@ namespace CreArte.Controllers
                 Dir = Dir,
                 Page = 1,
                 PageSize = items.Count,
+                TotalItems = items.Count,
                 TotalPages = 1,
-                TotalItems = items.Count
+
+                // Metadatos del reporte
+                ReportTitle = "Reporte de Áreas",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala |   creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
             };
 
             // Reutilizamos la MISMA vista del PDF

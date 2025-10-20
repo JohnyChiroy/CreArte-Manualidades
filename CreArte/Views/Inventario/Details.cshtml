@@ -12,7 +12,7 @@
 
         <div>
             <!-- Botón volver (lo mantengo tal cual) -->
-            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <a asp-action="Index" class="btn-cancel">
                 <i class="bi bi-arrow-left"></i> Volver
             </a>
         </div>
@@ -35,7 +35,7 @@
             @if (!string.IsNullOrWhiteSpace(Model.ImagenUrl))
             {
                 <img src="@Model.ImagenUrl"
-                     class="img-thumbnail"
+                     class="img-thumbnail ua-img-thumb-tEGrande"
                      style="max-width:180px;max-height:180px;object-fit:cover" />
             }
             else
@@ -63,11 +63,11 @@
                     <div class="text-muted small">Estado</div>
                     @if (Model.ESTADO)
                     {
-                        <span class="badge bg-success">Activo</span>
+                        <span class="ua-badge-activo">Activo</span>
                     }
                     else
                     {
-                        <span class="badge bg-secondary">Inactivo</span>
+                        <span class="ua-badge-inactivo">Inactivo</span>
                     }
                 </div>
             </div>
@@ -86,10 +86,10 @@
                     <div class="text-muted small">Costo unitario (Q)</div>
                     <div class="fw-semibold">@Model.COSTO_UNITARIO.ToString("N2")</div>
                 </div>
-                <div class="col-md-3">
+@*                 <div class="col-md-3">
                     <div class="text-muted small">Vence</div>
                     <div class="fw-semibold">@((Model.FECHA_VENCIMIENTO?.ToString("dd/MM/yyyy")) ?? "-")</div>
-                </div>
+                </div> *@
             </div>
 
             <!-- ===========================
@@ -99,22 +99,22 @@
                 <!-- ENTRADA -->
                 <a asp-action="AjusteEntrada"
                    asp-route-productoId="@Model.PRODUCTO_ID"
-                   class="btn btn-success btn-sm">
-                    <i class="bi bi-plus-circle"></i> Entrada
+                   class="btn-AjEntrada">
+                    <i class="bi bi-plus-circle"></i> Ajuste Entrada
                 </a>
 
                 <!-- SALIDA -->
                 <a asp-action="AjusteSalida"
                    asp-route-productoId="@Model.PRODUCTO_ID"
-                   class="btn btn-danger btn-sm">
-                    <i class="bi bi-dash-circle"></i> Salida
+                   class="btn-AjSalida">
+                    <i class="bi bi-dash-circle"></i> Ajuste Salida
                 </a>
 
                 <!-- AJUSTE PRECIO (no modifica stock) -->
                 <!-- Inventario/AjustePrecio?productoId=... -->
                 <a asp-action="AjustePrecio"
                    asp-route-productoId="@Model.PRODUCTO_ID"
-                   class="btn btn-warning btn-sm text-dark">
+                   class="btn-AjPrecio">
                     <i class="bi bi-currency-dollar"></i> Ajuste Precio
                 </a>
 
@@ -122,8 +122,14 @@
                 <a asp-controller="Kardex"
                    asp-action="Producto"
                    asp-route-id="@Model.PRODUCTO_ID"
-                   class="btn btn-outline-secondary btn-sm">
+                   class="btn-Entrada">
                     <i class="bi bi-clock-history"></i> Ver Kardex
+                </a>
+
+                <a asp-action="PrecioHistorico"
+                   asp-route-productoId="@Model.PRODUCTO_ID"
+                   class="btn-cargado">
+                    <i class="bi bi-tags"></i> Historial precios
                 </a>
             </div>
         </div>

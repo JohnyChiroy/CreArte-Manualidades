@@ -436,9 +436,10 @@ namespace CreArte.Controllers
                 });
 
                 // PRECIO_HISTORICO (solo si cambió el precio)
-                if (costoNuevo != costoAnterior)
+                // if (costoNuevo != costoAnterior)
+                if (decimal.Compare(costoNuevo, costoAnterior) != 0)
                 {
-                    //Cerrar el vigente 
+                    // Cerrar vigente
                     var vigente = await _db.PRECIO_HISTORICO
                         .Where(ph => ph.PRODUCTO_ID == vm.PRODUCTO_ID && ph.ELIMINADO == false && ph.HASTA == null)
                         .OrderByDescending(ph => ph.DESDE)
@@ -446,7 +447,7 @@ namespace CreArte.Controllers
 
                     if (vigente != null)
                     {
-                        vigente.HASTA = ahora; // o ahora.AddTicks(-1) si prefieres no solapar
+                        vigente.HASTA = ahora;                      // o ahora.AddTicks(-1)
                         vigente.USUARIO_MODIFICACION = usuario;
                         vigente.FECHA_MODIFICACION = ahora;
                     }
@@ -484,6 +485,39 @@ namespace CreArte.Controllers
                 ModelState.AddModelError(string.Empty, ex.Message);
                 return View(vm);
             }
+        }
+
+        //Para ver historial de precios
+        [HttpGet]
+        public async Task<IActionResult> PrecioHistorico(string productoId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(productoId)) return NotFound();
+
+            // Traer INVENTARIO_ID (si hay inventario creado)
+            var invId = await _db.INVENTARIO
+                .Where(i => i.PRODUCTO_ID == productoId && i.ELIMINADO == false)
+                .Select(i => i.INVENTARIO_ID)
+                .FirstOrDefaultAsync(ct);
+
+            var precios = await _db.PRECIO_HISTORICO
+                .Where(ph => ph.PRODUCTO_ID == productoId && ph.ELIMINADO == false)
+                .OrderByDescending(ph => ph.DESDE)
+                .ToListAsync(ct);
+
+            var vm = new PrecioHistoricoVM
+            {
+                PRODUCTO_ID = productoId,
+                INVENTARIO_ID = invId,   
+                Items = precios.Select(ph => new PrecioHistoricoItemVM
+                {
+                    PRECIO_ID = ph.PRECIO_ID,
+                    PRECIO = ph.PRECIO,
+                    DESDE = ph.DESDE,
+                    HASTA = ph.HASTA
+                }).ToList()
+            };
+
+            return View(vm);
         }
     }
 }
