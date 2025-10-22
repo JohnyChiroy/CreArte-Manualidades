@@ -549,13 +549,18 @@ namespace CreArte.Controllers
             var vm = new PrecioHistoricoVM
             {
                 PRODUCTO_ID = productoId,
+                ProductoNombre = await _db.PRODUCTO
+                    .Where(p => p.PRODUCTO_ID == productoId)
+                    .Select(p => p.PRODUCTO_NOMBRE)
+                    .FirstOrDefaultAsync(ct) ?? string.Empty,
                 INVENTARIO_ID = invId,   
                 Items = precios.Select(ph => new PrecioHistoricoItemVM
                 {
                     PRECIO_ID = ph.PRECIO_ID,
                     PRECIO = ph.PRECIO,
                     DESDE = ph.DESDE,
-                    HASTA = ph.HASTA
+                    HASTA = ph.HASTA,
+                    USUARIO = ph.USUARIO_CREACION
                 }).ToList()
             };
 

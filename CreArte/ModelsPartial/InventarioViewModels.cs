@@ -121,6 +121,7 @@ namespace CreArte.ModelsPartial
     public class PrecioHistoricoVM
     {
         public string PRODUCTO_ID { get; set; } = null!;
+        public string ProductoNombre { get; set; } = null!;
         public string? INVENTARIO_ID { get; set; }
         public List<PrecioHistoricoItemVM> Items { get; set; } = new();
     }

@@ -6,14 +6,14 @@
 
 <div class="container py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="m-0">Histórico de precios – @Model.PRODUCTO_ID</h3>
+        <h3 class="m-0">Histórico de precios – @Model.PRODUCTO_ID - @Model.ProductoNombre</h3>
         @* Botón volver, si el producto tiene detalle*@
         @if (!string.IsNullOrWhiteSpace(Model.INVENTARIO_ID))
         {
             <a asp-controller="Inventario"
                asp-action="Details"
                asp-route-id="@Model.INVENTARIO_ID"
-               class="btn btn-outline-secondary btn-sm">
+               class="btn-cancel">
                 <i class="bi bi-arrow-left"></i> Volver
             </a>
         }
@@ -34,10 +34,18 @@
         <table class="table ua-table align-middle">
             <thead>
                 <tr>
-                    <th>Precio Q</th>
-                    <th>Desde</th>
-                    <th>Hasta</th>
-                    <th>Usuario</th>
+                    <th>
+                        <div class="ua-th"><span class="ua-title">PRECIO Q</span></div>
+                    </th>
+                    <th>
+                        <div class="ua-th"><span class="ua-title">DESDE</span></div>
+                    </th>
+                    <th>
+                        <div class="ua-th"><span class="ua-title">HASTA</span></div>
+                    </th>
+                    <th>
+                        <div class="ua-th"><span class="ua-title">USUARIO</span></div>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -46,7 +54,7 @@
                     foreach (var r in Model.Items)
                     {
                         <tr>
-                            <td class="text-end">@r.PRECIO.ToString("N2")</td>
+                            <td class="text-center">@r.PRECIO.ToString("N2")</td>
                             <td>@r.DESDE.ToString("dd/MM/yyyy HH:mm")</td>
                             <td>@(r.HASTA?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
                             <td>@r.USUARIO</td>

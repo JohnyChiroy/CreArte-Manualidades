@@ -367,7 +367,7 @@ namespace CreArte.Controllers
             vm.Page = vm.Page <= 0 ? 1 : vm.Page;
             vm.PageSize = vm.PageSize <= 0 ? 20 : vm.PageSize;
 
-            // 4) Orden dinámico (igual patrón que Productos/Inventario)
+            // 4) Orden dinámico 
             bool asc = string.Equals(vm.Dir, "asc", StringComparison.OrdinalIgnoreCase);
             string sort = (vm.Sort ?? "fecha").ToLower();
 
