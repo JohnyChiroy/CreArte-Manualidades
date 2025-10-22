@@ -1,0 +1,115 @@
+﻿@model IEnumerable<CreArte.Models.PEDIDO>
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+</head>
+<body>
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_PEDIDO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_ENTREGA_PEDIDO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OBSERVACIONES_PEDIDO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_CREACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ELIMINADO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ESTADO)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.CLIENTE)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ESTADO_PEDIDO)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_PEDIDO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_ENTREGA_PEDIDO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.OBSERVACIONES_PEDIDO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ELIMINADO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ESTADO)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.CLIENTE.CLIENTE_ID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ESTADO_PEDIDO.ESTADO_PEDIDO_ID)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.PEDIDO_ID">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.PEDIDO_ID">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.PEDIDO_ID">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+</body>
+</html>

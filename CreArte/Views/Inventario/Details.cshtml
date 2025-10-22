@@ -95,28 +95,44 @@
             <!-- ===========================
                  - Ver Kardex (producto)
                =========================== -->
-            <div class="d-flex gap-2 mt-3">
+@*             <div class="d-flex gap-2 mt-3">
                 <!-- ENTRADA -->
                 <a asp-action="AjusteEntrada"
                    asp-route-productoId="@Model.PRODUCTO_ID"
                    class="btn-AjEntrada">
                     <i class="bi bi-plus-circle"></i> Ajuste Entrada
-                </a>
+                </a> *@
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn-AjEntrada"
+                            onclick="openFormModal('@Url.Action("AjusteEntrada", "Inventario", new { productoId = Model.PRODUCTO_ID })', 'Ajuste de Entrada')">
+                        <i class="bi bi-plus-circle"></i> Ajuste Entrada
+                    </button>
 
                 <!-- SALIDA -->
-                <a asp-action="AjusteSalida"
+              @*   <a asp-action="AjusteSalida"
                    asp-route-productoId="@Model.PRODUCTO_ID"
                    class="btn-AjSalida">
                     <i class="bi bi-dash-circle"></i> Ajuste Salida
-                </a>
+                </a> *@
+
+                <button type="button" class="btn-AjSalida"
+                        onclick="openFormModal('@Url.Action("AjusteSalida", "Inventario", new { productoId = Model.PRODUCTO_ID })', 'Ajuste de Salida')">
+                    <i class="bi bi-dash-circle"></i> Salida
+                </button>
 
                 <!-- AJUSTE PRECIO (no modifica stock) -->
                 <!-- Inventario/AjustePrecio?productoId=... -->
-                <a asp-action="AjustePrecio"
+                @* <a asp-action="AjustePrecio"
                    asp-route-productoId="@Model.PRODUCTO_ID"
                    class="btn-AjPrecio">
                     <i class="bi bi-currency-dollar"></i> Ajuste Precio
-                </a>
+                </a> *@
+
+                <button type="button" class="btn-AjPrecio"
+                        onclick="openFormModal('@Url.Action("AjustePrecio", "Inventario", new { productoId = Model.PRODUCTO_ID })', 'Ajuste de Precio')">
+                    <i class="bi bi-currency-dollar"></i> A. Precio
+                </button>
 
                 <!-- Ver Kardex del producto -->
                 <a asp-controller="Kardex"
@@ -135,3 +151,83 @@
         </div>
     </div>
 </div>
+
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function wireModalForm(container){
+            const form = container.querySelector('form');
+            if(!form) return;
+
+            // (Re)inicializar jQuery Unobtrusive Validation sobre el nuevo form
+            if (window.jQuery && window.jQuery.validator && window.jQuery.validator.unobtrusive) {
+                const $f = window.jQuery(form);
+                $f.removeData("validator");
+                $f.removeData("unobtrusiveValidation");
+                window.jQuery.validator.unobtrusive.parse($f);
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const action = form.getAttribute('action') || window.location.href;
+                const method = (form.getAttribute('method') || 'POST').toUpperCase();
+
+                const resPost = await fetch(action, {
+                    method,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                const ct = resPost.headers.get('content-type') || '';
+
+                // Respuesta JSON -> OK (cerrar modal y redirigir/refrescar)
+                if (ct.includes('application/json')) {
+                    const data = await resPost.json();
+                    if (data.ok) {
+                        Swal.close();
+                        if (data.redirect) window.location.href = data.redirect;
+                        else window.location.reload();
+                        return;
+                    }
+                    // Si llega JSON pero con ok=false, muestra mensaje
+                    Swal.showValidationMessage(data.message || 'Error al guardar.');
+                    return;
+                }
+
+                // Respuesta HTML -> errores de validación: re-render y re-enganchar
+                const htmlErr = await resPost.text();
+                Swal.getHtmlContainer().innerHTML = htmlErr;
+                wireModalForm(Swal.getHtmlContainer()); // <- ¡volver a enganchar!
+            });
+        }
+
+        async function openFormModal(url, title){
+            await Swal.fire({
+                title: title,
+                html: '<div style="min-height:120px;display:flex;align-items:center;justify-content:center">Cargando…</div>',
+                showConfirmButton: false,
+                showCloseButton: true,
+                width: 650,
+                didOpen: async () => {
+                    try{
+                        const res = await fetch(url, {
+                            credentials: 'same-origin',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' } // opcional para GET
+                        });
+                        const html = await res.text();
+                        Swal.getHtmlContainer().innerHTML = html;
+
+                        // Enganchar la validación y el submit AJAX del formulario cargado
+                        wireModalForm(Swal.getHtmlContainer());
+                    }catch(err){
+                        Swal.getHtmlContainer().innerHTML = '<div class="text-danger">Error cargando el formulario.</div>';
+                    }
+                }
+            });
+        }
+    </script>
+}

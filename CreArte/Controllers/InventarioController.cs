@@ -141,7 +141,7 @@ namespace CreArte.Controllers
                                   STOCK_MINIMO = inv.STOCK_MINIMO,
                                   COSTO_UNITARIO = inv.COSTO_UNITARIO,
 
-                                  // ✅ conversión DateOnly? -> DateTime?
+                                  // conversión DateOnly? -> DateTime?
                                   FECHA_VENCIMIENTO = inv.FECHA_VENCIMIENTO == null
                                       ? (DateTime?)null
                                       : inv.FECHA_VENCIMIENTO.Value.ToDateTime(TimeOnly.MinValue),
@@ -155,7 +155,7 @@ namespace CreArte.Controllers
 
         // -------------------------------------------------------
         // GET: /Inventario/AjusteEntrada?productoId=PR0000001
-        // Formulario para registrar ENTRADA manual
+        // Si es AJAX -> PartialView (para modal). Si no -> View normal.
         // -------------------------------------------------------
         [HttpGet]
         public IActionResult AjusteEntrada(string productoId)
@@ -165,17 +165,37 @@ namespace CreArte.Controllers
                 PRODUCTO_ID = productoId,
                 TIPO_MOVIMIENTO = "ENTRADA"
             };
+
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+            if (isAjax)
+            {
+                ViewData["Modal"] = true;
+                return PartialView("AjusteEntrada", vm);
+            }
+
             return View(vm);
         }
 
         // -------------------------------------------------------
         // POST: /Inventario/AjusteEntrada
-        // Inserta en KARDEX (ENTRADA) + actualiza INVENTARIO
+        // Inserta KARDEX (AJUSTE ENTRADA) + actualiza INVENTARIO
+        // Si es AJAX -> JSON { ok, message, redirect }.
+        // Si no -> Redirect a Details.
         // -------------------------------------------------------
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AjusteEntrada(InventarioAjusteVM vm, CancellationToken ct)
         {
-            if (!ModelState.IsValid) return View(vm);
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
+            if (!ModelState.IsValid)
+            {
+                if (isAjax)
+                {
+                    ViewData["Modal"] = true;
+                    return PartialView("AjusteEntrada", vm); // <-- HTML con mensajes
+                }
+                return View(vm);
+            }
 
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
@@ -183,7 +203,6 @@ namespace CreArte.Controllers
                 var usuario = User?.Identity?.Name ?? "sistema";
                 var ahora = DateTime.Now;
 
-                // 1) Cargar o crear inventario
                 var inv = await _db.INVENTARIO
                     .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
 
@@ -204,7 +223,6 @@ namespace CreArte.Controllers
                     _db.INVENTARIO.Add(inv);
                 }
 
-                // 2) Modificar stock y costo (opcional)
                 inv.STOCK_ACTUAL += vm.CANTIDAD;
                 if (vm.COSTO_UNITARIO.HasValue)
                     inv.COSTO_UNITARIO = vm.COSTO_UNITARIO.Value;
@@ -212,41 +230,44 @@ namespace CreArte.Controllers
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
-                // 3) Registrar línea en KARDEX (**AJUSTE ENTRADA**)
-                var kardex = new KARDEX
+                _db.KARDEX.Add(new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = vm.PRODUCTO_ID,
                     FECHA = ahora,
-                    TIPO_MOVIMIENTO = "AJUSTE ENTRADA",  // <- ANTES: "ENTRADA"
+                    TIPO_MOVIMIENTO = "AJUSTE ENTRADA",
                     CANTIDAD = vm.CANTIDAD,
-                    COSTO_UNITARIO = vm.COSTO_UNITARIO,  // puede ir 0 o null
-                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(), // <- guarda Razón
+                    COSTO_UNITARIO = vm.COSTO_UNITARIO,
+                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(),
                     USUARIO_CREACION = usuario,
                     FECHA_CREACION = ahora,
                     ESTADO = true,
                     ELIMINADO = false
-                };
-                _db.KARDEX.Add(kardex);
-
+                });
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
 
+                var redirectUrl = Url.Action("Details", "Inventario", new { id = inv.INVENTARIO_ID });
+
+                if (isAjax) return Json(new { ok = true, message = "Entrada registrada y stock actualizado.", redirect = redirectUrl });
+
                 TempData["ok"] = "Entrada registrada y stock actualizado.";
-                return RedirectToAction(nameof(Index));
+                return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
+                if (isAjax) return BadRequest(new { ok = false, message = ex.Message });
                 ModelState.AddModelError(string.Empty, ex.Message);
                 return View(vm);
             }
         }
 
+
         // -------------------------------------------------------
         // GET: /Inventario/AjusteSalida?productoId=PR0000001
-        // Formulario para registrar SALIDA manual
+        // Si es AJAX -> PartialView (para modal). Si no -> View normal.
         // -------------------------------------------------------
         [HttpGet]
         public IActionResult AjusteSalida(string productoId)
@@ -256,19 +277,38 @@ namespace CreArte.Controllers
                 PRODUCTO_ID = productoId,
                 TIPO_MOVIMIENTO = "SALIDA"
             };
+
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+            if (isAjax)
+            {
+                ViewData["Modal"] = true;
+                return PartialView("AjusteSalida", vm);
+            }
+
             return View(vm);
         }
 
         // -------------------------------------------------------
         // POST: /Inventario/AjusteSalida
-        // Inserta en KARDEX (SALIDA) + actualiza INVENTARIO
+        // Inserta KARDEX (AJUSTE SALIDA) + actualiza INVENTARIO
+        // Si es AJAX -> JSON { ok, message, redirect }.
+        // Si no -> Redirect a Details.
         // -------------------------------------------------------
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AjusteSalida(InventarioAjusteVM vm, CancellationToken ct)
         {
-            // No exigimos COSTO en salida
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
             ModelState.Remove(nameof(vm.COSTO_UNITARIO));
-            if (!ModelState.IsValid) return View(vm);
+            if (!ModelState.IsValid)
+            {
+                if (isAjax)
+                {
+                    ViewData["Modal"] = true;
+                    return PartialView("AjusteSalida", vm);
+                }
+                return View(vm);
+            }
 
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
@@ -276,14 +316,12 @@ namespace CreArte.Controllers
                 var usuario = User?.Identity?.Name ?? "sistema";
                 var ahora = DateTime.Now;
 
-                // 1) Cargar inventario
                 var inv = await _db.INVENTARIO
                     .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
 
                 if (inv == null)
                     throw new InvalidOperationException("No existe inventario para este producto.");
 
-                // 2) Validar stock
                 if (inv.STOCK_ACTUAL < vm.CANTIDAD)
                     throw new InvalidOperationException("Stock insuficiente para realizar la salida.");
 
@@ -291,33 +329,35 @@ namespace CreArte.Controllers
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
-                // 3) Registrar KARDEX (**AJUSTE SALIDA**)
-                var kardex = new KARDEX
+                _db.KARDEX.Add(new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
                     PRODUCTO_ID = vm.PRODUCTO_ID,
                     FECHA = ahora,
-                    TIPO_MOVIMIENTO = "AJUSTE SALIDA",   // <- ANTES: "SALIDA"
+                    TIPO_MOVIMIENTO = "AJUSTE SALIDA",
                     CANTIDAD = vm.CANTIDAD,
-                    COSTO_UNITARIO = inv.COSTO_UNITARIO, // opcional, referencia del costo vigente
-                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(), // <- guarda Razón
+                    COSTO_UNITARIO = inv.COSTO_UNITARIO, // referencia del costo vigente
+                    REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(),
                     USUARIO_CREACION = usuario,
                     FECHA_CREACION = ahora,
                     ESTADO = true,
                     ELIMINADO = false
-                };
-                _db.KARDEX.Add(kardex);
-
+                });
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
 
+                var redirectUrl = Url.Action("Details", "Inventario", new { id = inv.INVENTARIO_ID });
+
+                if (isAjax) return Json(new { ok = true, message = "Salida registrada y stock actualizado.", redirect = redirectUrl });
+
                 TempData["ok"] = "Salida registrada y stock actualizado.";
-                return RedirectToAction(nameof(Index));
+                return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
+                if (isAjax) return BadRequest(new { ok = false, message = ex.Message });
                 ModelState.AddModelError(string.Empty, ex.Message);
                 return View(vm);
             }
@@ -325,14 +365,13 @@ namespace CreArte.Controllers
 
         // =======================================================
         // GET: /Inventario/AjustePrecio?productoId=PR00000001
-        // Muestra formulario para cambiar costo unitario.
+        // Si es AJAX -> PartialView (para modal). Si no -> View normal.
         // =======================================================
         [HttpGet]
         public async Task<IActionResult> AjustePrecio(string productoId, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(productoId)) return NotFound();
 
-            // Traemos costo actual (si hay inventario)
             var inv = await _db.INVENTARIO
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.PRODUCTO_ID == productoId && i.ELIMINADO == false, ct);
@@ -343,48 +382,48 @@ namespace CreArte.Controllers
                 CostoActual = inv?.COSTO_UNITARIO ?? 0
             };
 
-            return View(vm); 
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+            if (isAjax)
+            {
+                ViewData["Modal"] = true;
+                return PartialView("AjustePrecio", vm);
+            }
+
+            return View(vm);
         }
 
+        // =======================================================
         // POST: /Inventario/AjustePrecio
+        // Actualiza costo + KARDEX(AJUSTE PRECIO) + PRECIO_HISTORICO
+        // Si es AJAX -> JSON { ok, message, redirect }.
+        // Si no -> Redirect a Details.
+        // =======================================================
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AjustePrecio(InventarioAjustePrecioVM vm, CancellationToken ct)
         {
-            // 1) Este campo es solo informativo: que no bloquee el POST
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
             ModelState.Remove(nameof(InventarioAjustePrecioVM.CostoActual));
-
-            // 2) Si falló el parseo del número por tema de coma/punto, inténtalo manualmente
             if (!ModelState.IsValid)
             {
-                var raw = Request.Form[nameof(InventarioAjustePrecioVM.NuevoCostoUnitario)];
-                if (!string.IsNullOrWhiteSpace(raw))
+                if (isAjax)
                 {
-                    // Intenta con cultura actual (ej. es-ES usa coma)
-                    if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.CurrentCulture, out var v1))
-                    {
-                        vm.NuevoCostoUnitario = v1;
-                        ModelState.Clear(); 
-                    }
-                    else if (decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var v2))
-                    {
-                        vm.NuevoCostoUnitario = v2;
-                        ModelState.Clear();
-                    }
+                    // si quieres, recarga CostoActual aquí para el re-render
+                    var invNow = await _db.INVENTARIO.AsNoTracking()
+                        .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && !i.ELIMINADO, ct);
+                    vm.CostoActual = invNow?.COSTO_UNITARIO ?? 0m;
+
+                    ViewData["Modal"] = true;
+                    return PartialView("AjustePrecio", vm);
                 }
-            }
 
-            if (!ModelState.IsValid)
-            {
-                // 3) Si aún hay errores, recarga el costo actual para no mostrar 0.00
-                var invNow = await _db.INVENTARIO
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
-
-                vm.CostoActual = invNow?.COSTO_UNITARIO ?? 0m;
+                var invNow2 = await _db.INVENTARIO.AsNoTracking()
+                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && !i.ELIMINADO, ct);
+                vm.CostoActual = invNow2?.COSTO_UNITARIO ?? 0m;
                 return View(vm);
             }
 
-            // ======== LÓGICA ORIGINAL (sin cambios) ========
+
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -414,12 +453,12 @@ namespace CreArte.Controllers
                 var costoAnterior = inv.COSTO_UNITARIO;
                 var costoNuevo = vm.NuevoCostoUnitario;
 
-                //Cambiar costo sin mover el stock
-                inv.COSTO_UNITARIO = vm.NuevoCostoUnitario;
+                // Cambiar costo (no mueve stock)
+                inv.COSTO_UNITARIO = costoNuevo;
                 inv.USUARIO_MODIFICACION = usuario;
                 inv.FECHA_MODIFICACION = ahora;
 
-                //kardex
+                // KARDEX: AJUSTE PRECIO (CANTIDAD = 0)
                 _db.KARDEX.Add(new KARDEX
                 {
                     KARDEX_ID = Guid.NewGuid().ToString("N")[..10],
@@ -427,7 +466,7 @@ namespace CreArte.Controllers
                     FECHA = ahora,
                     TIPO_MOVIMIENTO = "AJUSTE PRECIO",
                     CANTIDAD = 0,
-                    COSTO_UNITARIO = vm.NuevoCostoUnitario,
+                    COSTO_UNITARIO = costoNuevo,
                     REFERENCIA = string.IsNullOrWhiteSpace(vm.Razon) ? null : vm.Razon.Trim(),
                     USUARIO_CREACION = usuario,
                     FECHA_CREACION = ahora,
@@ -436,10 +475,8 @@ namespace CreArte.Controllers
                 });
 
                 // PRECIO_HISTORICO (solo si cambió el precio)
-                // if (costoNuevo != costoAnterior)
                 if (decimal.Compare(costoNuevo, costoAnterior) != 0)
                 {
-                    // Cerrar vigente
                     var vigente = await _db.PRECIO_HISTORICO
                         .Where(ph => ph.PRODUCTO_ID == vm.PRODUCTO_ID && ph.ELIMINADO == false && ph.HASTA == null)
                         .OrderByDescending(ph => ph.DESDE)
@@ -447,12 +484,11 @@ namespace CreArte.Controllers
 
                     if (vigente != null)
                     {
-                        vigente.HASTA = ahora;                      // o ahora.AddTicks(-1)
+                        vigente.HASTA = ahora; // o ahora.AddTicks(-1)
                         vigente.USUARIO_MODIFICACION = usuario;
                         vigente.FECHA_MODIFICACION = ahora;
                     }
 
-                    // Insertar nuevo vigente
                     _db.PRECIO_HISTORICO.Add(new PRECIO_HISTORICO
                     {
                         PRECIO_ID = Guid.NewGuid().ToString("N")[..10],
@@ -470,13 +506,19 @@ namespace CreArte.Controllers
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
 
+                var redirectUrl = Url.Action("Details", "Inventario", new { id = inv.INVENTARIO_ID });
+
+                if (isAjax) return Json(new { ok = true, message = "Ajuste de precio realizado correctamente.", redirect = redirectUrl });
+
                 TempData["ok"] = "Ajuste de precio realizado correctamente.";
-                return RedirectToAction(nameof(Index));
+                return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
-                // Recarga costo actual para no mostrar 0
+
+                if (isAjax) return BadRequest(new { ok = false, message = ex.Message });
+
                 var invNow = await _db.INVENTARIO
                     .AsNoTracking()
                     .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);

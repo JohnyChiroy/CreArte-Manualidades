@@ -1,49 +1,33 @@
 ﻿@model CreArte.ModelsPartial.InventarioAjusteVM
 @{
-    ViewData["Title"] = "Ajuste de Salida";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = null;
 }
+<form id="form-ajuste-salida" asp-action="AjusteSalida" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="PRODUCTO_ID" />
+    <input type="hidden" asp-for="TIPO_MOVIMIENTO" value="SALIDA" />
 
-<div class="container py-3">
-    <h3 class="mb-3">Ajuste de Salida</h3>
+    <div class="mb-2">
+        <label class="form-label">Producto</label>
+        <input class="form-control" value="@Model.PRODUCTO_ID" readonly />
+    </div>
 
-    <!-- Formulario: POST /Inventario/AjusteSalida -->
-    <form asp-action="AjusteSalida" method="post" class="row g-3">
+    <div class="mb-2">
+        <label asp-for="CANTIDAD" class="form-label"></label>
+        <input asp-for="CANTIDAD" class="form-control" />
+        <span asp-validation-for="CANTIDAD" class="text-danger"></span>
+    </div>
 
-        @Html.AntiForgeryToken()
+    <div class="mb-2">
+        <label asp-for="Razon" class="form-label"></label>
+        <textarea asp-for="Razon" rows="3" class="form-control"
+                  placeholder="Ej.: Ajuste por merma, rotura, etc."></textarea>
+        <span asp-validation-for="Razon" class="text-danger"></span>
+    </div>
 
-        <!-- PRODUCTO_ID (solo lectura) -->
-        <div class="col-md-6">
-            <label class="form-label">Producto ID</label>
-            <input class="form-control" value="@Model.PRODUCTO_ID" readonly />
-            <input type="hidden" asp-for="PRODUCTO_ID" />
-        </div>
+    <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn-cancel" onclick="Swal.close()">Cancelar</button>
+        <button type="submit" class="btn-confirmado">Guardar ajuste</button>
+    </div>
+</form>
 
-        <!-- TIPO_MOVIMIENTO fijo (SALIDA) -->
-        <input type="hidden" asp-for="TIPO_MOVIMIENTO" value="SALIDA" />
-
-        <!-- CANTIDAD -->
-        <div class="col-md-6">
-            <label asp-for="CANTIDAD" class="form-label"></label>
-            <input asp-for="CANTIDAD" class="form-control" />
-            <span asp-validation-for="CANTIDAD" class="text-danger"></span>
-        </div>
-
-        <!-- RAZÓN -->
-        <div class="col-12">
-            <label asp-for="Razon" class="form-label"></label>
-            <textarea asp-for="Razon" class="form-control" rows="3"
-                      placeholder="Ej.: Ajuste por merma, daño, obsolescencia, etc."></textarea>
-            <span asp-validation-for="Razon" class="text-danger"></span>
-        </div>
-
-        <div class="col-12 d-flex gap-2">
-            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary">Guardar ajuste</button>
-        </div>
-    </form>
-</div>
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}

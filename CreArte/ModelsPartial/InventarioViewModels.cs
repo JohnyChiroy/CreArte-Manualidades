@@ -104,9 +104,6 @@ namespace CreArte.ModelsPartial
         [Range(0, double.MaxValue, ErrorMessage = "El costo no puede ser negativo.")]
         public decimal NuevoCostoUnitario { get; set; }
 
-        //[Display(Name = "Razón"), StringLength(300)]
-        //public string? Razon { get; set; }
-
         [Display(Name = "Razón"), StringLength(300)]
         [Required(ErrorMessage = "La razón es obligatoria.")]
         public string? Razon { get; set; }
