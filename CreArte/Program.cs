@@ -2,6 +2,7 @@
 using CreArte.Data;
 using CreArte.Services.Auditoria;
 using CreArte.Services.Mail;
+using CreArte.Services.Bitacora;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -43,6 +44,7 @@ builder.Services.AddSingleton<PlantillaEnvioCorreo>();
 builder.Services.AddHttpContextAccessor(); // necesario para CurrentUserService
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
+builder.Services.AddScoped<IBitacoraService, BitacoraService>();
 
 // 3) Cookie Authentication (LO CLAVE para que User.Identity tenga datos)
 builder.Services

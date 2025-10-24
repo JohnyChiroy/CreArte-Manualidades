@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace CreArte.Models;
 
 [Index("PRODUCTO_ID", "FECHA", Name = "IX_KARDEX_PROD_FEC")]
+[Index("PRODUCTO_ID", "FECHA", Name = "IX_KARDEX_PROD_FECHA", IsDescending = new[] { false, true })]
+[Index("TIPO_MOVIMIENTO", "FECHA", Name = "IX_KARDEX_TIPO_FECHA", IsDescending = new[] { false, true })]
 public partial class KARDEX
 {
     [Key]

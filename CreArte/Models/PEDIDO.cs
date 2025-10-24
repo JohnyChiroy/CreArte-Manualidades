@@ -56,6 +56,18 @@ public partial class PEDIDO
 
     public bool ESTADO { get; set; }
 
+    public bool REQUIERE_ANTICIPO { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal ANTICIPO_MINIMO { get; set; }
+
+    [StringLength(10)]
+    [Unicode(false)]
+    public string? ANTICIPO_ESTADO { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal TOTAL_PEDIDO { get; set; }
+
     [ForeignKey("CLIENTE_ID")]
     [InverseProperty("PEDIDO")]
     public virtual CLIENTE CLIENTE { get; set; } = null!;

@@ -297,6 +297,8 @@ public partial class CreArteDbContext : DbContext
         {
             entity.HasKey(e => e.INVENTARIO_ID).HasName("PK_INVENTARIO_ID");
 
+            entity.HasIndex(e => e.PRODUCTO_ID, "IX_INV_PRODUCTO_NOELIM").HasFilter("([ELIMINADO]=(0))");
+
             entity.Property(e => e.FECHA_CREACION).HasDefaultValueSql("(getdate())");
 
             entity.HasOne(d => d.PRODUCTO).WithMany(p => p.INVENTARIO)
@@ -416,10 +418,14 @@ public partial class CreArteDbContext : DbContext
         {
             entity.HasKey(e => e.PRECIO_ID).HasName("PK_PRECIO_ID");
 
+            entity.HasIndex(e => e.PRODUCTO_ID, "UX_PRECIO_HISTORICO_VIGENTE")
+                .IsUnique()
+                .HasFilter("([HASTA] IS NULL AND [ELIMINADO]=(0))");
+
             entity.Property(e => e.DESDE).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.FECHA_CREACION).HasDefaultValueSql("(getdate())");
 
-            entity.HasOne(d => d.PRODUCTO).WithMany(p => p.PRECIO_HISTORICO)
+            entity.HasOne(d => d.PRODUCTO).WithOne(p => p.PRECIO_HISTORICO)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PRECIO_PRODUCTO");
         });

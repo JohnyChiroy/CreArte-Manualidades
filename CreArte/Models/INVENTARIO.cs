@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CreArte.Models;
 
+[Index("PRODUCTO_ID", Name = "IX_INV_PRODUCTO_INCLUDES")]
 [Index("INVENTARIO_ID", "PRODUCTO_ID", Name = "UQ_INVENTARIO_ID_PROD", IsUnique = true)]
 public partial class INVENTARIO
 {

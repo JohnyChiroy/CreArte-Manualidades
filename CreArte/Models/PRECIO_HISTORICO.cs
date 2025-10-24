@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CreArte.Models;
 
+[Index("PRODUCTO_ID", "DESDE", Name = "IX_PRECIO_HIST_PRODUCTO_DESDE", IsDescending = new[] { false, true })]
 [Index("PRODUCTO_ID", "DESDE", Name = "IX_PRECIO_PRODUCTO_DESDE")]
 public partial class PRECIO_HISTORICO
 {

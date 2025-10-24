@@ -100,17 +100,7 @@ namespace CreArte.ModelsPartial
 
         // Estado: "BOR", "REV", "APR", "ENV", "CON", "REC", "CER", "ANU"
         public string? Estado { get; set; }
-        //public List<SelectListItem> EstadosList { get; set; } = new()
-        //{
-        //    new SelectListItem("Borrador", "BOR"),
-        //    new SelectListItem("Revisada", "REV"),
-        //    new SelectListItem("Aprobada", "APR"),
-        //    new SelectListItem("Enviada", "ENV"),
-        //    new SelectListItem("Confirmada", "CON"),
-        //    new SelectListItem("Recibida", "REC"),
-        //    new SelectListItem("Cerrada", "CER"),
-        //    new SelectListItem("Anulada", "ANU"),
-        //};
+
 
         // ====== ORDEN ======
         // Columnas soportadas: "id", "proveedor", "fecha", "estado", "inv"

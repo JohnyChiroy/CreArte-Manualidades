@@ -91,7 +91,7 @@ public partial class PRODUCTO
     public virtual MARCA? MARCA { get; set; }
 
     [InverseProperty("PRODUCTO")]
-    public virtual ICollection<PRECIO_HISTORICO> PRECIO_HISTORICO { get; set; } = new List<PRECIO_HISTORICO>();
+    public virtual PRECIO_HISTORICO? PRECIO_HISTORICO { get; set; }
 
     [ForeignKey("SUBCATEGORIA_ID")]
     [InverseProperty("PRODUCTO")]

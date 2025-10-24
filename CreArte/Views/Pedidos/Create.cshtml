@@ -1,92 +1,437 @@
-﻿@model CreArte.Models.PEDIDO
+﻿@using CreArte.ModelsPartial
+@model PedidoCreateEditVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Nuevo Pedido";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Catálogo de productos ya filtrados (≠ PRODUCTO FINAL) desde el controlador
+    var productosJson = ViewBag.ProductosJson as string ?? "[]";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Registrar Nuevo Pedido</h2>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Create</title>
-</head>
-<body>
+    <!-- Form principal -->
+    <form asp-action="Create" asp-controller="Pedidos" method="post" id="frmPedido" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
 
-<h4>PEDIDO</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="PEDIDO_ID" class="control-label"></label>
-                <input asp-for="PEDIDO_ID" class="form-control" />
-                <span asp-validation-for="PEDIDO_ID" class="text-danger"></span>
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- ==============================
+             Encabezado: Cliente, Fecha entrega, Observaciones
+             ============================== -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <label asp-for="ClienteId"><strong>Cliente:*</strong></label>
+                <select asp-for="ClienteId" class="form-control" required id="ClienteId">
+                    <option value="">Seleccione ↓</option>
+                    @foreach (var c in Model.ClientesCombo)
+                    {
+                        <option value="@c.Value">@c.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="ClienteId" class="text-danger"></span>
+
+                <label asp-for="FechaEntregaDeseada"><strong>Fecha entrega deseada:</strong></label>
+                <input asp-for="FechaEntregaDeseada" type="date" class="form-control" />
+                <span asp-validation-for="FechaEntregaDeseada" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="ESTADO_PEDIDO_ID" class="control-label"></label>
-                <select asp-for="ESTADO_PEDIDO_ID" class ="form-control" asp-items="ViewBag.ESTADO_PEDIDO_ID"></select>
+
+            <div class="ua-field" style="flex:1">
+                <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
+                <input asp-for="Observaciones" class="form-control" maxlength="250" />
             </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ENTREGA_PEDIDO" class="control-label"></label>
-                <input asp-for="FECHA_ENTREGA_PEDIDO" class="form-control" />
-                <span asp-validation-for="FECHA_ENTREGA_PEDIDO" class="text-danger"></span>
+        </div>
+
+        <!-- ==============================================
+             DETALLE: Producto, Imagen, Cantidad, Precio, Subtotal
+             ============================================== -->
+        <div style="margin-top:12px;">
+            <div class="ua-field ua-table-compra text-center" style="flex:1 1 100%;">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="tblProductos">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:36%">Producto*</th>
+                                <th style="width:16%">Imagen</th>
+                                <th class="text-center" style="width:12%">Cantidad*</th>
+                                <th class="text-end" style="width:14%">Precio*</th>
+                                <th class="text-end" style="width:14%">Subtotal</th>
+                                <th style="width:8%" class="text-center">Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblBody">
+                            @* Render inicial con índices explícitos (si así lo deseas) *@
+                            @for (int i = 0; i < Model.Detalles.Count; i++)
+                            {
+                                <tr>
+                                    <input type="hidden" name="Detalles.Index" value="@i" />
+                                    <td>
+                                        <select name="Detalles[@i].ProductoId"
+                                                class="form-control producto js-prod"
+                                                data-row="@i" required>
+                                            <option value=""> Seleccione ↓ </option>
+                                            @foreach (var pr in Model.ItemsCombo)
+                                            {
+                                                <option value="@pr.Value">@pr.Text</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="@i" src="" alt="N" />
+                                    </td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].Cantidad" type="number" min="1" step="1"
+                                               class="form-control cantidad text-end js-cant" required />
+                                    </td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].PrecioPedido" type="number" min="0" step="0.01"
+                                               class="form-control precio text-end js-precio" required />
+                                    </td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].ProductoNombre" type="hidden" class="js-prod-name" data-row="@i" />
+                                        <span class="js-subtotal" data-row="@i">Q 0.00</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" class="text-center">
+                                    <button type="button" class="btn-agregate" onclick="agregarFila()">
+                                        <i class="bi bi-plus-circle"></i> Agregar producto
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Totales / Anticipo -->
+                <div class="d-flex justify-content-end mt-3">
+                    <div style="min-width:360px;">
+                        <div class="d-flex justify-content-between">
+                            <strong>Total pedido:</strong>
+                            <strong id="lblTotal">Q 0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>¿Requiere anticipo? <span id="lblRA" class="badge bg-secondary">NO</span></span>
+                            <span id="lblAnticipo" class="fw-bold text-primary">Anticipo: Q 0.00</span>
+                        </div>
+                        <small class="text-muted">Regla: si Total ≥ Q300, anticipo mínimo = 25%.</small>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label asp-for="OBSERVACIONES_PEDIDO" class="control-label"></label>
-                <input asp-for="OBSERVACIONES_PEDIDO" class="form-control" />
-                <span asp-validation-for="OBSERVACIONES_PEDIDO" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="CLIENTE_ID" class="control-label"></label>
-                <select asp-for="CLIENTE_ID" class ="form-control" asp-items="ViewBag.CLIENTE_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <!-- ==============================
+             ACCIONES – Cancelar / Guardar
+             ============================== -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" href="@Url.Action("Index", "Pedidos")" id="btnCancelar">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-</body>
-</html>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // =========================
+        // Catálogo productos [{id,nombre,imagen,precioSugerido}]
+        // =========================
+        const CAT = @Html.Raw(productosJson);
+        const IDX = {}; CAT.forEach(p => { IDX[p.id] = p; });
+
+        // ===== Helpers DOM =====
+        function qs(sel, root=document){ return root.querySelector(sel); }
+        function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+        function getAllProductSelects(){ return qsAll('#tblBody select[name*=".ProductoId"]'); }
+        function rowEl(el){ return el.closest('tr'); }
+        function money(n){ return 'Q ' + (Number(n||0).toFixed(2)); }
+
+        // Conjunto de IDs actualmente seleccionados (no vacíos)
+        function selectedIds(){
+            const set = new Set();
+            getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if (v) set.add(v); });
+            return set;
+        }
+
+        // Construye HTML de <option> excluyendo IDs ya usados por otras filas.
+        // Mantiene "current" para no perder el valor actual del select.
+                function buildOptionsHtml(exclude, current){
+            let html = `<option value="">Seleccione ↓</option>`;
+            for (const p of CAT){
+                if (p.id !== current && exclude.has(p.id)) continue;
+                const stockTxt = (p.stock != null) ? ` (Stock: ${Number(p.stock)})` : '';
+                html += `<option value="${p.id}" ${p.id===current?'selected':''}>${p.nombre}${stockTxt}</option>`;
+            }
+            return html;
+        }
+
+        // Reconstruye TODOS los selects para reflejar duplicados
+        function refreshAllSelects(){
+            const selects = getAllProductSelects();
+            const chosen  = selectedIds();
+
+            selects.forEach(sel => {
+                const current = (sel.value||'').trim();
+                const exclude = new Set(chosen); exclude.delete(current);
+                sel.innerHTML = buildOptionsHtml(exclude, current);
+            });
+
+            // Refresca imagen/nombre/subtotal de cada fila
+            selects.forEach(sel => onProductoChange.call(sel, /*noRecalc*/true));
+            recalcTotales();
+            evalReady();
+        }
+
+        // ============== Fila dinámica ==============
+        let nextIndex = @Model.Detalles.Count;
+
+        function agregarFila() {
+            const tbody = document.getElementById("tblBody");
+            const i = nextIndex++;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <input type="hidden" name="Detalles.Index" value="${i}" />
+
+                <td>
+                    <select name="Detalles[${i}].ProductoId"
+                            class="form-control producto js-prod" data-row="${i}" required></select>
+                </td>
+
+                <td>
+                    <img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="${i}"
+                         src="" alt="N"/>
+                </td>
+
+                <td class="text-end">
+                    <input name="Detalles[${i}].Cantidad" type="number" min="1" step="1"
+                           class="form-control cantidad text-end js-cant" required />
+                </td>
+
+                <td class="text-end">
+                    <input name="Detalles[${i}].PrecioPedido" type="number" min="0" step="0.01"
+                           class="form-control precio text-end js-precio" required />
+                </td>
+
+                <td class="text-end">
+                    <input name="Detalles[${i}].ProductoNombre" type="hidden" class="js-prod-name" data-row="${i}" />
+                    <span class="js-subtotal" data-row="${i}">Q 0.00</span>
+                </td>
+
+                <td class="text-center">
+                    <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>`;
+            tbody.appendChild(tr);
+
+            // Armar opciones excluyendo lo ya seleccionado
+            const sel = tr.querySelector('.js-prod');
+            const exclude = selectedIds();
+            sel.innerHTML = buildOptionsHtml(exclude, ""); // sin valor actual
+
+            // Listeners
+            sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
+            tr.querySelector('.js-cant').addEventListener('input', recalcFila);
+            tr.querySelector('.js-precio').addEventListener('input', recalcFila);
+
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+
+        function eliminarFila(btn) {
+            rowEl(btn).remove();
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+
+        // ============== Cambios por fila ==============
+                function onProductoChange(noRecalc) {
+            const row = this.getAttribute('data-row');
+            const prodId = this.value || '';
+            const info = IDX[prodId];
+
+            const img    = document.querySelector(`.js-prod-img[data-row="${row}"]`);
+            const name   = document.querySelector(`input.js-prod-name[data-row="${row}"]`);
+            const precio = rowEl(this).querySelector('.js-precio');
+
+            if (info) {
+                if (img)  img.src = info.imagen || '';
+                if (name) name.value = info.nombre || '';
+                // 💡 Autollenar Precio con COSTO de inventario si el campo está vacío o 0
+                if (precio) {
+                    const cur = Number(precio.value || 0);
+                    if (!cur || cur === 0) {
+                        const costo = Number(info.costo || 0);
+                        if (!isNaN(costo)) precio.value = costo.toFixed(2);
+                    }
+                    // (Opcional) tooltip con stock/costo
+                    precio.title = `Costo inventario: Q ${Number(info.costo||0).toFixed(2)} | Stock: ${Number(info.stock||0)}`;
+                }
+            } else {
+                if (img)  img.src = '';
+                if (name) name.value = '';
+                if (precio) precio.title = '';
+            }
+
+            if (!noRecalc) recalcFila.call(this);
+            changed = true;
+        }
+
+                function recalcFila() {
+            const tr = rowEl(this);
+            const vCant   = Number(tr.querySelector('.js-cant')?.value || 0);
+            const vPrecio = Number(tr.querySelector('.js-precio')?.value || 0);
+            const prodId  = tr.querySelector('select[name*=".ProductoId"]')?.value || '';
+            const info    = IDX[prodId];
+
+            const sub = Math.round((vCant * vPrecio) * 100) / 100;
+            const lbl = tr.querySelector('.js-subtotal');
+            if (lbl) lbl.textContent = 'Q ' + sub.toFixed(2);
+
+            // Marca visual si cantidad > stock actual
+            if (info && Number(info.stock) < vCant) {
+                tr.classList.add('table-warning');     // o tu clase ua-warning
+                lbl.title = `Cantidad supera stock actual (${info.stock})`;
+            } else {
+                tr.classList.remove('table-warning');
+                lbl.title = '';
+            }
+
+            recalcTotales();
+            evalReady();
+        }
+
+
+        // ============== Totales / Anticipo ==============
+        function recalcTotales() {
+            let total = 0;
+            qsAll('#tblBody tr').forEach(tr => {
+                const vCant   = Number(tr.querySelector('.js-cant')?.value || 0);
+                const vPrecio = Number(tr.querySelector('.js-precio')?.value || 0);
+                total += vCant * vPrecio;
+            });
+            total = Math.round(total * 100) / 100;
+
+            qs('#lblTotal').textContent = money(total);
+
+            const requiere = total >= 300;
+            const anticipo = requiere ? Math.round((total * 0.25) * 100) / 100 : 0;
+
+            const lblRA = qs('#lblRA');
+            if (lblRA) {
+                lblRA.textContent = requiere ? 'SÍ' : 'NO';
+                lblRA.className = 'badge ' + (requiere ? 'bg-warning text-dark' : 'bg-secondary');
+            }
+            qs('#lblAnticipo').textContent = 'Anticipo: ' + money(anticipo);
+        }
+
+        // ============== Habilitar Guardar ==============
+        function evalReady() {
+            const btn = qs('#btnGuardar');
+            const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
+
+            let hayLinea = false;
+            let sinDuplicados = true;
+
+            const vals = [];
+            qsAll('#tblBody tr').forEach(tr => {
+                const id  = (tr.querySelector('select[name*=".ProductoId"]')?.value || '').trim();
+                const c   = Number(tr.querySelector('.js-cant')?.value || 0);
+                const pr  = Number(tr.querySelector('.js-precio')?.value || 0);
+                if (id && c > 0 && pr >= 0) hayLinea = true;
+                if (id) vals.push(id);
+            });
+            sinDuplicados = (new Set(vals).size === vals.length);
+
+            const ok = clienteOk && hayLinea && sinDuplicados;
+            btn.disabled = !ok;
+            btn.classList.toggle('enabled', ok);
+        }
+
+        // Listeners iniciales en filas renderizadas por Razor
+        document.querySelectorAll('.js-prod').forEach(sel => {
+            sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
+            if (sel.value) onProductoChange.call(sel, true);
+        });
+        document.querySelectorAll('.js-cant,.js-precio').forEach(inp => inp.addEventListener('input', recalcFila));
+
+        document.addEventListener('DOMContentLoaded', function(){
+            refreshAllSelects();
+            recalcTotales();
+            evalReady();
+        });
+
+        // ============== SweetAlert2: confirmaciones ==============
+        let changed = false;
+        document.getElementById('frmPedido').addEventListener('input', () => changed = true);
+        document.getElementById('frmPedido').addEventListener('change', () => changed = true);
+
+        // Confirmar SALIR si hay cambios
+        document.getElementById('btnCancelar').addEventListener('click', function(e){
+            if (!changed) return; // salir normal
+            e.preventDefault();
+            Swal.fire({
+                icon: 'question',
+                title: '¿Cancelar creación?',
+                text: 'Perderás los cambios no guardados.',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Seguir aquí'
+            }).then(r => {
+                if (r.isConfirmed) window.location.href = this.getAttribute('href');
+            });
+        });
+
+        // Confirmar GUARDAR
+        const frm = document.getElementById('frmPedido');
+        frm.addEventListener('submit', function(e){
+            e.preventDefault();
+            if (document.getElementById('btnGuardar').disabled) return;
+
+            Swal.fire({
+                icon: 'question',
+                title: '¿Guardar pedido?',
+                html: document.getElementById('lblTotal').textContent +
+                      '<br/>' + document.getElementById('lblAnticipo').textContent,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Revisar'
+            }).then(r => {
+                if (r.isConfirmed) {
+                    // PRG: evitar doble submit
+                    const btn = document.getElementById('btnGuardar');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                    frm.submit();
+                }
+            });
+        });
+
+        // Notificaciones post-back (si el controller deja TempData)
+        (function () {
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["err"] ?? "")';
+            if (ok)  Swal.fire({ icon:'success', title: ok, timer: 2500, showConfirmButton:false });
+            if (err) Swal.fire({ icon:'error',   title: err, timer: 2800, showConfirmButton:false });
+        })();
+    </script>
+}
