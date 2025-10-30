@@ -99,4 +99,48 @@ namespace CreArte.ModelsPartial
         public DateTime FechaInicio { get; set; } = DateTime.Today;
         public DateTime FechaFin { get; set; } = DateTime.Today.AddDays(2);
     }
+    public class PedidoDetailsVM
+    {
+        // Encabezado
+        public string PedidoId { get; set; } = null!;
+        public string EstadoId { get; set; } = null!;
+        public string? EstadoNombre { get; set; }
+        public string ClienteId { get; set; } = null!;
+        public string ClienteNombre { get; set; } = null!;
+        public DateTime FechaPedido { get; set; }
+        public DateTime? FechaEntrega { get; set; }
+        public string? Observaciones { get; set; }
+
+        // Anticipo
+        public bool RequiereAnticipo { get; set; }
+        public string? AnticipoEstado { get; set; }
+        public decimal AnticipoMinimo { get; set; }
+
+        // Totales
+        public decimal TotalPedido { get; set; }
+
+        // Permisos de acción (para botones en la vista)
+        public bool PuedeCotizar { get; set; }       // BORRADOR → COTIZADO
+        public bool PuedeAprobar { get; set; }       // COTIZADO → APROBADO
+        public bool PuedePagarAnticipo { get; set; } // si requiere y está PENDIENTE
+        public bool PuedeProgramar { get; set; }     // APROBADO → PROGRAMADO
+        public bool PuedeFinalizar { get; set; }     // PROGRAMADO/EN_PRODU → TERMINADO
+        public bool PuedeEntregar { get; set; }      // TERMINADO → ENTREGADO
+        public bool PuedeCerrar { get; set; }        // ENTREGADO → CERRADO
+        public bool PuedeCancelar { get; set; }      // estados “tempranos”
+        public bool PuedeRechazar { get; set; }      // COTIZADO o APROBADO (si aplica)
+
+        public List<PedidoLineaVM> Lineas { get; set; } = new();
+    }
+
+    public class PedidoLineaVM
+    {
+        public string ProductoId { get; set; } = null!;
+        public string ProductoNombre { get; set; } = null!;
+        public string? ImagenProducto { get; set; }
+
+        public decimal Cantidad { get; set; }
+        public decimal PrecioPedido { get; set; }
+        public decimal Subtotal { get; set; }
+    }
 }

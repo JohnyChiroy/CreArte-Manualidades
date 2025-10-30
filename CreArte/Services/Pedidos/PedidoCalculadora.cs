@@ -11,7 +11,7 @@ namespace CreArte.Services.Pedidos
             foreach (var d in pedido.DETALLE_PEDIDO)
             {
                 var precio = d.PRECIO_PEDIDO ?? 0m;
-                d.SUBTOTAL = Math.Round(d.CANTIDAD * precio, 2); // si CANTIDAD es int en tu entidad, EF hace la conversión implícita a decimal aquí
+                d.SUBTOTAL = Math.Round(d.CANTIDAD * precio, 2); 
                 total += d.SUBTOTAL;
             }
 

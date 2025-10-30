@@ -18,7 +18,10 @@ namespace CreArte.Services.Bitacora
 
         // Genera un ID único sin depender de MAX (evita errores)
         private static string NewBitacoraId()
-            => $"BIT{DateTime.UtcNow.Ticks}";
+        {
+            var sufijo = Guid.NewGuid().ToString("N").Substring(0, 7); // 7 = 10 - len("BIT")
+            return "BIT" + sufijo;
+        }
 
         public async Task LogAsync(string tabla, string operacion, string usuario, string detalle, CancellationToken ct = default)
         {

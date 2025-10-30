@@ -1,8 +1,8 @@
 ﻿using CreArte.Data;
 using CreArte.Models;
-using CreArte.ModelsPartial;            // /ModelsPartial/PedidoViewModels.cs
-using CreArte.Services.Bitacora;        // /Services/Bitacora/BitacoraService.cs
-using CreArte.Services.Pedidos;         // /Services/Pedidos/PedidoCalculadora.cs
+using CreArte.ModelsPartial;            
+using CreArte.Services.Bitacora;        
+using CreArte.Services.Pedidos;         
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +30,7 @@ public class PedidosController : Controller
     private static int RoundToInt(decimal value)
         => (int)Math.Round(value, 0, MidpointRounding.AwayFromZero);
 
-    // Genera IDs tipo PE00000000
+    // Genera IDs para PEDIDO - PE00000000
     private async Task<string> SiguientePedidoIdAsync()
     {
         const string prefijo = "PE";  
@@ -54,6 +54,14 @@ public class PedidosController : Controller
 
         var siguiente = maxNum + 1;
         return prefijo + siguiente.ToString(new string('0', ancho));
+    }
+
+
+    // --- Genera IDs para DETALLE_PEDIDO ---
+    private static string NewDetallePedidoId()
+    {
+        // "N" = GUID sin guiones (32 chars).
+        return Guid.NewGuid().ToString("N").Substring(0, 10);
     }
 
     // ------------------------------------------------------
@@ -339,19 +347,19 @@ public class PedidosController : Controller
             FECHA_PEDIDO = DateTime.Now,
             CLIENTE_ID = vm.ClienteId!,
             ESTADO_PEDIDO_ID = "BORRADOR",
-            FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada,  // DateOnly?
+            FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada,
             OBSERVACIONES_PEDIDO = vm.Observaciones,
             USUARIO_CREACION = UserName(),
             FECHA_CREACION = DateTime.Now,
             ESTADO = true
         };
 
-        // Mapear detalle (si CANTIDAD en entidad es INT → uso RoundToInt)
         pedido.DETALLE_PEDIDO = vm.Detalles.Select(d => new DETALLE_PEDIDO
         {
+            DETALLE_PEDIDO_ID = NewDetallePedidoId(),
             PEDIDO_ID = pedido.PEDIDO_ID,
             PRODUCTO_ID = d.ProductoId!,
-            CANTIDAD = RoundToInt(d.Cantidad),                 // evita ambigüedad
+            CANTIDAD = RoundToInt(d.Cantidad),
             PRECIO_PEDIDO = d.PrecioPedido,
             SUBTOTAL = Math.Round(d.Cantidad * d.PrecioPedido, 2),
             USUARIO_CREACION = UserName(),
@@ -362,14 +370,132 @@ public class PedidosController : Controller
         // Recalcula totales + anticipo (25% si total >= 300)
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
 
+        // ====== NUEVO: fijar ANTICIPO_ESTADO según REQUIERE_ANTICIPO ======
+        if (!pedido.REQUIERE_ANTICIPO)
+        {
+            pedido.ANTICIPO_MINIMO = 0m;
+            pedido.ANTICIPO_ESTADO = "NO APLICA"; // evita nulos
+        }
+        else
+        {
+            // Si requiere anticipo y no hay estado aún, arranca en PENDIENTE
+            if (string.IsNullOrWhiteSpace(pedido.ANTICIPO_ESTADO))
+                pedido.ANTICIPO_ESTADO = "PENDIENTE";
+        }
+
         _db.PEDIDO.Add(pedido);
         await _db.SaveChangesAsync(ct);
 
         await _bitacora.LogAsync("PEDIDO", "INSERT", UserName(), $"Creó pedido {pedido.PEDIDO_ID}", ct);
 
         TempData["ok"] = $"Pedido {pedido.PEDIDO_ID} creado (Total Q{pedido.TOTAL_PEDIDO:N2}).";
-        return RedirectToAction("Edit", new { id = pedido.PEDIDO_ID });
+        return RedirectToAction("Index");
     }
+
+    // ======================================================
+    // GET: Details
+    // ======================================================
+    [HttpGet]
+    public async Task<IActionResult> Details(string id, CancellationToken ct)
+    {
+        var pedido = await _db.PEDIDO
+            .Include(p => p.DETALLE_PEDIDO)
+            .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+
+        if (pedido == null) return NotFound();
+
+        // ========= Nombre del cliente (CLIENTE_ID = PERSONA_ID) =========
+        var persona = await _db.PERSONA
+            .Where(x => x.PERSONA_ID == pedido.CLIENTE_ID)
+            .Select(x => new
+            {
+                x.PERSONA_PRIMERNOMBRE,
+                x.PERSONA_SEGUNDONOMBRE,
+                x.PERSONA_TERCERNOMBRE,
+                x.PERSONA_PRIMERAPELLIDO,
+                x.PERSONA_SEGUNDOAPELLIDO,
+                x.PERSONA_APELLIDOCASADA
+            })
+            .FirstOrDefaultAsync(ct);
+
+        string clienteNombre = "";
+        if (persona != null)
+        {
+            // Une solo partes no vacías
+            var parts = new[]
+            {
+            persona.PERSONA_PRIMERNOMBRE,
+            persona.PERSONA_SEGUNDONOMBRE,
+            persona.PERSONA_TERCERNOMBRE,
+            persona.PERSONA_PRIMERAPELLIDO,
+            persona.PERSONA_SEGUNDOAPELLIDO,
+            persona.PERSONA_APELLIDOCASADA
+        }.Where(s => !string.IsNullOrWhiteSpace(s));
+            clienteNombre = string.Join(" ", parts);
+        }
+        if (string.IsNullOrWhiteSpace(clienteNombre))
+            clienteNombre = pedido.CLIENTE_ID; // fallback
+
+        // ========= Líneas con nombre/imagen del producto =========
+        var lineas = await (
+            from d in _db.DETALLE_PEDIDO
+            join p in _db.PRODUCTO on d.PRODUCTO_ID equals p.PRODUCTO_ID
+            where d.PEDIDO_ID == id
+            select new PedidoLineaVM
+            {
+                ProductoId = p.PRODUCTO_ID,
+                ProductoNombre = p.PRODUCTO_NOMBRE,
+                ImagenProducto = p.IMAGEN_PRODUCTO,
+                Cantidad = d.CANTIDAD,
+                PrecioPedido = d.PRECIO_PEDIDO ?? 0m,
+                Subtotal = d.SUBTOTAL
+            })
+            .ToListAsync(ct);
+
+        var total = lineas.Sum(l => l.Subtotal);
+
+        // ========= VM =========
+        var vm = new PedidoDetailsVM
+        {
+            PedidoId = pedido.PEDIDO_ID,
+            EstadoId = pedido.ESTADO_PEDIDO_ID,
+            EstadoNombre = pedido.ESTADO_PEDIDO_ID, // si tienes catálogo, reemplaza por el nombre
+            ClienteId = pedido.CLIENTE_ID,
+            ClienteNombre = clienteNombre,
+            FechaPedido = pedido.FECHA_PEDIDO,
+            FechaEntrega = pedido.FECHA_ENTREGA_PEDIDO.HasValue
+                ? pedido.FECHA_ENTREGA_PEDIDO.Value.ToDateTime(TimeOnly.MinValue)
+                : (DateTime?)null,
+            Observaciones = pedido.OBSERVACIONES_PEDIDO,
+
+            RequiereAnticipo = pedido.REQUIERE_ANTICIPO,
+            AnticipoEstado = pedido.ANTICIPO_ESTADO ?? "NO APLICA",
+            AnticipoMinimo = pedido.ANTICIPO_MINIMO,
+
+            TotalPedido = total,
+            Lineas = lineas
+        };
+
+        // ========= Permisos según estado =========
+        var st = pedido.ESTADO_PEDIDO_ID?.ToUpperInvariant() ?? "";
+
+        vm.PuedeCotizar = st == "BORRADOR";
+        vm.PuedeAprobar = st == "COTIZADO";
+        vm.PuedeProgramar = st == "APROBADO";
+        vm.PuedeFinalizar = st == "PROGRAMADO" || st == "EN_PRODU";
+        vm.PuedeEntregar = st == "TERMINADO";
+        vm.PuedeCerrar = st == "ENTREGADO";
+        vm.PuedePagarAnticipo = pedido.REQUIERE_ANTICIPO && string.Equals(pedido.ANTICIPO_ESTADO, "PENDIENTE", StringComparison.OrdinalIgnoreCase);
+
+        // Cancelar en estados tempranos (ajústalo a tu flujo)
+        vm.PuedeCancelar = st is "BORRADOR" or "COTIZADO" or "APROBADO" or "PROGRAMADO" or "EN_PRODU";
+
+        // Rechazar en cotizado o aprobado (si aplica a tu negocio)
+        vm.PuedeRechazar = st is "COTIZADO" or "APROBADO";
+
+        return View(vm);
+    }
+
 
     // ======================================================
     // GET: /Pedidos/Edit/{id}
@@ -383,23 +509,60 @@ public class PedidosController : Controller
 
         if (pedido == null) return NotFound();
 
+        // ===== Catálogo de productos para la vista (≠ PRODUCTO FINAL) =====
+        // Ajusta el filtro según tu modelo. Si tienes TIPO_PRODUCTO_NOMBRE, úsalo.
+        var productos = await _db.PRODUCTO
+            .Where(p => p.ESTADO == true && p.TIPO_PRODUCTO.TIPO_PRODUCTO_NOMBRE != "PRODUCTO FINAL") 
+            .Select(p => new
+            {
+                id = p.PRODUCTO_ID,
+                nombre = p.PRODUCTO_NOMBRE,
+                imagen = p.IMAGEN_PRODUCTO, 
+                                            // STOCK actual
+                stock = (decimal?)_db.INVENTARIO
+                            .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
+                            .Select(i => i.STOCK_ACTUAL)        
+                            .FirstOrDefault() ?? 0m,
+                // COSTO sugerido desde inventario (último costo)
+                costo = (decimal?)_db.INVENTARIO
+                            .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
+                            .OrderByDescending(i => i.FECHA_CREACION)    
+                            .Select(i => i.COSTO_UNITARIO)      
+                            .FirstOrDefault() ?? 0m
+            })
+            .OrderBy(p => p.nombre)
+            .ToListAsync();
+
+        // JSON para el JS (imagen/stock/costo)
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            productos,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }
+        );
+        ViewBag.ProductosJson = json;
+
+        // Combo del select (texto = nombre; value = id)
+        var itemsCombo = productos
+            .Select(p => new SelectListItem { Value = p.id, Text = p.nombre })
+            .ToList();
+
         var vm = new PedidoCreateEditVM
         {
             PedidoId = pedido.PEDIDO_ID,
             ClienteId = pedido.CLIENTE_ID,
-            FechaEntregaDeseada = pedido.FECHA_ENTREGA_PEDIDO,  // DateOnly?
+            FechaEntregaDeseada = pedido.FECHA_ENTREGA_PEDIDO,
             Observaciones = pedido.OBSERVACIONES_PEDIDO,
             EstadoPedidoId = pedido.ESTADO_PEDIDO_ID,
             AnticipoEstado = pedido.ANTICIPO_ESTADO,
             ClientesCombo = await GetClientesAsync(),
-            ItemsCombo = await GetItemsElaboracionAsync(),
+            ItemsCombo = itemsCombo,
             Detalles = pedido.DETALLE_PEDIDO.Select(d => new PedidoDetalleVM
             {
                 ProductoId = d.PRODUCTO_ID,
+                
                 ProductoNombre = _db.PRODUCTO.Where(p => p.PRODUCTO_ID == d.PRODUCTO_ID)
                                              .Select(p => p.PRODUCTO_NOMBRE)
                                              .FirstOrDefault(),
-                Cantidad = d.CANTIDAD,         // si la entidad es int, aquí sube a decimal sin problema
+                Cantidad = d.CANTIDAD,
                 PrecioPedido = d.PRECIO_PEDIDO ?? 0m
             }).ToList()
         };
@@ -407,9 +570,10 @@ public class PedidosController : Controller
         return View(vm);
     }
 
-    // ======================================================
+    // ==============================================
     // POST: /Pedidos/Edit/{id}
-    // ======================================================
+    // Sincroniza cabecera y detalle SIN borrar todo
+    // ==============================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, PedidoCreateEditVM vm, CancellationToken ct)
     {
@@ -419,48 +583,204 @@ public class PedidosController : Controller
 
         if (pedido == null) return NotFound();
 
-        // Regla del negocio: no permitir edición si el anticipo está pagado
         if (string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "No se puede editar: el anticipo ya fue pagado.";
-            return RedirectToAction("Edit", new { id });
+            return RedirectToAction(nameof(Edit), new { id });
         }
 
-        // Cabecera
-        pedido.CLIENTE_ID = vm.ClienteId!;
-        pedido.FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada; // DateOnly?
-        pedido.OBSERVACIONES_PEDIDO = vm.Observaciones;
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
+        var lineasValidas = (vm.Detalles ?? new List<PedidoDetalleVM>())
+            .Where(d => !string.IsNullOrWhiteSpace(d.ProductoId) && d.Cantidad > 0)
+            .ToList();
 
-        // Detalle (sincronización simple: borrar + volver a insertar)
-        _db.DETALLE_PEDIDO.RemoveRange(pedido.DETALLE_PEDIDO);
-        pedido.DETALLE_PEDIDO.Clear();
-
-        foreach (var d in vm.Detalles)
+        if (lineasValidas.Count == 0)
         {
-            pedido.DETALLE_PEDIDO.Add(new DETALLE_PEDIDO
-            {
-                PEDIDO_ID = pedido.PEDIDO_ID,
-                PRODUCTO_ID = d.ProductoId!,
-                CANTIDAD = RoundToInt(d.Cantidad),
-                PRECIO_PEDIDO = d.PrecioPedido,
-                SUBTOTAL = Math.Round(d.Cantidad * d.PrecioPedido, 2),
-                USUARIO_CREACION = UserName(),
-                FECHA_CREACION = DateTime.Now,
-                ESTADO = true
-            });
+            TempData["err"] = "Debe agregar al menos una línea válida (producto y cantidad).";
+            return RedirectToAction(nameof(Edit), new { id });
         }
 
-        // Recalcula totales + anticipo
+        var setProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var l in lineasValidas)
+        {
+            if (!setProd.Add(l.ProductoId!))
+            {
+                TempData["err"] = $"El producto {l.ProductoId} está repetido en el detalle.";
+                return RedirectToAction(nameof(Edit), new { id });
+            }
+        }
+
+        // ===== SNAPSHOT de campos supervisados (para auditar cambios) =====
+        var snap = new
+        {
+            pedido.TOTAL_PEDIDO,
+            pedido.FECHA_PEDIDO,
+            pedido.ESTADO_PEDIDO_ID,
+            OBS = pedido.OBSERVACIONES_PEDIDO ?? "",
+            pedido.CLIENTE_ID,
+            pedido.REQUIERE_ANTICIPO,
+            pedido.ANTICIPO_MINIMO,
+            ANT_EST = pedido.ANTICIPO_ESTADO ?? ""
+        };
+
+        // ===== CABECERA =====
+        bool hayCambiosCab = false;
+
+        if (!string.Equals(pedido.CLIENTE_ID, vm.ClienteId, StringComparison.Ordinal))
+        {
+            pedido.CLIENTE_ID = vm.ClienteId!;
+            hayCambiosCab = true;
+        }
+
+        if (pedido.FECHA_ENTREGA_PEDIDO != vm.FechaEntregaDeseada)
+        {
+            pedido.FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada;
+            hayCambiosCab = true;
+        }
+
+        if (!string.Equals(pedido.OBSERVACIONES_PEDIDO ?? "", vm.Observaciones ?? "", StringComparison.Ordinal))
+        {
+            pedido.OBSERVACIONES_PEDIDO = vm.Observaciones;
+            hayCambiosCab = true;
+        }
+
+        if (hayCambiosCab)
+        {
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+        }
+
+        // ===== DETALLE (UPSERT por PRODUCTO_ID) =====
+        bool hayCambiosDet = false;
+
+        var existentesPorProd = pedido.DETALLE_PEDIDO
+            .ToDictionary(d => d.PRODUCTO_ID, d => d, StringComparer.OrdinalIgnoreCase);
+
+        var productosVM = new HashSet<string>(lineasValidas.Select(x => x.ProductoId!), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var l in lineasValidas)
+        {
+            var cantInt = RoundToInt(l.Cantidad);
+            var nuevoSub = Math.Round(l.Cantidad * l.PrecioPedido, 2);
+
+            if (existentesPorProd.TryGetValue(l.ProductoId!, out var det))
+            {
+                bool cambia = false;
+
+                if (det.CANTIDAD != cantInt) { det.CANTIDAD = cantInt; cambia = true; }
+                if ((det.PRECIO_PEDIDO ?? 0m) != l.PrecioPedido) { det.PRECIO_PEDIDO = l.PrecioPedido; cambia = true; }
+                if (det.SUBTOTAL != nuevoSub) { det.SUBTOTAL = nuevoSub; cambia = true; }
+
+                if (cambia)
+                {
+                    det.USUARIO_MODIFICACION = UserName();
+                    det.FECHA_MODIFICACION = DateTime.Now;
+                    hayCambiosDet = true;
+                }
+            }
+            else
+            {
+                var nuevo = new DETALLE_PEDIDO
+                {
+                    DETALLE_PEDIDO_ID = NewDetallePedidoId(),
+                    PEDIDO_ID = pedido.PEDIDO_ID,
+                    PRODUCTO_ID = l.ProductoId!,
+                    CANTIDAD = cantInt,
+                    PRECIO_PEDIDO = l.PrecioPedido,
+                    SUBTOTAL = nuevoSub,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.DETALLE_PEDIDO.Add(nuevo);
+                hayCambiosDet = true;
+            }
+        }
+
+        foreach (var det in pedido.DETALLE_PEDIDO.ToList())
+        {
+            if (!productosVM.Contains(det.PRODUCTO_ID))
+            {
+                _db.DETALLE_PEDIDO.Remove(det);
+                hayCambiosDet = true;
+            }
+        }
+
+        // ===== Recalcular totales/anticipo =====
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
 
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Editó pedido {pedido.PEDIDO_ID}", ct);
+        // ===== AJUSTE ANTICIPO (mismo criterio que en Create) =====
+        if (!pedido.REQUIERE_ANTICIPO)
+        {
+            // No requiere anticipo → normaliza campos
+            var prevMin = pedido.ANTICIPO_MINIMO;
+            var prevEst = pedido.ANTICIPO_ESTADO;
 
-        TempData["ok"] = $"Pedido {pedido.PEDIDO_ID} actualizado (Total Q{pedido.TOTAL_PEDIDO:N2}).";
-        return RedirectToAction("Edit", new { id });
+            pedido.ANTICIPO_MINIMO = 0m;
+            pedido.ANTICIPO_ESTADO = "NO APLICA";
+
+            // Si cambió algo, marca modificación de cabecera
+            if (prevMin != pedido.ANTICIPO_MINIMO || !string.Equals(prevEst ?? "", pedido.ANTICIPO_ESTADO, StringComparison.Ordinal))
+            {
+                pedido.USUARIO_MODIFICACION = UserName();
+                pedido.FECHA_MODIFICACION = DateTime.Now;
+                hayCambiosCab = true;
+            }
+        }
+        else
+        {
+            // Requiere anticipo → si no hay estado, arranca en PENDIENTE
+            if (string.IsNullOrWhiteSpace(pedido.ANTICIPO_ESTADO))
+            {
+                pedido.ANTICIPO_ESTADO = "PENDIENTE";
+                pedido.USUARIO_MODIFICACION = UserName();
+                pedido.FECHA_MODIFICACION = DateTime.Now;
+                hayCambiosCab = true;
+            }
+        }
+
+        // ===== Detectar cambios en campos supervisados =====
+        bool cambioSupervisado =
+            snap.TOTAL_PEDIDO != pedido.TOTAL_PEDIDO ||
+            snap.FECHA_PEDIDO != pedido.FECHA_PEDIDO ||
+            snap.ESTADO_PEDIDO_ID != pedido.ESTADO_PEDIDO_ID ||
+            snap.OBS != (pedido.OBSERVACIONES_PEDIDO ?? "") ||
+            snap.CLIENTE_ID != pedido.CLIENTE_ID ||
+            snap.REQUIERE_ANTICIPO != pedido.REQUIERE_ANTICIPO ||
+            snap.ANTICIPO_MINIMO != pedido.ANTICIPO_MINIMO ||
+            snap.ANT_EST != (pedido.ANTICIPO_ESTADO ?? "");
+
+        if (cambioSupervisado)
+        {
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+            hayCambiosCab = true;
+        }
+
+        // ===== ¿Hubo algo que guardar? =====
+        bool hayCambios = hayCambiosCab || hayCambiosDet;
+
+        if (!hayCambios)
+        {
+            TempData["SwalOneBtnFlag"] = "nochange";
+            TempData["SwalTitle"] = "Sin cambios";
+            TempData["SwalText"] = "No se modificó ningún dato.";
+            return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        await _bitacora.LogAsync(
+            "PEDIDO", "UPDATE", UserName(),
+            $"Editó pedido {pedido.PEDIDO_ID} (cabecera: {(hayCambiosCab ? "sí" : "no")}, detalle: {(hayCambiosDet ? "sí" : "no")}).",
+            ct);
+
+        TempData["SwalOneBtnFlag"] = "updated";
+        TempData["SwalTitle"] = "¡Pedido actualizado!";
+        TempData["SwalText"] = $"El pedido \"{pedido.PEDIDO_ID}\" se actualizó correctamente.";
+
+        return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
     }
+
 
     // ======================================================
     // GET/POST: /Pedidos/Cotizar/{id}
@@ -497,7 +817,7 @@ public class PedidosController : Controller
 
         TempData["ok"] = $"Cotización lista. Total Q{pedido.TOTAL_PEDIDO:N2}" +
                          (pedido.REQUIERE_ANTICIPO ? $" | Anticipo 25%: Q{pedido.ANTICIPO_MINIMO:N2}" : "");
-        return RedirectToAction("Edit", new { id });
+        return RedirectToAction("Details", new { id });
     }
 
     // ======================================================
@@ -519,7 +839,7 @@ public class PedidosController : Controller
         TempData["ok"] = pedido.REQUIERE_ANTICIPO
             ? $"Pedido aprobado. Requiere anticipo de Q{pedido.ANTICIPO_MINIMO:N2}."
             : "Pedido aprobado.";
-        return RedirectToAction("Edit", new { id });
+        return RedirectToAction("Details", new { id });
     }
 
     // ======================================================
@@ -534,7 +854,7 @@ public class PedidosController : Controller
         if (!pedido.REQUIERE_ANTICIPO)
         {
             TempData["err"] = "Este pedido no requiere anticipo.";
-            return RedirectToAction("Edit", new { id });
+            return RedirectToAction("Details", new { id });
         }
 
         pedido.ANTICIPO_ESTADO = "PAGADO";
@@ -545,7 +865,7 @@ public class PedidosController : Controller
         await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó anticipo PAGADO en pedido {pedido.PEDIDO_ID}", ct);
 
         TempData["ok"] = "Anticipo marcado como PAGADO.";
-        return RedirectToAction("Edit", new { id });
+        return RedirectToAction("Details", new { id });
     }
 
     // ======================================================
@@ -562,7 +882,7 @@ public class PedidosController : Controller
         if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "No se puede programar: anticipo requerido no pagado.";
-            return RedirectToAction("Edit", new { id });
+            return RedirectToAction("Details", new { id });
         }
 
         pedido.ESTADO_PEDIDO_ID = "PROGRAMADO";
@@ -573,7 +893,7 @@ public class PedidosController : Controller
         await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Programó producción del pedido {pedido.PEDIDO_ID}", ct);
 
         TempData["ok"] = "Producción programada.";
-        return RedirectToAction("Edit", new { id });
+        return RedirectToAction("Details", new { id });
     }
 
     // ======================================================
@@ -653,6 +973,79 @@ public class PedidosController : Controller
         await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Finalizó pedido {pedido.PEDIDO_ID}", ct);
 
         TempData["ok"] = "Pedido finalizado. Movimientos de inventario registrados.";
-        return RedirectToAction("Edit", new { id });
+        return RedirectToAction("Details", new { id });
     }
+
+    // ======================================================
+    // POST: /Pedidos/Entregar/{id}
+    //   - Reglas sugeridas:
+    //     * Debe estar TERMINADO (o PROGRAMADO/EN_PRODU si quieres permitir antes)
+    //     * Si requiere anticipo, debe estar PAGADO
+    //     * Marca estado = ENTREGADO y fecha de modificación
+    //     * Si no tiene fecha de entrega, la fija a hoy
+    // ======================================================
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Entregar(string id, CancellationToken ct)
+    {
+        var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+        if (pedido == null) return NotFound();
+
+        // Si requiere anticipo, debe estar pagado
+        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "No se puede entregar: anticipo requerido no pagado.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // Regla de estado previo: normalmente sólo si está TERMINADO
+        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "TERMINADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "El pedido debe estar TERMINADO para poder entregarlo.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // Actualización
+        pedido.ESTADO_PEDIDO_ID = "ENTREGADO";
+        if (!pedido.FECHA_ENTREGA_PEDIDO.HasValue)
+            pedido.FECHA_ENTREGA_PEDIDO = DateOnly.FromDateTime(DateTime.Now);
+
+        pedido.USUARIO_MODIFICACION = UserName();
+        pedido.FECHA_MODIFICACION = DateTime.Now;
+
+        await _db.SaveChangesAsync(ct);
+        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó ENTREGADO el pedido {pedido.PEDIDO_ID}", ct);
+
+        TempData["ok"] = "Pedido entregado correctamente.";
+        return RedirectToAction("Details", new { id });
+    }
+
+    // ======================================================
+    // POST: /Pedidos/Cerrar/{id}
+    //   - Reglas sugeridas:
+    //     * Sólo si está ENTREGADO
+    //     * Cambia estado a CERRADO y audita modificación
+    // ======================================================
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cerrar(string id, CancellationToken ct)
+    {
+        var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+        if (pedido == null) return NotFound();
+
+        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "ENTREGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "Para cerrar el pedido primero debe estar ENTREGADO.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        pedido.ESTADO_PEDIDO_ID = "CERRADO";
+        pedido.USUARIO_MODIFICACION = UserName();
+        pedido.FECHA_MODIFICACION = DateTime.Now;
+
+        await _db.SaveChangesAsync(ct);
+        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Cerró el pedido {pedido.PEDIDO_ID}", ct);
+
+        TempData["ok"] = "Pedido cerrado correctamente.";
+        return RedirectToAction("Details", new { id });
+    }
+
 }

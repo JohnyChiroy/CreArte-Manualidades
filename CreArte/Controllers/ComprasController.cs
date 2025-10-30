@@ -1,14 +1,15 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using CreArte.Data;
+﻿using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial; // <-- VMs
 using CreArte.Services.Auditoria;
+using DocumentFormat.OpenXml.Drawing.Charts;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 public class ComprasController : Controller
 {
@@ -294,7 +295,7 @@ public class ComprasController : Controller
             return View(vm);
         }
 
-        // Cabecera
+        // Encabezado
         var compra = new COMPRA
         {
             COMPRA_ID = vm.CompraId,

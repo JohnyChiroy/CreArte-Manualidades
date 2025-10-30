@@ -1,105 +1,282 @@
-﻿@model CreArte.Models.PEDIDO
+﻿@using CreArte.ModelsPartial
+@model PedidoDetailsVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle del Pedido";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+@section Styles {
+    <style>
+        .ua-kv-mini .lbl {
+            font-size: .8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+        .ua-kv-mini .val {
+            font-weight: 600;
+        }
 
-<div>
-    <h4>PEDIDO</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_PEDIDO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_PEDIDO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ENTREGA_PEDIDO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ENTREGA_PEDIDO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.OBSERVACIONES_PEDIDO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.OBSERVACIONES_PEDIDO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CLIENTE)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CLIENTE.CLIENTE_ID)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO_PEDIDO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO_PEDIDO.ESTADO_PEDIDO_ID)
-        </dd>
-    </dl>
+        tfoot td {
+            font-weight: 600;
+        }
+
+        .ua-img-thumb-fila-details {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+    </style>
+}
+
+<div class="ua-card">
+    <!-- =========================
+         TOOLBAR (título + acciones de estado)
+         ========================= -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Detalle Pedido @Model.PedidoId</h2>
+
+        <div class="d-flex align-items-center gap-2">
+
+            @* ====== Flujo de estados ====== *@
+
+            @* 1) Cotizar (BORRADOR → COTIZADO) *@
+            @if (Model.PuedeCotizar)
+            {
+                <form asp-action="Cotizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-revision" title="Enviar a cotización">
+                        <i class="bi bi-calculator"></i> <span>Cotizar</span>
+                    </button>
+                </form>
+            }
+
+            @* 2) Aprobar (COTIZADO → APROBADO) *@
+            @if (Model.PuedeAprobar)
+            {
+                <form asp-action="Aprobar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Seguro que deseas aprobar este pedido?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-aprobado" title="Aprobar pedido">
+                        <i class="bi bi-check2-square"></i> <span>Aprobar</span>
+                    </button>
+                </form>
+            }
+
+            @* 3) Programar (APROBADO → PROGRAMADO) *@
+            @if (Model.PuedeProgramar)
+            {
+                <a asp-action="Programar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" class="btn-enviado">
+                    <i class="bi bi-calendar-check"></i> <span>Programar</span>
+                </a>
+            }
+
+            @* 4) Finalizar producción *@
+            @if (Model.PuedeFinalizar)
+            {
+                <form asp-action="Finalizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Marcar este pedido como finalizado?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-confirmado" title="Finalizar pedido">
+                        <i class="bi bi-clipboard-check"></i> <span>Finalizar</span>
+                    </button>
+                </form>
+            }
+
+            @* 5) Entregar pedido *@
+            @if (Model.PuedeEntregar)
+            {
+                <form asp-action="Entregar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Confirmar entrega del pedido?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-recibir">
+                        <i class="bi bi-truck"></i> <span>Entregar</span>
+                    </button>
+                </form>
+            }
+
+            @* 6) Cerrar pedido *@
+            @if (Model.PuedeCerrar)
+            {
+                <form asp-action="Cerrar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Cerrar este pedido definitivamente?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-cargar">
+                        <i class="bi bi-lock"></i> <span>Cerrar</span>
+                    </button>
+                </form>
+            }
+
+            @* 7) Pagar anticipo *@
+            @if (Model.PuedePagarAnticipo)
+            {
+                <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Confirmar pago del anticipo?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-pago">
+                        <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
+                    </button>
+                </form>
+            }
+
+            @* Cancelar *@
+            @if (Model.PuedeCancelar)
+            {
+                <form asp-action="Cancelar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Seguro que deseas cancelar este pedido?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-anular">
+                        <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <!-- =========================
+         Encabezado
+         ========================= -->
+    <div class="ua-row" style="margin-top:12px;">
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Cliente</div>
+                <div class="val">@Model.ClienteNombre</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Estado</div>
+                <div class="val">
+                    <span class="badge bg-@GetEstadoClass(Model.EstadoId)">@Model.EstadoId</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha Pedido</div>
+                <div class="val">@Model.FechaPedido.ToString("dd/MM/yyyy")</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha Entrega</div>
+                <div class="val">@Model.FechaEntrega?.ToString("dd/MM/yyyy") ?? "-"</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv-mini">
+                <div class="lbl">Observaciones</div>
+                <div class="val">@(Model.Observaciones ?? "-")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anticipo -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Anticipo</div>
+                <div class="val">
+                    @if (Model.RequiereAnticipo)
+                    {
+                        <span class="badge @(Model.AnticipoEstado == "PAGADO" ? "bg-success" :
+                                                                           Model.AnticipoEstado == "DEVUELTO" ? "bg-info text-dark" :
+                                                                           "bg-warning text-dark")">
+                        @Model.AnticipoEstado
+                    </span>
+                    <span class="ms-2">Mínimo: Q @Model.AnticipoMinimo.ToString("N2")</span>
+                                        }
+                    else
+                    {
+                        <span class="badge bg-secondary">NO APLICA</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Total Pedido</div>
+                <div class="val text-primary">Q @Model.TotalPedido.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================
+         LÍNEAS DEL PEDIDO
+         ========================= -->
+    <div class="table-responsive">
+        <table class="table table-sm align-middle ua-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th class="text-center">Imagen</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-center">Precio</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lineas)
+                {
+                    <tr>
+                        <td>@l.ProductoId</td>
+                        <td>@l.ProductoNombre</td>
+                        <td class="text-center">
+                            <img src="@(l.ImagenProducto ?? "")" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                        </td>
+                        <td class="text-center">@l.Cantidad</td>
+                        <td class="text-center">@l.PrecioPedido.ToString("N2")</td>
+                        <td class="text-end">@l.Subtotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" class="text-end fw-bold">Total:</td>
+                    <td colspan="2" class="text-end fw-bold text-primary">
+                        Q @Model.TotalPedido.ToString("N2")
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- =========================
+         ACCIONES FINALES
+         ========================= -->
+    <div class="ua-actions" style="margin-top:12px;">
+        <a asp-action="Index" asp-controller="Pedidos" class="btn-cancel">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.PEDIDO_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>
+
+@functions {
+    private string GetEstadoClass(string estado) => estado switch
+    {
+        "BORRADOR" => "secondary",
+        "COTIZADO" => "revi",
+        "APROBADO" => "apro",
+        "PROGRAMADO" => "envi",
+        "EN_PRODU" => "confi",
+        "TERMINADO" => "reci",
+        "ENTREGADO" => "cerra",
+        "CERRADO" => "cerra",
+        "CANCELADO" => "anu",
+        _ => "light text-dark"
+    };
+}

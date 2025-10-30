@@ -1,100 +1,448 @@
-﻿@model CreArte.Models.PEDIDO
+﻿@using CreArte.ModelsPartial
+@model PedidoCreateEditVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Editar Pedido";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Catálogo de productos (≠ PRODUCTO FINAL) + stock + costo
+    // Estructura: [{ id, nombre, imagen, stock, costo }]
+    var productosJson = ViewBag.ProductosJson as string ?? "[]";
 }
 
-<!DOCTYPE html>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Editar Pedido @Model.PedidoId</h2>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Edit</title>
-</head>
-<body>
+    <!-- Form principal -->
+    <form asp-action="Edit" asp-controller="Pedidos" asp-route-id="@Model.PedidoId"
+          method="post" id="frmPedido" data-guard="true" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PedidoId" />
 
-<h4>PEDIDO</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="PEDIDO_ID" />
-            <div class="form-group">
-                <label asp-for="FECHA_PEDIDO" class="control-label"></label>
-                <input asp-for="FECHA_PEDIDO" class="form-control" />
-                <span asp-validation-for="FECHA_PEDIDO" class="text-danger"></span>
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- ==============================
+             Encabezado
+             ============================== -->
+        <div class="ua-row">
+            <div class="ua-field">
+                <label asp-for="ClienteId"><strong>Cliente:*</strong></label>
+                <select asp-for="ClienteId" class="form-control" required id="ClienteId">
+                    <option value="">Seleccione ↓</option>
+                    @foreach (var c in Model.ClientesCombo)
+                    {
+                        <option value="@c.Value">@c.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="ClienteId" class="text-danger"></span>
+
+                <label asp-for="FechaEntregaDeseada"><strong>Fecha entrega deseada:</strong></label>
+                <input asp-for="FechaEntregaDeseada" type="date" class="form-control" />
+                <span asp-validation-for="FechaEntregaDeseada" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="ESTADO_PEDIDO_ID" class="control-label"></label>
-                <select asp-for="ESTADO_PEDIDO_ID" class="form-control" asp-items="ViewBag.ESTADO_PEDIDO_ID"></select>
-                <span asp-validation-for="ESTADO_PEDIDO_ID" class="text-danger"></span>
+
+            <div class="ua-field" style="flex:1">
+                <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
+                <input asp-for="Observaciones" class="form-control" maxlength="250" />
             </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ENTREGA_PEDIDO" class="control-label"></label>
-                <input asp-for="FECHA_ENTREGA_PEDIDO" class="form-control" />
-                <span asp-validation-for="FECHA_ENTREGA_PEDIDO" class="text-danger"></span>
+        </div>
+
+        <!-- ==============================================
+             DETALLE
+             ============================================== -->
+        <div style="margin-top:12px;">
+            <div class="ua-field ua-table-compra text-center" style="flex:1 1 100%;">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="tblProductos">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:32%">Producto*</th>
+                                <th style="width:14%">Imagen</th>
+                                <th class="text-center" style="width:12%">Stock</th>
+                                <th class="text-center" style="width:12%">Cantidad*</th>
+                                <th class="text-end" style="width:14%">Precio*</th>
+                                <th class="text-end" style="width:14%">Subtotal</th>
+                                <th style="width:8%" class="text-center">Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblBody">
+                            @for (int i = 0; i < Model.Detalles.Count; i++)
+                            {
+                                <tr>
+                                    <input type="hidden" name="Detalles.Index" value="@i" />
+
+                                    <!-- Producto -->
+                                    <td>
+                                        <select name="Detalles[@i].ProductoId"
+                                                class="form-control producto js-prod"
+                                                data-row="@i"
+                                                data-current="@(Model.Detalles[i].ProductoId ?? "")"
+                                                required>
+                                            <option value=""> Seleccione ↓ </option>
+                                            @* Opciones se generan vía JS (anti-duplicados + stock + seleccionado) *@
+                                        </select>
+                                    </td>
+
+                                    <!-- Imagen -->
+                                    <td>
+                                        <img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="@i" src="" alt="N" />
+                                    </td>
+
+                                    <!-- Stock -->
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary js-stock" data-row="@i">0</span>
+                                    </td>
+
+                                    <!-- Cantidad -->
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].Cantidad" type="number" min="1" step="1"
+                                               class="form-control cantidad text-end js-cant"
+                                               value="@Model.Detalles[i].Cantidad" required />
+                                    </td>
+
+                                    <!-- Precio (editable, se autollenará con COSTO si está 0) -->
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].PrecioPedido" type="number" min="0" step="0.01"
+                                               class="form-control precio text-end js-precio"
+                                               value="@Model.Detalles[i].PrecioPedido" required />
+                                    </td>
+
+                                    <!-- Subtotal -->
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].ProductoNombre" type="hidden"
+                                               class="js-prod-name" data-row="@i"
+                                               value="@Model.Detalles[i].ProductoNombre" />
+                                        <span class="js-subtotal" data-row="@i">Q 0.00</span>
+                                    </td>
+
+                                    <!-- Eliminar -->
+                                    <td class="text-center">
+                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    <button type="button" class="btn-agregate" onclick="agregarFila()">
+                                        <i class="bi bi-plus-circle"></i> Agregar producto
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Totales / Anticipo -->
+                <div class="d-flex justify-content-end mt-3">
+                    <div style="min-width:420px;">
+                        <div class="d-flex justify-content-between">
+                            <strong>Total pedido:</strong>
+                            <strong id="lblTotal">Q 0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>¿Requiere anticipo? <span id="lblRA" class="badge bg-secondary">NO</span></span>
+                            <span id="lblAnticipo" class="fw-bold text-primary">Anticipo: Q 0.00</span>
+                        </div>
+                        <small class="text-muted">Regla: si Total ≥ Q300, anticipo mínimo = 25%.</small>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label asp-for="OBSERVACIONES_PEDIDO" class="control-label"></label>
-                <input asp-for="OBSERVACIONES_PEDIDO" class="form-control" />
-                <span asp-validation-for="OBSERVACIONES_PEDIDO" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="CLIENTE_ID" class="control-label"></label>
-                <select asp-for="CLIENTE_ID" class="form-control" asp-items="ViewBag.CLIENTE_ID"></select>
-                <span asp-validation-for="CLIENTE_ID" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_CREACION" class="control-label"></label>
-                <input asp-for="FECHA_CREACION" class="form-control" />
-                <span asp-validation-for="FECHA_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <!-- ==============================
+             ACCIONES
+             ============================== -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" href="@Url.Action("Index", "Pedidos")" id="btnCancelar">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Guardar cambios</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-</body>
-</html>
+    <script>
+        // =========================
+        // Catálogo productos [{id,nombre,imagen,stock,costo}]
+        // =========================
+        const CAT = @Html.Raw(productosJson);
+        const IDX = {}; CAT.forEach(p => { IDX[p.id] = p; });
+
+        // ===== Helpers =====
+        const qs = (s, r=document) => r.querySelector(s);
+        const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+        const rowEl = el => el.closest('tr');
+        const money = n => 'Q ' + (Number(n||0).toFixed(2));
+        const nnum = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
+
+        function getAllSel(){ return qsa('#tblBody select[name*=".ProductoId"]'); }
+        function selectedIds(){
+            const set = new Set();
+            getAllSel().forEach(s => { const v=(s.value||'').trim(); if (v) set.add(v); });
+            return set;
+        }
+        function buildOptionsHtml(exclude, current){
+            let html = `<option value="">Seleccione ↓</option>`;
+            for (const p of CAT){
+                if (p.id !== current && exclude.has(p.id)) continue;
+                html += `<option value="${p.id}" ${p.id===current?'selected':''}>${p.nombre} (Stock: ${nnum(p.stock)})</option>`;
+            }
+            return html;
+        }
+        function refreshAllSelects(){
+    const chosen = selectedIds();
+
+    getAllSel().forEach(sel => {
+        // 1) Reconstruir opciones respetando el valor actual/data-current
+        let current = (sel.value||'').trim();
+        if (!current) current = sel.getAttribute('data-current') || '';
+        const exclude = new Set(chosen); exclude.delete(current);
+        sel.innerHTML = buildOptionsHtml(exclude, current);
+        if (current) sel.value = current;
+
+        // 2) Refrescar preview (imagen/stock/nombre) SIN recalcular aún
+        onProductoChange.call(sel, /*noRecalc*/ true);
+
+        // 3) Recalcular el subtotal de ESTA fila con los valores actuales
+        const tr = rowEl(sel);
+        const cantInput   = tr.querySelector('.js-cant');
+        const precioInput = tr.querySelector('.js-precio') || tr.querySelector('input[name*=".PrecioPedido"]');
+
+        // usa recalcFila con un "this" válido (cualquiera de los inputs de la fila)
+        if (cantInput)   recalcFila.call(cantInput);
+        else if (precioInput) recalcFila.call(precioInput);
+        else recalcFila.call(sel); // fallback
+    });
+
+    // 4) Totales y estado del botón
+    recalcTotales();
+    evalReady();
+}
+
+
+        // ===== Fila: eventos =====
+        function onProductoChange(noRecalc){
+            const tr = rowEl(this);
+            const row = this.getAttribute('data-row');
+            const info = IDX[this.value || ''];
+
+            const img = document.querySelector(`.js-prod-img[data-row="${row}"]`);
+            const stk = document.querySelector(`.js-stock[data-row="${row}"]`);
+            const name= tr.querySelector('.js-prod-name');
+            const precio = tr.querySelector('.js-precio') || tr.querySelector('input[name*=".PrecioPedido"]');
+
+            if (info){
+                if (img) img.src = info.imagen || '';
+                if (stk) stk.textContent = nnum(info.stock);
+                if (name) name.value = info.nombre || '';
+                if (precio){
+                    const cur = nnum(precio.value);
+                    if (!cur) precio.value = nnum(info.costo).toFixed(2); // autollenar si está vacío/0
+                    precio.title = `Costo inv.: Q ${nnum(info.costo).toFixed(2)} | Stock: ${nnum(info.stock)}`;
+                }
+            } else {
+                if (img) img.src = '';
+                if (stk) stk.textContent = '0';
+                if (name) name.value = '';
+                if (precio) precio.title = '';
+            }
+            if (!noRecalc) recalcFila.call(this);
+            changed = true;
+        }
+
+        function recalcFila(){
+            const tr = rowEl(this);
+            const cant = nnum(tr.querySelector('.js-cant')?.value);
+            const precio = nnum(tr.querySelector('.js-precio')?.value || tr.querySelector('input[name*=".PrecioPedido"]')?.value);
+            const subtotal = Math.round(cant * precio * 100) / 100;
+            const lbl = tr.querySelector('.js-subtotal');
+            if (lbl) lbl.textContent = money(subtotal);
+
+            // aviso si supera stock (solo visual)
+            const pid = tr.querySelector('select[name*=".ProductoId"]')?.value || '';
+            const info = IDX[pid];
+            if (info && nnum(info.stock) < cant) tr.classList.add('table-warning'); else tr.classList.remove('table-warning');
+
+            recalcTotales();
+            evalReady();
+        }
+
+        function recalcTotales(){
+            let total = 0;
+            qsa('#tblBody tr').forEach(tr => {
+                const c = nnum(tr.querySelector('.js-cant')?.value);
+                const p = nnum(tr.querySelector('.js-precio')?.value || tr.querySelector('input[name*=".PrecioPedido"]')?.value);
+                total += c * p;
+            });
+            total = Math.round(total * 100) / 100;
+
+            qs('#lblTotal').textContent = money(total);
+            const req = total >= 300;
+            const ant = req ? Math.round(total*0.25*100)/100 : 0;
+
+            const lblRA = qs('#lblRA');
+            if (lblRA){
+                lblRA.textContent = req ? 'SÍ' : 'NO';
+                lblRA.className = 'badge ' + (req ? 'bg-warning text-dark' : 'bg-secondary');
+            }
+            qs('#lblAnticipo').textContent = 'Anticipo: ' + money(ant);
+        }
+
+        // ===== Agregar / eliminar fila =====
+        let nextIndex = @Model.Detalles.Count;
+        function agregarFila(){
+            const i = nextIndex++;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <input type="hidden" name="Detalles.Index" value="${i}" />
+                <td>
+                    <select name="Detalles[${i}].ProductoId" class="form-control producto js-prod" data-row="${i}" data-current="" required></select>
+                </td>
+                <td><img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="${i}" src="" alt="N" /></td>
+                <td class="text-center"><span class="badge bg-secondary js-stock" data-row="${i}">0</span></td>
+                <td class="text-end"><input name="Detalles[${i}].Cantidad" type="number" min="1" step="1" class="form-control cantidad text-end js-cant" required /></td>
+                <td class="text-end"><input name="Detalles[${i}].PrecioPedido" type="number" min="0" step="0.01" class="form-control precio text-end js-precio" required /></td>
+                <td class="text-end"><input name="Detalles[${i}].ProductoNombre" type="hidden" class="js-prod-name" data-row="${i}" /><span class="js-subtotal" data-row="${i}">Q 0.00</span></td>
+                <td class="text-center"><button type="button" class="btn-eliminate" onclick="eliminarFila(this)"><i class="bi bi-trash"></i></button></td>
+            `;
+            document.getElementById('tblBody').appendChild(tr);
+
+            // opciones anti-duplicados
+            const exclude = selectedIds();
+            tr.querySelector('.js-prod').innerHTML = buildOptionsHtml(exclude, "");
+
+            // listeners
+            const sel = tr.querySelector('.js-prod');
+            sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
+            tr.querySelector('.js-cant').addEventListener('input', recalcFila);
+            tr.querySelector('.js-precio').addEventListener('input', recalcFila);
+
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+        function eliminarFila(btn){
+            rowEl(btn).remove();
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+
+        // ===== Habilitar Guardar =====
+        function evalReady(){
+            const btn = qs('#btnGuardar');
+            const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
+
+            let hayLinea = false;
+            const used = [];
+            qsa('#tblBody tr').forEach(tr => {
+                const id  = (tr.querySelector('select[name*=".ProductoId"]')?.value || '').trim();
+                const c   = nnum(tr.querySelector('.js-cant')?.value);
+                const pr  = nnum(tr.querySelector('.js-precio')?.value || tr.querySelector('input[name*=".PrecioPedido"]')?.value);
+                if (id && c>0 && pr>=0) hayLinea = true;
+                if (id) used.push(id);
+            });
+            const sinDup = (new Set(used).size === used.length);
+
+            const ok = clienteOk && hayLinea && sinDup;
+            btn.disabled = !ok;
+            btn.classList.toggle('enabled', ok);
+        }
+
+        // ===== Boot: conectar y precalcular =====
+        document.addEventListener('DOMContentLoaded', function(){
+            // Conectar selects ya renderizados (listeners)
+            qsa('.js-prod').forEach(sel => {
+                sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
+            });
+
+            // Conectar inputs
+            qsa('.js-cant,.js-precio').forEach(inp => inp.addEventListener('input', recalcFila));
+
+            // Construir opciones con selección actual (data-current) y pintar imagen/stock/precio
+            refreshAllSelects();
+        });
+
+        // ===== SweetAlert2 y guard de salida =====
+        let changed = false;
+        const frm = document.getElementById('frmPedido');
+        frm.addEventListener('input', () => changed = true);
+        frm.addEventListener('change', () => changed = true);
+
+        document.getElementById('btnCancelar').addEventListener('click', function(e){
+            if (!changed) return;
+            e.preventDefault();
+            Swal.fire({
+                icon: 'question',
+                title: '¿Descartar cambios?',
+                text: 'Perderás los cambios no guardados.',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Seguir editando'
+            }).then(r => { if (r.isConfirmed) window.location.href = this.getAttribute('href'); });
+        });
+
+        frm.addEventListener('submit', function(e){
+            e.preventDefault();
+            if (document.getElementById('btnGuardar').disabled) return;
+
+            Swal.fire({
+                icon: 'question',
+                title: '¿Guardar cambios del pedido?',
+                html: document.getElementById('lblTotal').textContent + '<br/>' + document.getElementById('lblAnticipo').textContent,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Revisar'
+            }).then(r => {
+                if (r.isConfirmed) {
+                    const btn = document.getElementById('btnGuardar');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                    frm.submit();
+                }
+            });
+        });
+
+        // Mensajes PRG (opcional)
+        (function () {
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["err"] ?? "")';
+            if (ok)  Swal.fire({ icon:'success', title: ok, timer: 2200, showConfirmButton:false });
+            if (err) Swal.fire({ icon:'error',   title: err, timer: 2600, showConfirmButton:false });
+        })();
+
+                (function () {
+          if (!window.Swal) return;
+          const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")';
+          const title = '@(TempData["SwalTitle"] ?? "")';
+          const text  = '@(TempData["SwalText"] ?? "")';
+          if (!flag) return;
+
+          const cfg = {
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            confirmButtonText: 'Aceptar'
+          };
+          const goIndex = () => { window.location.href = '@Url.Action("Index", "Pedidos")'; };
+
+          if (flag === 'nochange') {
+             Swal.fire({ icon:'info', title: title || 'Sin cambios', text: text || 'No se modificó ningún dato.', ...cfg })
+                 .then(()=>{ /* te quedas en Edit */ });
+          }
+          if (flag === 'updated') {
+             Swal.fire({ icon:'success', title: title || '¡Pedido actualizado!', text: text || '', ...cfg })
+                 .then(()=>{ /* opcional: */ goIndex(); });
+          }
+        })();
+    </script>
+}
