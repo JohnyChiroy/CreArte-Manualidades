@@ -8,6 +8,10 @@
     // Catálogo de productos (≠ PRODUCTO FINAL) + stock + costo
     // Estructura: [{ id, nombre, imagen, stock, costo }]
     var productosJson = ViewBag.ProductosJson as string ?? "[]";
+
+    // Helpers locales
+    var estado = Model.EstadoPedidoId ?? "BORRADOR";
+    var locked = Model.BloquearEdicion; // true => bloquear inputs/acciones (anticipo PAGADO)
 }
 
 <div class="ua-card">
@@ -27,23 +31,27 @@
         <div class="ua-row">
             <div class="ua-field">
                 <label asp-for="ClienteId"><strong>Cliente:*</strong></label>
-                <select asp-for="ClienteId" class="form-control" required id="ClienteId">
+                <select asp-for="ClienteId" class="form-control" required id="ClienteId"
+                        disabled="@(Model.BloquearEdicion ? "disabled" : null)">
                     <option value="">Seleccione ↓</option>
                     @foreach (var c in Model.ClientesCombo)
                     {
                         <option value="@c.Value">@c.Text</option>
                     }
                 </select>
+
                 <span asp-validation-for="ClienteId" class="text-danger"></span>
 
                 <label asp-for="FechaEntregaDeseada"><strong>Fecha entrega deseada:</strong></label>
-                <input asp-for="FechaEntregaDeseada" type="date" class="form-control" />
+                <input asp-for="FechaEntregaDeseada" type="date" class="form-control"
+                       disabled="@(Model.BloquearEdicion ? "disabled" : null)" />
                 <span asp-validation-for="FechaEntregaDeseada" class="text-danger"></span>
             </div>
 
             <div class="ua-field" style="flex:1">
                 <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
-                <input asp-for="Observaciones" class="form-control" maxlength="250" />
+                <input asp-for="Observaciones" class="form-control" maxlength="250"
+                       disabled="@(Model.BloquearEdicion ? "disabled" : null)" />
             </div>
         </div>
 
@@ -77,7 +85,7 @@
                                                 class="form-control producto js-prod"
                                                 data-row="@i"
                                                 data-current="@(Model.Detalles[i].ProductoId ?? "")"
-                                                required>
+                                                required @(locked ? "disabled" : null)>
                                             <option value=""> Seleccione ↓ </option>
                                             @* Opciones se generan vía JS (anti-duplicados + stock + seleccionado) *@
                                         </select>
@@ -97,14 +105,14 @@
                                     <td class="text-end">
                                         <input name="Detalles[@i].Cantidad" type="number" min="1" step="1"
                                                class="form-control cantidad text-end js-cant"
-                                               value="@Model.Detalles[i].Cantidad" required />
+                                               value="@Model.Detalles[i].Cantidad" required @(locked ? "disabled" : null) />
                                     </td>
 
                                     <!-- Precio (editable, se autollenará con COSTO si está 0) -->
                                     <td class="text-end">
                                         <input name="Detalles[@i].PrecioPedido" type="number" min="0" step="0.01"
                                                class="form-control precio text-end js-precio"
-                                               value="@Model.Detalles[i].PrecioPedido" required />
+                                               value="@Model.Detalles[i].PrecioPedido" required @(locked ? "disabled" : null) />
                                     </td>
 
                                     <!-- Subtotal -->
@@ -117,7 +125,7 @@
 
                                     <!-- Eliminar -->
                                     <td class="text-center">
-                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
+                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)" @(locked ? "disabled" : null)>
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </td>
@@ -127,7 +135,7 @@
                         <tfoot>
                             <tr>
                                 <td colspan="7" class="text-center">
-                                    <button type="button" class="btn-agregate" onclick="agregarFila()">
+                                    <button type="button" class="btn-agregate" onclick="agregarFila()" @(locked ? "disabled" : null)>
                                         <i class="bi bi-plus-circle"></i> Agregar producto
                                     </button>
                                 </td>
@@ -160,7 +168,7 @@
             <a class="btn-cancel js-leave" href="@Url.Action("Index", "Pedidos")" id="btnCancelar">
                 <i class="bi bi-x-circle"></i> <span>Cancelar</span>
             </a>
-            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled @(locked ? "disabled" : null)>
                 <i class="bi bi-save"></i> <span>Guardar cambios</span>
             </button>
         </div>
@@ -185,6 +193,8 @@
         const money = n => 'Q ' + (Number(n||0).toFixed(2));
         const nnum = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
 
+        const locked = @((Model.BloquearEdicion ? "true" : "false")); // sincroniza con C#
+
         function getAllSel(){ return qsa('#tblBody select[name*=".ProductoId"]'); }
         function selectedIds(){
             const set = new Set();
@@ -200,37 +210,30 @@
             return html;
         }
         function refreshAllSelects(){
-    const chosen = selectedIds();
+            const chosen = selectedIds();
 
-    getAllSel().forEach(sel => {
-        // 1) Reconstruir opciones respetando el valor actual/data-current
-        let current = (sel.value||'').trim();
-        if (!current) current = sel.getAttribute('data-current') || '';
-        const exclude = new Set(chosen); exclude.delete(current);
-        sel.innerHTML = buildOptionsHtml(exclude, current);
-        if (current) sel.value = current;
+            getAllSel().forEach(sel => {
+                let current = (sel.value||'').trim();
+                if (!current) current = sel.getAttribute('data-current') || '';
+                const exclude = new Set(chosen); exclude.delete(current);
+                sel.innerHTML = buildOptionsHtml(exclude, current);
+                if (current) sel.value = current;
 
-        // 2) Refrescar preview (imagen/stock/nombre) SIN recalcular aún
-        onProductoChange.call(sel, /*noRecalc*/ true);
+                onProductoChange.call(sel, /*noRecalc*/ true);
 
-        // 3) Recalcular el subtotal de ESTA fila con los valores actuales
-        const tr = rowEl(sel);
-        const cantInput   = tr.querySelector('.js-cant');
-        const precioInput = tr.querySelector('.js-precio') || tr.querySelector('input[name*=".PrecioPedido"]');
+                const tr = rowEl(sel);
+                const cantInput   = tr.querySelector('.js-cant');
+                const precioInput = tr.querySelector('.js-precio') || tr.querySelector('input[name*=".PrecioPedido"]');
 
-        // usa recalcFila con un "this" válido (cualquiera de los inputs de la fila)
-        if (cantInput)   recalcFila.call(cantInput);
-        else if (precioInput) recalcFila.call(precioInput);
-        else recalcFila.call(sel); // fallback
-    });
+                if (cantInput)   recalcFila.call(cantInput);
+                else if (precioInput) recalcFila.call(precioInput);
+                else recalcFila.call(sel);
+            });
 
-    // 4) Totales y estado del botón
-    recalcTotales();
-    evalReady();
-}
+            recalcTotales();
+            evalReady();
+        }
 
-
-        // ===== Fila: eventos =====
         function onProductoChange(noRecalc){
             const tr = rowEl(this);
             const row = this.getAttribute('data-row');
@@ -247,7 +250,7 @@
                 if (name) name.value = info.nombre || '';
                 if (precio){
                     const cur = nnum(precio.value);
-                    if (!cur) precio.value = nnum(info.costo).toFixed(2); // autollenar si está vacío/0
+                    if (!cur) precio.value = nnum(info.costo).toFixed(2);
                     precio.title = `Costo inv.: Q ${nnum(info.costo).toFixed(2)} | Stock: ${nnum(info.stock)}`;
                 }
             } else {
@@ -268,7 +271,6 @@
             const lbl = tr.querySelector('.js-subtotal');
             if (lbl) lbl.textContent = money(subtotal);
 
-            // aviso si supera stock (solo visual)
             const pid = tr.querySelector('select[name*=".ProductoId"]')?.value || '';
             const info = IDX[pid];
             if (info && nnum(info.stock) < cant) tr.classList.add('table-warning'); else tr.classList.remove('table-warning');
@@ -298,9 +300,10 @@
             qs('#lblAnticipo').textContent = 'Anticipo: ' + money(ant);
         }
 
-        // ===== Agregar / eliminar fila =====
         let nextIndex = @Model.Detalles.Count;
+
         function agregarFila(){
+            if (locked) return; // bloqueado por anticipo pagado
             const i = nextIndex++;
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -317,11 +320,9 @@
             `;
             document.getElementById('tblBody').appendChild(tr);
 
-            // opciones anti-duplicados
             const exclude = selectedIds();
             tr.querySelector('.js-prod').innerHTML = buildOptionsHtml(exclude, "");
 
-            // listeners
             const sel = tr.querySelector('.js-prod');
             sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
             tr.querySelector('.js-cant').addEventListener('input', recalcFila);
@@ -332,15 +333,17 @@
             changed = true;
         }
         function eliminarFila(btn){
+            if (locked) return; // bloqueado por anticipo pagado
             rowEl(btn).remove();
             refreshAllSelects();
             evalReady();
             changed = true;
         }
 
-        // ===== Habilitar Guardar =====
         function evalReady(){
             const btn = qs('#btnGuardar');
+            if (locked) { btn.disabled = true; return; }
+
             const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
 
             let hayLinea = false;
@@ -359,21 +362,19 @@
             btn.classList.toggle('enabled', ok);
         }
 
-        // ===== Boot: conectar y precalcular =====
         document.addEventListener('DOMContentLoaded', function(){
-            // Conectar selects ya renderizados (listeners)
             qsa('.js-prod').forEach(sel => {
                 sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
             });
-
-            // Conectar inputs
             qsa('.js-cant,.js-precio').forEach(inp => inp.addEventListener('input', recalcFila));
-
-            // Construir opciones con selección actual (data-current) y pintar imagen/stock/precio
             refreshAllSelects();
+            // En bloqueo, evitamos interacciones peligrosas
+            if (locked) {
+                qsa('#tblBody select, #tblBody input, #tblBody button.btn-eliminate').forEach(el => el.setAttribute('disabled','disabled'));
+            }
         });
 
-        // ===== SweetAlert2 y guard de salida =====
+        // ===== Navegación / Guardado =====
         let changed = false;
         const frm = document.getElementById('frmPedido');
         frm.addEventListener('input', () => changed = true);
@@ -394,6 +395,7 @@
 
         frm.addEventListener('submit', function(e){
             e.preventDefault();
+            if (locked) return;
             if (document.getElementById('btnGuardar').disabled) return;
 
             Swal.fire({
@@ -413,7 +415,7 @@
             });
         });
 
-        // Mensajes PRG (opcional)
+        // Notificaciones TempData
         (function () {
             const ok  = '@(TempData["ok"] ?? "")';
             const err = '@(TempData["err"] ?? "")';
@@ -421,7 +423,7 @@
             if (err) Swal.fire({ icon:'error',   title: err, timer: 2600, showConfirmButton:false });
         })();
 
-                (function () {
+        (function () {
           if (!window.Swal) return;
           const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")';
           const title = '@(TempData["SwalTitle"] ?? "")';
@@ -441,7 +443,7 @@
           }
           if (flag === 'updated') {
              Swal.fire({ icon:'success', title: title || '¡Pedido actualizado!', text: text || '', ...cfg })
-                 .then(()=>{ /* opcional: */ goIndex(); });
+                 .then(()=>{ goIndex(); });
           }
         })();
     </script>

@@ -5,8 +5,23 @@
     ViewData["Title"] = "Nuevo Pedido";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    // Catálogo de productos ya filtrados (≠ PRODUCTO FINAL) desde el controlador
+    // Catálogo de productos (≠ PRODUCTO FINAL) enviado por el controlador
+    // Estructura esperada: [{ id, nombre, imagen, stock, precioVenta }]
     var productosJson = ViewBag.ProductosJson as string ?? "[]";
+}
+
+@section Styles {
+    <style>
+        .ua-img-thumb-fila {
+            width: 60px;
+            height: 60px;
+            object-fit: contain; /* mostrar imagen completa */
+            object-position: center;
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+    </style>
 }
 
 <div class="ua-card">
@@ -19,7 +34,7 @@
         <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
 
         <!-- ==============================
-             Encabezado: Cliente, Fecha entrega, Observaciones
+             Encabezado
              ============================== -->
         <div class="ua-row">
             <div class="ua-field">
@@ -45,7 +60,7 @@
         </div>
 
         <!-- ==============================================
-             DETALLE: Producto, Imagen, Cantidad, Precio, Subtotal
+             DETALLE
              ============================================== -->
         <div style="margin-top:12px;">
             <div class="ua-field ua-table-compra text-center" style="flex:1 1 100%;">
@@ -62,7 +77,6 @@
                             </tr>
                         </thead>
                         <tbody id="tblBody">
-                            @* Render inicial con índices explícitos (si así lo deseas) *@
                             @for (int i = 0; i < Model.Detalles.Count; i++)
                             {
                                 <tr>
@@ -72,10 +86,7 @@
                                                 class="form-control producto js-prod"
                                                 data-row="@i" required>
                                             <option value=""> Seleccione ↓ </option>
-                                            @foreach (var pr in Model.ItemsCombo)
-                                            {
-                                                <option value="@pr.Value">@pr.Text</option>
-                                            }
+                                            @* Opciones se construirán por JS para evitar duplicados *@
                                         </select>
                                     </td>
                                     <td>
@@ -131,7 +142,7 @@
         </div>
 
         <!-- ==============================
-             ACCIONES – Cancelar / Guardar
+             ACCIONES
              ============================== -->
         <div class="ua-actions">
             <a class="btn-cancel js-leave" href="@Url.Action("Index", "Pedidos")" id="btnCancelar">
@@ -146,11 +157,11 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         // =========================
-        // Catálogo productos [{id,nombre,imagen,precioSugerido}]
+        // Catálogo productos [{id,nombre,imagen,stock,precioVenta}]
         // =========================
         const CAT = @Html.Raw(productosJson);
         const IDX = {}; CAT.forEach(p => { IDX[p.id] = p; });
@@ -158,20 +169,19 @@
         // ===== Helpers DOM =====
         function qs(sel, root=document){ return root.querySelector(sel); }
         function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
-        function getAllProductSelects(){ return qsAll('#tblBody select[name*=".ProductoId"]'); }
         function rowEl(el){ return el.closest('tr'); }
         function money(n){ return 'Q ' + (Number(n||0).toFixed(2)); }
 
-        // Conjunto de IDs actualmente seleccionados (no vacíos)
+        // Conjunto de IDs seleccionados (para evitar duplicados)
+        function getAllProductSelects(){ return qsAll('#tblBody select[name*=".ProductoId"]'); }
         function selectedIds(){
             const set = new Set();
             getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if (v) set.add(v); });
             return set;
         }
 
-        // Construye HTML de <option> excluyendo IDs ya usados por otras filas.
-        // Mantiene "current" para no perder el valor actual del select.
-                function buildOptionsHtml(exclude, current){
+        // Opciones excluyendo los ya elegidos (salvo el actual)
+        function buildOptionsHtml(exclude, current){
             let html = `<option value="">Seleccione ↓</option>`;
             for (const p of CAT){
                 if (p.id !== current && exclude.has(p.id)) continue;
@@ -181,7 +191,7 @@
             return html;
         }
 
-        // Reconstruye TODOS los selects para reflejar duplicados
+        // Reconstruye selects y refresca filas
         function refreshAllSelects(){
             const selects = getAllProductSelects();
             const chosen  = selectedIds();
@@ -192,7 +202,6 @@
                 sel.innerHTML = buildOptionsHtml(exclude, current);
             });
 
-            // Refresca imagen/nombre/subtotal de cada fila
             selects.forEach(sel => onProductoChange.call(sel, /*noRecalc*/true));
             recalcTotales();
             evalReady();
@@ -241,10 +250,10 @@
                 </td>`;
             tbody.appendChild(tr);
 
-            // Armar opciones excluyendo lo ya seleccionado
+            // Opciones sin duplicar
             const sel = tr.querySelector('.js-prod');
             const exclude = selectedIds();
-            sel.innerHTML = buildOptionsHtml(exclude, ""); // sin valor actual
+            sel.innerHTML = buildOptionsHtml(exclude, "");
 
             // Listeners
             sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
@@ -263,8 +272,8 @@
             changed = true;
         }
 
-        // ============== Cambios por fila ==============
-                function onProductoChange(noRecalc) {
+        // ============== Cambio de producto ==============
+        function onProductoChange(noRecalc) {
             const row = this.getAttribute('data-row');
             const prodId = this.value || '';
             const info = IDX[prodId];
@@ -276,15 +285,15 @@
             if (info) {
                 if (img)  img.src = info.imagen || '';
                 if (name) name.value = info.nombre || '';
-                // 💡 Autollenar Precio con COSTO de inventario si el campo está vacío o 0
+                // Autollenar con PRECIO_VENTA si está vacío o 0
                 if (precio) {
                     const cur = Number(precio.value || 0);
                     if (!cur || cur === 0) {
-                        const costo = Number(info.costo || 0);
-                        if (!isNaN(costo)) precio.value = costo.toFixed(2);
+                        const pv = Number(info.precioVenta || 0);
+                        if (!isNaN(pv)) precio.value = pv.toFixed(2);
                     }
-                    // (Opcional) tooltip con stock/costo
-                    precio.title = `Costo inventario: Q ${Number(info.costo||0).toFixed(2)} | Stock: ${Number(info.stock||0)}`;
+                    precio.title = `Precio sugerido: Q ${Number(info.precioVenta||0).toFixed(2)}`
+                                 + (info.stock!=null ? ` | Stock: ${Number(info.stock||0)}` : '');
                 }
             } else {
                 if (img)  img.src = '';
@@ -296,32 +305,19 @@
             changed = true;
         }
 
-                function recalcFila() {
+        // ============== Recalcular fila/total ==============
+        function recalcFila() {
             const tr = rowEl(this);
             const vCant   = Number(tr.querySelector('.js-cant')?.value || 0);
             const vPrecio = Number(tr.querySelector('.js-precio')?.value || 0);
-            const prodId  = tr.querySelector('select[name*=".ProductoId"]')?.value || '';
-            const info    = IDX[prodId];
-
             const sub = Math.round((vCant * vPrecio) * 100) / 100;
             const lbl = tr.querySelector('.js-subtotal');
             if (lbl) lbl.textContent = 'Q ' + sub.toFixed(2);
-
-            // Marca visual si cantidad > stock actual
-            if (info && Number(info.stock) < vCant) {
-                tr.classList.add('table-warning');     // o tu clase ua-warning
-                lbl.title = `Cantidad supera stock actual (${info.stock})`;
-            } else {
-                tr.classList.remove('table-warning');
-                lbl.title = '';
-            }
 
             recalcTotales();
             evalReady();
         }
 
-
-        // ============== Totales / Anticipo ==============
         function recalcTotales() {
             let total = 0;
             qsAll('#tblBody tr').forEach(tr => {
@@ -350,8 +346,6 @@
             const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
 
             let hayLinea = false;
-            let sinDuplicados = true;
-
             const vals = [];
             qsAll('#tblBody tr').forEach(tr => {
                 const id  = (tr.querySelector('select[name*=".ProductoId"]')?.value || '').trim();
@@ -360,14 +354,14 @@
                 if (id && c > 0 && pr >= 0) hayLinea = true;
                 if (id) vals.push(id);
             });
-            sinDuplicados = (new Set(vals).size === vals.length);
+            const sinDuplicados = (new Set(vals).size === vals.length);
 
             const ok = clienteOk && hayLinea && sinDuplicados;
             btn.disabled = !ok;
             btn.classList.toggle('enabled', ok);
         }
 
-        // Listeners iniciales en filas renderizadas por Razor
+        // Listeners iniciales en filas Razor
         document.querySelectorAll('.js-prod').forEach(sel => {
             sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
             if (sel.value) onProductoChange.call(sel, true);
@@ -387,7 +381,7 @@
 
         // Confirmar SALIR si hay cambios
         document.getElementById('btnCancelar').addEventListener('click', function(e){
-            if (!changed) return; // salir normal
+            if (!changed) return;
             e.preventDefault();
             Swal.fire({
                 icon: 'question',
@@ -417,7 +411,6 @@
                 cancelButtonText: 'Revisar'
             }).then(r => {
                 if (r.isConfirmed) {
-                    // PRG: evitar doble submit
                     const btn = document.getElementById('btnGuardar');
                     btn.disabled = true;
                     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
@@ -426,7 +419,7 @@
             });
         });
 
-        // Notificaciones post-back (si el controller deja TempData)
+        // Notificaciones post-back (TempData)
         (function () {
             const ok  = '@(TempData["ok"] ?? "")';
             const err = '@(TempData["err"] ?? "")';

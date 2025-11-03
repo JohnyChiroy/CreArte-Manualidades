@@ -13,7 +13,7 @@ namespace CreArte.ModelsPartial
         public string EstadoPedidoId { get; set; } = default!;
         public DateOnly? FechaEntrega { get; set; }        // DB: DATE
         public string ClienteId { get; set; } = default!;
-        public string ClienteNombre { get; set; } = default!; // Ahora mostramos ClienteId como nombre
+        public string ClienteNombre { get; set; } = default!;
         public decimal TotalPedido { get; set; }
         public string? AnticipoEstado { get; set; }
         public bool RequiereAnticipo { get; set; }
@@ -60,16 +60,26 @@ namespace CreArte.ModelsPartial
     {
         [Required] public string? ProductoId { get; set; }
         public string? ProductoNombre { get; set; }
-        [Range(0.01, 9999999)] public decimal Cantidad { get; set; }   // VM usa decimal; controller castea a INT si tu entidad lo es
+
+        // VM usa decimal; controller castea a INT si tu entidad lo es
+        [Range(0.01, 9999999)] public decimal Cantidad { get; set; }
+
         [Range(0.00, 9999999)] public decimal PrecioPedido { get; set; }
+
         public decimal Subtotal => Math.Round(Cantidad * PrecioPedido, 2);
     }
 
     public class PedidoCreateEditVM
     {
         public string? PedidoId { get; set; }
-        [Required] public string? ClienteId { get; set; }
-        public DateOnly? FechaEntregaDeseada { get; set; }    // DB: DATE
+
+        [Required(ErrorMessage = "Seleccione un cliente.")]
+        public string? ClienteId { get; set; }
+
+        [Display(Name = "Fecha de entrega")]
+        [DataType(DataType.Date)]
+        [Required(ErrorMessage = "Seleccione la fecha de entrega.")]
+        public DateOnly? FechaEntregaDeseada { get; set; }    
         public string? Observaciones { get; set; }
 
         public List<PedidoDetalleVM> Detalles { get; set; } = new();
@@ -77,6 +87,7 @@ namespace CreArte.ModelsPartial
         public List<SelectListItem> ClientesCombo { get; set; } = new();
         public List<SelectListItem> ItemsCombo { get; set; } = new();
 
+        // Totales de la UI (solo para mostrar mientras editas la grilla)
         public decimal TotalPedido => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
         public bool RequiereAnticipo => TotalPedido >= 300m;
         public decimal AnticipoMinimo => RequiereAnticipo ? Math.Round(TotalPedido * 0.25m, 2) : 0m;
@@ -89,16 +100,11 @@ namespace CreArte.ModelsPartial
     public class PedidoCotizarVM
     {
         public string PedidoId { get; set; } = default!;
+        // Si luego quieres reactivar mano de obra / margen, los dejamos aquí (no usados por ahora)
         public decimal ManoDeObra { get; set; }
         public decimal Margen { get; set; }
     }
 
-    public class ProduccionProgramarVM
-    {
-        public string PedidoId { get; set; } = default!;
-        public DateTime FechaInicio { get; set; } = DateTime.Today;
-        public DateTime FechaFin { get; set; } = DateTime.Today.AddDays(2);
-    }
     public class PedidoDetailsVM
     {
         // Encabezado
@@ -119,15 +125,16 @@ namespace CreArte.ModelsPartial
         // Totales
         public decimal TotalPedido { get; set; }
 
+        // Cálculo pedido: saldo a cobrar (TOTAL_PEDIDO – ANTICIPO_MÍNIMO)
+        public decimal SaldoPendiente { get; set; }
+
         // Permisos de acción (para botones en la vista)
         public bool PuedeCotizar { get; set; }       // BORRADOR → COTIZADO
         public bool PuedeAprobar { get; set; }       // COTIZADO → APROBADO
         public bool PuedePagarAnticipo { get; set; } // si requiere y está PENDIENTE
-        public bool PuedeProgramar { get; set; }     // APROBADO → PROGRAMADO
-        public bool PuedeFinalizar { get; set; }     // PROGRAMADO/EN_PRODU → TERMINADO
+        public bool PuedeFinalizar { get; set; }     // PROGRAMADO → EN_PRODU → TERMINADO
         public bool PuedeEntregar { get; set; }      // TERMINADO → ENTREGADO
-        public bool PuedeCerrar { get; set; }        // ENTREGADO → CERRADO
-        public bool PuedeCancelar { get; set; }      // estados “tempranos”
+        public bool PuedeCancelar { get; set; }      // APROBADO o EN_PRODU
         public bool PuedeRechazar { get; set; }      // COTIZADO o APROBADO (si aplica)
 
         public List<PedidoLineaVM> Lineas { get; set; } = new();

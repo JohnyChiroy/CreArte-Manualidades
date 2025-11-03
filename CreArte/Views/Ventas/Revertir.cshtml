@@ -1,0 +1,171 @@
+﻿@using CreArte.ModelsPartial
+@model VentaReversionVM
+@{
+    ViewData["Title"] = "Revertir Venta";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        .ua-summary-box {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px 16px;
+            text-align: right;
+            margin-top: 10px;
+        }
+
+            .ua-summary-box strong {
+                font-size: 1.1rem;
+                color: #BF265E; /* color magenta de tu paleta */
+            }
+
+            .ua-summary-box span {
+                font-weight: bold;
+            }
+    </style>
+}
+
+<div class="ua-card">
+    <h2>Revertir Venta <span class="text-muted">@Model.VentaId</span></h2>
+
+    <form asp-action="Revertir" method="post" id="frmRevertir">
+        @Html.AntiForgeryToken()
+
+        <input type="hidden" asp-for="VentaId" />
+        <input type="hidden" asp-for="UsuarioId" value="@User.Identity?.Name" />
+
+        <div class="mb-3">
+            <label asp-for="Motivo"><strong>Motivo de la reversión:</strong></label>
+            <textarea asp-for="Motivo" class="form-control" maxlength="250" required></textarea>
+        </div>
+
+        <table class="table table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Producto</th>
+                    <th class="text-center">Cant. vendida</th>
+                    <th class="text-center">Cant. a devolver</th>
+                    <th class="text-end">Precio unitario</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody id="tblReversion">
+                @for (int i = 0; i < Model.Detalles.Count; i++)
+                {
+                    <tr>
+                        <input type="hidden" asp-for="Detalles[@i].InventarioId" />
+                        <input type="hidden" asp-for="Detalles[@i].ProductoId" />
+                        <input type="hidden" asp-for="Detalles[@i].NombreProducto" />
+                        <td>@Model.Detalles[i].NombreProducto</td>
+                        <td class="text-center">@Model.Detalles[i].CantidadVendida</td>
+                        <td class="text-center">
+                            <input asp-for="Detalles[@i].CantidadDevuelta"
+                                   type="number"
+                                   class="form-control text-center js-cant"
+                                   min="0"
+                                   max="@Model.Detalles[i].CantidadVendida"
+                                   step="1"
+                                   data-row="@i" />
+                        </td>
+                        <td class="text-end">Q @Model.Detalles[i].PrecioUnitario.ToString("F2")</td>
+                        <td class="text-end">
+                            <span class="js-subtotal" data-row="@i">Q 0.00</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Caja de totales -->
+        <div class="ua-summary-box">
+            <div>Total de reembolso:</div>
+            <strong id="lblTotal">Q 0.00</strong>
+        </div>
+
+        <div class="ua-actions">
+            <a class="btn-cancel" href="@Url.Action("Index", "Ventas")">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+            <button type="submit" id="btnConfirmar" class="btn-save" disabled>
+                <i class="bi bi-check-circle"></i> Confirmar reversión
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // === Helpers ===
+        function qs(sel, root=document){ return root.querySelector(sel); }
+        function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+        function money(n){ return 'Q ' + (Number(n||0).toFixed(2)); }
+
+        // === Recalcular subtotales y total general ===
+        function recalcTotales(){
+            let total = 0;
+            qsAll('#tblReversion tr').forEach(tr => {
+                const cant = Number(tr.querySelector('.js-cant')?.value || 0);
+                const precio = Number(tr.querySelector('td.text-end').textContent.replace(/[Q\s]/g,'') || 0);
+                const sub = cant * precio;
+                total += sub;
+                const row = tr.querySelector('.js-subtotal');
+                if(row) row.textContent = money(sub);
+            });
+            qs('#lblTotal').textContent = money(total);
+            qs('#btnConfirmar').disabled = total <= 0;
+        }
+
+        // === Eventos de cambio ===
+        document.querySelectorAll('.js-cant').forEach(inp => {
+            inp.addEventListener('input', recalcTotales);
+        });
+
+        document.addEventListener('DOMContentLoaded', recalcTotales);
+
+        // === Confirmación SweetAlert2 ===
+        const frm = document.getElementById('frmRevertir');
+        frm.addEventListener('submit', function(e){
+            e.preventDefault();
+            const total = qs('#lblTotal').textContent;
+            const motivo = qs('textarea[name="Motivo"]').value.trim();
+
+            if(!motivo){
+                Swal.fire({ icon:'warning', title:'Motivo requerido', text:'Debe indicar un motivo para la reversión.' });
+                return;
+            }
+
+            if(qs('#btnConfirmar').disabled){
+                Swal.fire({ icon:'info', title:'Sin productos válidos', text:'Ingrese cantidades a devolver antes de continuar.' });
+                return;
+            }
+
+            Swal.fire({
+                icon: 'question',
+                title: '¿Confirmar reversión?',
+                html: `<b>Monto total del reembolso:</b><br/>${total}`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, confirmar',
+                cancelButtonText: 'Cancelar'
+            }).then(r=>{
+                if(r.isConfirmed){
+                    const btn = qs('#btnConfirmar');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+                    frm.submit();
+                }
+            });
+        });
+
+        // === Mensajes post-back (TempData) ===
+        (function(){
+            const ok='@(TempData["ok"] ?? "")';
+            const err='@(TempData["error"] ?? "")';
+            if(ok) Swal.fire({icon:'success',title:ok,timer:2500,showConfirmButton:false});
+            if(err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
+        })();
+    </script>
+}

@@ -12,15 +12,15 @@
             font-size: .8rem;
             color: #6b7280;
             text-transform: uppercase;
-            letter-spacing: .4px;
+            letter-spacing: .4px
         }
 
         .ua-kv-mini .val {
-            font-weight: 600;
+            font-weight: 600
         }
 
         tfoot td {
-            font-weight: 600;
+            font-weight: 600
         }
 
         .ua-img-thumb-fila-details {
@@ -29,118 +29,159 @@
             object-fit: cover;
             object-position: center;
             border-radius: 6px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e5e7eb
         }
     </style>
 }
 
 <div class="ua-card">
-    <!-- =========================
-         TOOLBAR (título + acciones de estado)
-         ========================= -->
+    <!-- ========================= TOOLBAR ========================= -->
     <div class="ua-toolbar">
         <h2 class="m-0">Detalle Pedido @Model.PedidoId</h2>
 
         <div class="d-flex align-items-center gap-2">
 
-            @* ====== Flujo de estados ====== *@
-
-            @* 1) Cotizar (BORRADOR → COTIZADO) *@
-            @if (Model.PuedeCotizar)
+            @* ======== BORRADOR ======== *@
+            @if (Model.EstadoId == "BORRADOR")
             {
-                <form asp-action="Cotizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-revision" title="Enviar a cotización">
-                        <i class="bi bi-calculator"></i> <span>Cotizar</span>
-                    </button>
-                </form>
+                if (Model.PuedeCotizar)
+                {
+                    <form asp-action="Cotizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-revision" title="Enviar a cotización">
+                            <i class="bi bi-calculator"></i> <span>Cotizar</span>
+                        </button>
+                    </form>
+                }
+                @* (Cancelar ya NO aplica en BORRADOR) *@
             }
 
-            @* 2) Aprobar (COTIZADO → APROBADO) *@
-            @if (Model.PuedeAprobar)
+            @* ======== COTIZADO ======== *@
+            @if (Model.EstadoId == "COTIZADO")
             {
-                <form asp-action="Aprobar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Seguro que deseas aprobar este pedido?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-aprobado" title="Aprobar pedido">
-                        <i class="bi bi-check2-square"></i> <span>Aprobar</span>
-                    </button>
-                </form>
+                if (Model.PuedeAprobar)
+                {
+                    <form asp-action="Aprobar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Aprobar el pedido?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-aprobado">
+                            <i class="bi bi-check2-square"></i> <span>Aprobar</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedeRechazar)
+                {
+                    <form asp-action="Rechazar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Rechazar el pedido?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-anular">
+                            <i class="bi bi-slash-circle"></i> <span>Rechazar</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                {
+                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-pago">
+                            <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
+                        </button>
+                    </form>
+                }
+                @* (Cancelar ya NO aplica en COTIZADO) *@
             }
 
-            @* 3) Programar (APROBADO → PROGRAMADO) *@
-            @if (Model.PuedeProgramar)
+            @* ======== APROBADO ======== *@
+            @if (Model.EstadoId == "APROBADO")
             {
-                <a asp-action="Programar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" class="btn-enviado">
-                    <i class="bi bi-calendar-check"></i> <span>Programar</span>
-                </a>
+                if (Model.PuedeFinalizar)
+                {
+                    <form asp-action="Finalizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('Esto iniciará producción (EN_PRODU), convertirá la RESERVA en SALIDA y marcará TERMINADO. ¿Continuar?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-confirmado">
+                            <i class="bi bi-hammer"></i> <span>En Producción</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                {
+                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-pago">
+                            <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedeCancelar)
+                {
+                    <form asp-action="Cancelar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Cancelar el pedido (APROBADO)?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-anular">
+                            <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+                        </button>
+                    </form>
+                }
             }
 
-            @* 4) Finalizar producción *@
-            @if (Model.PuedeFinalizar)
+            @* ======== EN_PRODU ======== *@
+            @if (Model.EstadoId == "EN_PRODU")
             {
-                <form asp-action="Finalizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Marcar este pedido como finalizado?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-confirmado" title="Finalizar pedido">
-                        <i class="bi bi-clipboard-check"></i> <span>Finalizar</span>
-                    </button>
-                </form>
+                if (Model.PuedeFinalizar)
+                {
+                    <form asp-action="Finalizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Marcar como TERMINADO y convertir la RESERVA en SALIDA PEDIDO?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-confirmado">
+                            <i class="bi bi-clipboard-check"></i> <span>Finalizar</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                {
+                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-pago">
+                            <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
+                        </button>
+                    </form>
+                }
+                if (Model.PuedeCancelar)
+                {
+                    <form asp-action="Cancelar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Cancelar el pedido (EN_PRODU)?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-anular">
+                            <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+                        </button>
+                    </form>
+                }
             }
 
-            @* 5) Entregar pedido *@
-            @if (Model.PuedeEntregar)
+            @* ======== TERMINADO ======== *@
+            @if (Model.EstadoId == "TERMINADO")
             {
-                <form asp-action="Entregar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Confirmar entrega del pedido?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-recibir">
-                        <i class="bi bi-truck"></i> <span>Entregar</span>
-                    </button>
-                </form>
+                if (Model.PuedeEntregar)
+                {
+                    <form asp-action="Entregar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('¿Confirmar ENTREGADO?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-recibir">
+                            <i class="bi bi-truck"></i> <span>Entregar</span>
+                        </button>
+                    </form>
+                }
             }
 
-            @* 6) Cerrar pedido *@
-            @if (Model.PuedeCerrar)
-            {
-                <form asp-action="Cerrar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Cerrar este pedido definitivamente?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-cargar">
-                        <i class="bi bi-lock"></i> <span>Cerrar</span>
-                    </button>
-                </form>
-            }
-
-            @* 7) Pagar anticipo *@
-            @if (Model.PuedePagarAnticipo)
-            {
-                <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Confirmar pago del anticipo?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-pago">
-                        <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
-                    </button>
-                </form>
-            }
-
-            @* Cancelar *@
-            @if (Model.PuedeCancelar)
-            {
-                <form asp-action="Cancelar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                      onsubmit="return confirm('¿Seguro que deseas cancelar este pedido?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn-anular">
-                        <i class="bi bi-x-circle"></i> <span>Cancelar</span>
-                    </button>
-                </form>
-            }
+            @* ENTREGADO / CANCELADO / RECHAZADO: sin acciones *@
         </div>
     </div>
 
-    <!-- =========================
-         Encabezado
-         ========================= -->
+    <!-- ========================= Encabezado ========================= -->
     <div class="ua-row" style="margin-top:12px;">
         <div class="ua-field">
             <div class="ua-kv-mini">
@@ -168,7 +209,7 @@
         <div class="ua-field">
             <div class="ua-kv-mini">
                 <div class="lbl">Fecha Entrega</div>
-                <div class="val">@Model.FechaEntrega?.ToString("dd/MM/yyyy") ?? "-"</div>
+                <div class="val">@Model.FechaEntrega?.ToString("dd/MM/yyyy")</div>
             </div>
         </div>
     </div>
@@ -183,7 +224,7 @@
         </div>
     </div>
 
-    <!-- Anticipo -->
+    <!-- Anticipo / Total -->
     <div class="ua-row" style="margin-top:8px;">
         <div class="ua-field">
             <div class="ua-kv-mini">
@@ -214,9 +255,7 @@
         </div>
     </div>
 
-    <!-- =========================
-         LÍNEAS DEL PEDIDO
-         ========================= -->
+    <!-- ========================= LÍNEAS ========================= -->
     <div class="table-responsive">
         <table class="table table-sm align-middle ua-table">
             <thead class="table-light">
@@ -236,7 +275,14 @@
                         <td>@l.ProductoId</td>
                         <td>@l.ProductoNombre</td>
                         <td class="text-center">
-                            <img src="@(l.ImagenProducto ?? "")" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                            @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
+                            {
+                                <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
                         </td>
                         <td class="text-center">@l.Cantidad</td>
                         <td class="text-center">@l.PrecioPedido.ToString("N2")</td>
@@ -255,9 +301,7 @@
         </table>
     </div>
 
-    <!-- =========================
-         ACCIONES FINALES
-         ========================= -->
+    <!-- ========================= ACCIONES FINALES ========================= -->
     <div class="ua-actions" style="margin-top:12px;">
         <a asp-action="Index" asp-controller="Pedidos" class="btn-cancel">
             <i class="bi bi-arrow-left"></i> <span>Volver</span>
@@ -269,14 +313,13 @@
     private string GetEstadoClass(string estado) => estado switch
     {
         "BORRADOR" => "secondary",
-        "COTIZADO" => "revi",
-        "APROBADO" => "apro",
-        "PROGRAMADO" => "envi",
-        "EN_PRODU" => "confi",
-        "TERMINADO" => "reci",
-        "ENTREGADO" => "cerra",
-        "CERRADO" => "cerra",
-        "CANCELADO" => "anu",
+        "COTIZADO" => "info text-dark",
+        "APROBADO" => "primary",
+        "EN_PRODU" => "warning text-dark",
+        "TERMINADO" => "success",
+        "ENTREGADO" => "success",
+        "CANCELADO" => "danger",
+        "RECHAZADO" => "danger",
         _ => "light text-dark"
     };
 }

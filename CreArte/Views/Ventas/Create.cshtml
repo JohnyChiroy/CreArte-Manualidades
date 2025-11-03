@@ -1,87 +1,353 @@
-﻿@model CreArte.Models.VENTA
+﻿@using CreArte.ModelsPartial
+@model VentaCreateEditVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Nueva Venta";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Catálogo de inventario (ya incluye inventarioId, productoId, nombre, imagen, stock, precioVenta)
+    var productosJson = ViewBag.ProductosJson as string ?? "[]";
 }
 
-<!DOCTYPE html>
+@section Styles {
+    <style>
+        .ua-img-thumb-fila {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            object-position: center;
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+    </style>
+}
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Create</title>
-</head>
-<body>
+<div class="ua-card">
+    <h2 style="margin:0 0 12px 0;">Registrar Nueva Venta</h2>
 
-<h4>VENTA</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="VENTA_ID" class="control-label"></label>
-                <input asp-for="VENTA_ID" class="form-control" />
-                <span asp-validation-for="VENTA_ID" class="text-danger"></span>
+    <!-- ========================= FORMULARIO ========================= -->
+    <form asp-action="Create" asp-controller="Ventas" method="post" id="frmVenta" autocomplete="off">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- ========================= ENCABEZADO ========================= -->
+        <div class="ua-row">
+            <div class="ua-field" style="flex:1;">
+                <label asp-for="ClienteId"><strong>Cliente:*</strong></label>
+                <select asp-for="ClienteId" class="form-control" id="ClienteId" required>
+                    <option value="">Seleccione ↓</option>
+                    @foreach (var c in Model.ClientesCombo)
+                    {
+                        <option value="@c.Value">@c.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="ClienteId" class="text-danger"></span>
+
+                <label asp-for="UsuarioId"><strong>Vendedor:*</strong></label>
+                <select asp-for="UsuarioId" class="form-control" id="UsuarioId" required>
+                    <option value="">Seleccione ↓</option>
+                    @foreach (var u in ViewBag.UsuariosCombo as List<SelectListItem>)
+                    {
+                        <option value="@u.Value">@u.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="UsuarioId" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="CLIENTE_ID" class="control-label"></label>
-                <select asp-for="CLIENTE_ID" class ="form-control" asp-items="ViewBag.CLIENTE_ID"></select>
+        </div>
+
+        <!-- ========================= DETALLE DE VENTA ========================= -->
+        <div style="margin-top:12px;">
+            <div class="ua-field ua-table-compra text-center" style="flex:1 1 100%;">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="tblProductos">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:36%">Producto*</th>
+                                <th style="width:16%">Imagen</th>
+                                <th style="width:12%" class="text-center">Cantidad*</th>
+                                <th style="width:14%" class="text-end">Precio venta*</th>
+                                <th style="width:14%" class="text-end">Subtotal</th>
+                                <th style="width:8%" class="text-center">Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblBody">
+                            @for (int i = 0; i < Model.Detalles.Count; i++)
+                            {
+                                <tr>
+                                    <input type="hidden" name="Detalles.Index" value="@i" />
+                                    <!-- 🔹 Campos ocultos nuevos: InventarioId y ProductoId -->
+                                    <input type="hidden" name="Detalles[@i].InventarioId" class="js-inv" data-row="@i" />
+                                    <input type="hidden" name="Detalles[@i].ProductoId" class="js-prod-id" data-row="@i" />
+
+                                    <td>
+                                        <select name="Detalles[@i].InventarioId"
+                                                class="form-control producto js-prod"
+                                                data-row="@i" required>
+                                            <option value="">Seleccione ↓</option>
+                                        </select>
+                                    </td>
+                                    <td><img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="@i" src="" alt="N" /></td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].Cantidad" type="number" min="1" step="1"
+                                               class="form-control cantidad text-end js-cant" required />
+                                    </td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].PrecioUnitario" type="number" min="0" step="0.01"
+                                               class="form-control precio text-end js-precio" required />
+                                    </td>
+                                    <td class="text-end">
+                                        <input name="Detalles[@i].NombreProducto" type="hidden" class="js-prod-name" data-row="@i" />
+                                        <span class="js-subtotal" data-row="@i">Q 0.00</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-eliminate" onclick="eliminarFila(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" class="text-center">
+                                    <button type="button" class="btn-agregate" onclick="agregarFila()">
+                                        <i class="bi bi-plus-circle"></i> Agregar producto
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Totales -->
+                <div class="d-flex justify-content-end mt-3">
+                    <div style="min-width:280px;">
+                        <div class="d-flex justify-content-between">
+                            <strong>Total venta:</strong>
+                            <strong id="lblTotal">Q 0.00</strong>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ID" class="control-label"></label>
-                <select asp-for="USUARIO_ID" class ="form-control" asp-items="ViewBag.USUARIO_ID"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="TOTAL" class="control-label"></label>
-                <input asp-for="TOTAL" class="form-control" />
-                <span asp-validation-for="TOTAL" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_CREACION" class="control-label"></label>
-                <input asp-for="USUARIO_CREACION" class="form-control" />
-                <span asp-validation-for="USUARIO_CREACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_MODIFICACION" class="control-label"></label>
-                <input asp-for="USUARIO_MODIFICACION" class="form-control" />
-                <span asp-validation-for="USUARIO_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_MODIFICACION" class="control-label"></label>
-                <input asp-for="FECHA_MODIFICACION" class="form-control" />
-                <span asp-validation-for="FECHA_MODIFICACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ELIMINADO" /> @Html.DisplayNameFor(model => model.ELIMINADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="USUARIO_ELIMINACION" class="control-label"></label>
-                <input asp-for="USUARIO_ELIMINACION" class="form-control" />
-                <span asp-validation-for="USUARIO_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="FECHA_ELIMINACION" class="control-label"></label>
-                <input asp-for="FECHA_ELIMINACION" class="form-control" />
-                <span asp-validation-for="FECHA_ELIMINACION" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="ESTADO" /> @Html.DisplayNameFor(model => model.ESTADO)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <!-- ========================= ACCIONES ========================= -->
+        <div class="ua-actions">
+            <a class="btn-cancel js-leave" href="@Url.Action("Index", "Ventas")" id="btnCancelar">
+                <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+            </a>
+            <button id="btnGuardar" type="submit" class="btn-save" disabled>
+                <i class="bi bi-save"></i> <span>Registrar Venta</span>
+            </button>
+        </div>
+    </form>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-</body>
-</html>
+    <script>
+        // =========================
+        // Catálogo [{inventarioId, productoId, nombre, imagen, stock, precioVenta}]
+        // =========================
+        const CAT = @Html.Raw(productosJson);
+        const IDX = {}; CAT.forEach(p => { IDX[p.inventarioId] = p; });
+
+        // Helpers
+        function qs(sel, root=document){ return root.querySelector(sel); }
+        function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+        function rowEl(el){ return el.closest('tr'); }
+        function money(n){ return 'Q ' + (Number(n||0).toFixed(2)); }
+
+        // =========================
+        // Select dinámico de productos
+        // =========================
+        function getAllProductSelects(){ return qsAll('#tblBody select[name*=".InventarioId"]'); }
+        function selectedIds(){
+            const set = new Set();
+            getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if(v) set.add(v); });
+            return set;
+        }
+
+        function buildOptionsHtml(exclude, current){
+            let html = `<option value="">Seleccione ↓</option>`;
+            for (const p of CAT){
+                if (p.inventarioId !== current && exclude.has(p.inventarioId)) continue;
+                const stockTxt = (p.stock != null) ? ` (Stock: ${Number(p.stock)})` : '';
+                html += `<option value="${p.inventarioId}" ${p.inventarioId===current?'selected':''}>${p.nombre}${stockTxt}</option>`;
+            }
+            return html;
+        }
+
+        function refreshAllSelects(){
+            const selects = getAllProductSelects();
+            const chosen = selectedIds();
+            selects.forEach(sel => {
+                const current = (sel.value||'').trim();
+                const exclude = new Set(chosen); exclude.delete(current);
+                sel.innerHTML = buildOptionsHtml(exclude, current);
+            });
+            selects.forEach(sel => onProductoChange.call(sel, true));
+            recalcTotales();
+            evalReady();
+        }
+
+        // =========================
+        // Fila dinámica
+        // =========================
+        let nextIndex = @Model.Detalles.Count;
+
+        function agregarFila(){
+            const tbody = document.getElementById("tblBody");
+            const i = nextIndex++;
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <input type="hidden" name="Detalles.Index" value="${i}" />
+                <input type="hidden" name="Detalles[${i}].InventarioId" class="js-inv" data-row="${i}" />
+                <input type="hidden" name="Detalles[${i}].ProductoId" class="js-prod-id" data-row="${i}" />
+                <td><select name="Detalles[${i}].InventarioId" class="form-control producto js-prod" data-row="${i}" required></select></td>
+                <td><img class="img-thumbnail js-prod-img ua-img-thumb-fila" data-row="${i}" src="" alt="N"/></td>
+                <td class="text-end"><input name="Detalles[${i}].Cantidad" type="number" min="1" step="1" class="form-control cantidad text-end js-cant" required /></td>
+                <td class="text-end"><input name="Detalles[${i}].PrecioUnitario" type="number" min="0" step="0.01" class="form-control precio text-end js-precio" required /></td>
+                <td class="text-end"><input name="Detalles[${i}].NombreProducto" type="hidden" class="js-prod-name" data-row="${i}" /><span class="js-subtotal" data-row="${i}">Q 0.00</span></td>
+                <td class="text-center"><button type="button" class="btn-eliminate" onclick="eliminarFila(this)"><i class="bi bi-trash"></i></button></td>`;
+            tbody.appendChild(tr);
+
+            const sel = tr.querySelector('.js-prod');
+            const exclude = selectedIds();
+            sel.innerHTML = buildOptionsHtml(exclude, "");
+
+            sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
+            tr.querySelector('.js-cant').addEventListener('input', recalcFila);
+            tr.querySelector('.js-precio').addEventListener('input', recalcFila);
+
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+
+        function eliminarFila(btn){
+            rowEl(btn).remove();
+            refreshAllSelects();
+            evalReady();
+            changed = true;
+        }
+
+        // =========================
+        // Cambio de producto
+        // =========================
+        function onProductoChange(noRecalc){
+            const row = this.getAttribute('data-row');
+            const invId = this.value || '';
+            const info = IDX[invId];
+            const img = qs(`.js-prod-img[data-row="${row}"]`);
+            const name = qs(`input.js-prod-name[data-row="${row}"]`);
+            const inv = qs(`input.js-inv[data-row="${row}"]`);
+            const prod = qs(`input.js-prod-id[data-row="${row}"]`);
+            const precio = rowEl(this).querySelector('.js-precio');
+
+            if(info){
+                if(img) img.src = info.imagen || '';
+                if(name) name.value = info.nombre || '';
+                if(inv) inv.value = info.inventarioId || '';
+                if(prod) prod.value = info.productoId || '';
+                if(precio){
+                    const pv = Number(info.precioVenta || 0);
+                    if(!Number(precio.value)) precio.value = pv.toFixed(2);
+                    precio.title = `Precio: Q ${pv.toFixed(2)} | Stock: ${info.stock}`;
+                }
+            }else{
+                if(img) img.src = '';
+                if(name) name.value = '';
+                if(inv) inv.value = '';
+                if(prod) prod.value = '';
+                if(precio) precio.title = '';
+            }
+            if(!noRecalc) recalcFila.call(this);
+            changed = true;
+        }
+
+        // =========================
+        // Recalcular totales
+        // =========================
+        function recalcFila(){
+            const tr = rowEl(this);
+            const c = Number(tr.querySelector('.js-cant')?.value || 0);
+            const p = Number(tr.querySelector('.js-precio')?.value || 0);
+            const sub = Math.round((c * p) * 100) / 100;
+            tr.querySelector('.js-subtotal').textContent = money(sub);
+            recalcTotales();
+            evalReady();
+        }
+
+        function recalcTotales(){
+            let total = 0;
+            qsAll('#tblBody tr').forEach(tr => {
+                const c = Number(tr.querySelector('.js-cant')?.value || 0);
+                const p = Number(tr.querySelector('.js-precio')?.value || 0);
+                total += c * p;
+            });
+            qs('#lblTotal').textContent = money(total);
+        }
+
+        // =========================
+        // Validar botón Guardar
+        // =========================
+        function evalReady(){
+            const clienteOk = (qs('#ClienteId')?.value || '').trim();
+            const usuarioOk = (qs('#UsuarioId')?.value || '').trim();
+            const filas = qsAll('#tblBody tr');
+            const ok = clienteOk && usuarioOk && filas.length > 0;
+            qs('#btnGuardar').disabled = !ok;
+        }
+
+        document.addEventListener('DOMContentLoaded', function(){
+            refreshAllSelects();
+            recalcTotales();
+            evalReady();
+        });
+
+        // =========================
+        // Confirmaciones SweetAlert2
+        // =========================
+        let changed = false;
+        const frm = qs('#frmVenta');
+        frm.addEventListener('input', ()=> changed = true);
+        frm.addEventListener('change', ()=> changed = true);
+
+        qs('#btnCancelar').addEventListener('click', function(e){
+            if(!changed) return;
+            e.preventDefault();
+            Swal.fire({
+                icon:'question', title:'¿Cancelar venta?', text:'Perderás los cambios no guardados.',
+                showCancelButton:true, confirmButtonText:'Sí, salir', cancelButtonText:'Seguir aquí'
+            }).then(r=>{ if(r.isConfirmed) window.location.href=this.href; });
+        });
+
+        frm.addEventListener('submit', function(e){
+            e.preventDefault();
+            if(qs('#btnGuardar').disabled) return;
+            Swal.fire({
+                icon:'question', title:'¿Registrar venta?',
+                html:qs('#lblTotal').textContent,
+                showCancelButton:true, confirmButtonText:'Registrar', cancelButtonText:'Revisar'
+            }).then(r=>{
+                if(r.isConfirmed){
+                    const btn=qs('#btnGuardar');
+                    btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...';
+                    frm.submit();
+                }
+            });
+        });
+
+        (function(){
+            const ok='@(TempData["ok"] ?? "")';
+            const err='@(TempData["error"] ?? "")';
+            if(ok) Swal.fire({icon:'success',title:ok,timer:2500,showConfirmButton:false});
+            if(err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
+        })();
+    </script>
+}

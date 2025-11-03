@@ -1,0 +1,101 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Linq;
+
+namespace CreArte.ModelsPartial
+{
+    // ===============================
+    // VENTA - Cabecera + Detalles
+    // ===============================
+    public class VentaCreateEditVM
+    {
+        // Cabecera mínima según tu tabla VENTA
+        public string? VentaId { get; set; }
+
+        [Required(ErrorMessage = "Debe seleccionar un cliente.")]
+        public string ClienteId { get; set; } = null!; // = PERSONA_ID
+
+        [Required(ErrorMessage = "Debe seleccionar un usuario vendedor.")]
+        public string UsuarioId { get; set; } = null!;
+
+        [DataType(DataType.DateTime)]
+        public DateTime Fecha { get; set; } = DateTime.Now;
+
+        // NOTA: VENTA no tiene campo de observaciones en tu esquema.
+        // public string? Observaciones { get; set; }  // <-- Eliminado
+
+        // Totales (solo para cálculo en UI; en BD solo se guarda TOTAL)
+        public decimal Subtotal => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
+        public decimal ImpuestoTotal => 0m; // si luego aplicas IVA por producto, ajústalo aquí
+        public decimal DescuentoTotal => 0m;
+        public decimal Total => Math.Round(Subtotal + ImpuestoTotal - DescuentoTotal, 2);
+
+        // Combos
+        public List<SelectListItem> ClientesCombo { get; set; } = new();
+        public List<SelectListItem> ProductosCombo { get; set; } = new(); // opcional si lo usas para fallback
+
+        // Detalles
+        public List<VentaDetalleVM> Detalles { get; set; } = new();
+    }
+
+    // ===============================
+    //  DETALLE DE VENTA
+    // ===============================
+    public class VentaDetalleVM
+    {
+        // Por tu FK compuesta, debemos llevar ambos:
+        [Required] public string InventarioId { get; set; } = null!;
+        [Required] public string ProductoId { get; set; } = null!;
+
+        public string? NombreProducto { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Cantidad inválida.")]
+        public int Cantidad { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Precio inválido.")]
+        public decimal PrecioUnitario { get; set; }
+
+        public decimal Descuento { get; set; } = 0m; // futuro
+        public decimal Impuesto { get; set; } = 0m;  // futuro
+
+        public decimal Subtotal => Math.Round((Cantidad * PrecioUnitario) - Descuento + Impuesto, 2);
+    }
+
+    // ===============================
+    //  VENTA - Listado
+    // ===============================
+    public class VentaIndexVM
+    {
+        public string VentaId { get; set; } = null!;
+        public string ClienteNombre { get; set; } = null!;
+        public DateTime Fecha { get; set; }
+        public decimal Total { get; set; }
+        public string UsuarioNombre { get; set; } = null!;
+    }
+
+    // ===============================
+    // REVERSIÓN DE VENTA (ANULACIÓN O DEVOLUCIÓN)
+    // ===============================
+    public class VentaReversionVM
+    {
+        public string VentaId { get; set; } = null!;
+        public string UsuarioId { get; set; } = null!;
+        public string TipoReversion { get; set; } = "DEVOLUCION"; // o ANULACION
+        public string Motivo { get; set; } = null!;
+
+        public List<VentaReversionDetalleVM> Detalles { get; set; } = new();
+    }
+
+    public class VentaReversionDetalleVM
+    {
+        public string InventarioId { get; set; } = null!;
+        public string ProductoId { get; set; } = null!;
+        public string NombreProducto { get; set; } = null!;
+        public int CantidadVendida { get; set; }
+        public int CantidadDevuelta { get; set; } // a devolver
+        public decimal PrecioUnitario { get; set; }
+    }
+
+}

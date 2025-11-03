@@ -1,12 +1,14 @@
 ﻿using CreArte.Data;
 using CreArte.Models;
-using CreArte.ModelsPartial;            
-using CreArte.Services.Bitacora;        
-using CreArte.Services.Pedidos;         
+using CreArte.ModelsPartial;
+using CreArte.Services.Bitacora;
+using CreArte.Services.Pedidos;
+using DocumentFormat.OpenXml.Vml;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -33,10 +35,9 @@ public class PedidosController : Controller
     // Genera IDs para PEDIDO - PE00000000
     private async Task<string> SiguientePedidoIdAsync()
     {
-        const string prefijo = "PE";  
-        const int ancho = 8;          
+        const string prefijo = "PE";
+        const int ancho = 8;
 
-        // Trae los IDs que empiezan con el prefijo
         var ids = await _db.PEDIDO
             .Select(p => p.PEDIDO_ID)
             .Where(id => id.StartsWith(prefijo))
@@ -56,23 +57,50 @@ public class PedidosController : Controller
         return prefijo + siguiente.ToString(new string('0', ancho));
     }
 
-
     // --- Genera IDs para DETALLE_PEDIDO ---
     private static string NewDetallePedidoId()
+        => Guid.NewGuid().ToString("N").Substring(0, 10);
+
+    // IDs de 10 caracteres (coherentes con varchar(10))
+    private static string NewId10() => Guid.NewGuid().ToString("N")[..10];
+
+    // Muestra la causa real del error (inner/base exception)
+    private static string RootError(Exception ex)
+        => (ex.GetBaseException()?.Message ?? ex.Message);
+
+    // === Regla de negocio: duplicar total por costo de elaboración y recalcular anticipo ===
+
+    private static void DoblarTotalYRecalcularAnticipo(PEDIDO pedido)
     {
-        // "N" = GUID sin guiones (32 chars).
-        return Guid.NewGuid().ToString("N").Substring(0, 10);
+        // Base = total calculado por la calculadora (suma de subtotales de líneas)
+        var baseTotal = pedido.TOTAL_PEDIDO;
+        var elaboracion = baseTotal;          // costo de elaboración = base
+        pedido.TOTAL_PEDIDO = baseTotal + elaboracion;
+
+        // Anticipo sobre total final
+        if (pedido.TOTAL_PEDIDO >= 300m)
+        {
+            pedido.REQUIERE_ANTICIPO = true;
+            pedido.ANTICIPO_MINIMO = Math.Round(pedido.TOTAL_PEDIDO * 0.25m, 2);
+            if (string.IsNullOrWhiteSpace(pedido.ANTICIPO_ESTADO))
+                pedido.ANTICIPO_ESTADO = "PENDIENTE";
+        }
+        else
+        {
+            pedido.REQUIERE_ANTICIPO = false;
+            pedido.ANTICIPO_MINIMO = 0m;
+            pedido.ANTICIPO_ESTADO = "NO APLICA";
+        }
     }
 
     // ------------------------------------------------------
     // Combo de clientes mostrando NOMBRE (PERSONA)
-
     private async Task<List<SelectListItem>> GetClientesAsync()
     {
         return await (from cli in _db.CLIENTE
                       join per in _db.PERSONA on cli.CLIENTE_ID equals per.PERSONA_ID
-                      where cli.ESTADO == true                      // BIT → bool
-                      orderby per.PERSONA_PRIMERAPELLIDO, per.PERSONA_PRIMERNOMBRE
+                      where cli.ESTADO == true
+                      orderby per.PERSONA_PRIMERNOMBRE, per.PERSONA_PRIMERAPELLIDO
                       select new SelectListItem
                       {
                           Value = cli.CLIENTE_ID,
@@ -87,10 +115,8 @@ public class PedidosController : Controller
 
     // ------------------------------------------------------
     // Combo de ítems para elaboración (excluye PRODUCTO FINAL)
-  
     private async Task<List<SelectListItem>> GetItemsElaboracionAsync()
     {
-        // Busca el ID del tipo "PRODUCTO FINAL"
         var tipoProductoFinalId = await _db.TIPO_PRODUCTO
             .Where(t => t.TIPO_PRODUCTO_NOMBRE == "PRODUCTO FINAL")
             .Select(t => t.TIPO_PRODUCTO_ID)
@@ -104,15 +130,14 @@ public class PedidosController : Controller
     }
 
     // ======================================================
-    // GET: /Pedidos
-    // LISTADO con filtros, orden y paginación
+    // GET: /Pedidos  (listado con filtros/orden/paginación)
     // ======================================================
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] PedidoIndexVM vm)
     {
         var q = _db.PEDIDO.AsNoTracking().AsQueryable();
 
-        // -------- Filtros --------
+        // Filtros
         if (!string.IsNullOrWhiteSpace(vm.Search))
         {
             string s = vm.Search.Trim();
@@ -163,16 +188,14 @@ public class PedidosController : Controller
         if (vm.TotalMin.HasValue) q = q.Where(p => p.TOTAL_PEDIDO >= vm.TotalMin.Value);
         if (vm.TotalMax.HasValue) q = q.Where(p => p.TOTAL_PEDIDO <= vm.TotalMax.Value);
 
-        // -------- Orden --------
+        // Orden
         bool asc = string.Equals(vm.Dir, "asc", StringComparison.OrdinalIgnoreCase);
         switch ((vm.Sort ?? "id").ToLower())
         {
             case "fecha":
                 q = asc ? q.OrderBy(p => p.FECHA_PEDIDO) : q.OrderByDescending(p => p.FECHA_PEDIDO);
                 break;
-
             case "cliente":
-                // Orden alfabético por primer apellido del cliente (PERSONA)
                 q = asc
                     ? q.OrderBy(p => _db.PERSONA
                           .Where(per => per.PERSONA_ID == p.CLIENTE_ID)
@@ -185,35 +208,31 @@ public class PedidosController : Controller
                           .FirstOrDefault())
                        .ThenByDescending(p => p.PEDIDO_ID);
                 break;
-
             case "estado":
                 q = asc ? q.OrderBy(p => p.ESTADO_PEDIDO_ID).ThenBy(p => p.PEDIDO_ID)
                         : q.OrderByDescending(p => p.ESTADO_PEDIDO_ID).ThenByDescending(p => p.PEDIDO_ID);
                 break;
-
             case "total":
                 q = asc ? q.OrderBy(p => p.TOTAL_PEDIDO).ThenBy(p => p.PEDIDO_ID)
                         : q.OrderByDescending(p => p.TOTAL_PEDIDO).ThenByDescending(p => p.PEDIDO_ID);
                 break;
-
             case "anticipo":
                 q = asc ? q.OrderBy(p => p.REQUIERE_ANTICIPO).ThenBy(p => p.ANTICIPO_ESTADO).ThenBy(p => p.PEDIDO_ID)
                         : q.OrderByDescending(p => p.REQUIERE_ANTICIPO).ThenByDescending(p => p.ANTICIPO_ESTADO).ThenByDescending(p => p.PEDIDO_ID);
                 break;
-
-            default: // id
+            default:
                 q = asc ? q.OrderBy(p => p.PEDIDO_ID) : q.OrderByDescending(p => p.PEDIDO_ID);
                 break;
         }
 
-        // -------- Paginación --------
+        // Paginación
         vm.TotalItems = await q.CountAsync();
         if (vm.PageSize <= 0) vm.PageSize = 10;
         vm.TotalPages = (int)Math.Ceiling((double)vm.TotalItems / vm.PageSize);
         if (vm.Page <= 0) vm.Page = 1;
         if (vm.TotalPages > 0 && vm.Page > vm.TotalPages) vm.Page = vm.TotalPages;
 
-        // -------- Proyección a VM --------
+        // Proyección
         var data = await q
             .Skip((vm.Page - 1) * vm.PageSize)
             .Take(vm.PageSize)
@@ -222,9 +241,8 @@ public class PedidosController : Controller
                 PedidoId = p.PEDIDO_ID,
                 FechaPedido = p.FECHA_PEDIDO,
                 EstadoPedidoId = p.ESTADO_PEDIDO_ID,
-                FechaEntrega = p.FECHA_ENTREGA_PEDIDO,   // DateOnly?
+                FechaEntrega = p.FECHA_ENTREGA_PEDIDO,
                 ClienteId = p.CLIENTE_ID,
-                // Nombre de cliente desde PERSONA; fallback a CLIENTE_ID si no encuentra
                 ClienteNombre = _db.PERSONA
                     .Where(per => per.PERSONA_ID == p.CLIENTE_ID)
                     .Select(per => (
@@ -242,7 +260,7 @@ public class PedidosController : Controller
 
         vm.Items = data;
 
-        // -------- Combos para filtros --------
+        // Combos filtros
         vm.Estados = await _db.ESTADO_PEDIDO
             .OrderBy(e => e.ESTADO_PEDIDO_ID)
             .Select(e => new SelectListItem { Value = e.ESTADO_PEDIDO_ID, Text = e.ESTADO_PEDIDO_NOMBRE ?? e.ESTADO_PEDIDO_ID })
@@ -268,31 +286,22 @@ public class PedidosController : Controller
 
     // ======================================================
     // GET: /Pedidos/Create
-    // - Catálogo desde PRODUCTO (≠ PRODUCTO FINAL)
-    // - Adjunta stock y costo desde INVENTARIO
-    // - Serializa a ViewBag.ProductosJson para la vista
     // ======================================================
     [HttpGet]
     public async Task<IActionResult> Create()
     {
-        // 1) Combos base
         var vm = new PedidoCreateEditVM
         {
             ClientesCombo = await GetClientesAsync(),
-            ItemsCombo = await GetItemsElaboracionAsync(),   // Sigue filtrando ≠ PRODUCTO FINAL
+            ItemsCombo = await GetItemsElaboracionAsync(),
             EstadoPedidoId = "BORRADOR"
         };
 
-        // 2) Traer ID del tipo "PRODUCTO FINAL" para excluirlo del catálogo JSON
         var tipoProductoFinalId = await _db.TIPO_PRODUCTO
             .Where(t => t.TIPO_PRODUCTO_NOMBRE == "PRODUCTO FINAL")
             .Select(t => t.TIPO_PRODUCTO_ID)
             .FirstOrDefaultAsync();
 
-        // 3) Catálogo: PRODUCTO activo ≠ FINAL + join (o subquery) con INVENTARIO
-        //    >>> AJUSTA nombres de columnas de INVENTARIO según tu esquema:
-        //    - Stock actual:  INVENTARIO.STOCK_ACTUAL        (o EXISTENCIA_ACTUAL)
-        //    - Costo unitario:INVENTARIO.COSTO_UNITARIO      (o COSTO_PROMEDIO)
         var prods = await (
             from p in _db.PRODUCTO
             where p.ESTADO == true && p.TIPO_PRODUCTO_ID != tipoProductoFinalId
@@ -300,27 +309,24 @@ public class PedidosController : Controller
             {
                 id = p.PRODUCTO_ID,
                 nombre = p.PRODUCTO_NOMBRE,
-                imagen = p.IMAGEN_PRODUCTO,          // TODO: cambia al campo real de imagen si aplica
-                                                         // Stock y costo por subquery; si no hay fila de inventario, 0 y 0
+                imagen = p.IMAGEN_PRODUCTO,
                 stock = (decimal?)_db.INVENTARIO
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
-                            .Select(i => i.STOCK_ACTUAL)              // TODO: EXISTENCIA_ACTUAL si ese es tu campo
+                            .Select(i => i.STOCK_ACTUAL)
                             .FirstOrDefault() ?? 0m,
                 costo = (decimal?)_db.INVENTARIO
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
-                            .Select(i => i.COSTO_UNITARIO)            // TODO: COSTO_PROMEDIO si ese es tu campo
+                            .Select(i => i.COSTO_UNITARIO)
                             .FirstOrDefault() ?? 0m
             }
         )
         .OrderBy(x => x.nombre)
         .ToListAsync();
 
-        // 4) Serializar para la vista (Create.cshtml)
         ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(prods);
 
         return View(vm);
     }
-
 
     // ======================================================
     // POST: /Pedidos/Create
@@ -330,6 +336,9 @@ public class PedidosController : Controller
     {
         if (string.IsNullOrWhiteSpace(vm.ClienteId))
             ModelState.AddModelError(nameof(vm.ClienteId), "Seleccione un cliente.");
+
+        if (!vm.FechaEntregaDeseada.HasValue)
+            ModelState.AddModelError(nameof(vm.FechaEntregaDeseada), "Seleccione la fecha de entrega.");
 
         if (vm.Detalles == null || vm.Detalles.Count == 0)
             ModelState.AddModelError("", "Debe agregar al menos un ítem al pedido.");
@@ -347,7 +356,8 @@ public class PedidosController : Controller
             FECHA_PEDIDO = DateTime.Now,
             CLIENTE_ID = vm.ClienteId!,
             ESTADO_PEDIDO_ID = "BORRADOR",
-            FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada,
+            //FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada,
+            FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada!.Value,
             OBSERVACIONES_PEDIDO = vm.Observaciones,
             USUARIO_CREACION = UserName(),
             FECHA_CREACION = DateTime.Now,
@@ -367,21 +377,10 @@ public class PedidosController : Controller
             ESTADO = true
         }).ToList();
 
-        // Recalcula totales + anticipo (25% si total >= 300)
+        // 1) Calcula total base a partir de detalle
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
-
-        // ====== NUEVO: fijar ANTICIPO_ESTADO según REQUIERE_ANTICIPO ======
-        if (!pedido.REQUIERE_ANTICIPO)
-        {
-            pedido.ANTICIPO_MINIMO = 0m;
-            pedido.ANTICIPO_ESTADO = "NO APLICA"; // evita nulos
-        }
-        else
-        {
-            // Si requiere anticipo y no hay estado aún, arranca en PENDIENTE
-            if (string.IsNullOrWhiteSpace(pedido.ANTICIPO_ESTADO))
-                pedido.ANTICIPO_ESTADO = "PENDIENTE";
-        }
+        // 2) Aplica costo de elaboración (=total base) y recalcula anticipo sobre total final
+        DoblarTotalYRecalcularAnticipo(pedido);
 
         _db.PEDIDO.Add(pedido);
         await _db.SaveChangesAsync(ct);
@@ -404,7 +403,6 @@ public class PedidosController : Controller
 
         if (pedido == null) return NotFound();
 
-        // ========= Nombre del cliente (CLIENTE_ID = PERSONA_ID) =========
         var persona = await _db.PERSONA
             .Where(x => x.PERSONA_ID == pedido.CLIENTE_ID)
             .Select(x => new
@@ -421,22 +419,20 @@ public class PedidosController : Controller
         string clienteNombre = "";
         if (persona != null)
         {
-            // Une solo partes no vacías
             var parts = new[]
             {
-            persona.PERSONA_PRIMERNOMBRE,
-            persona.PERSONA_SEGUNDONOMBRE,
-            persona.PERSONA_TERCERNOMBRE,
-            persona.PERSONA_PRIMERAPELLIDO,
-            persona.PERSONA_SEGUNDOAPELLIDO,
-            persona.PERSONA_APELLIDOCASADA
-        }.Where(s => !string.IsNullOrWhiteSpace(s));
+                persona.PERSONA_PRIMERNOMBRE,
+                persona.PERSONA_SEGUNDONOMBRE,
+                persona.PERSONA_TERCERNOMBRE,
+                persona.PERSONA_PRIMERAPELLIDO,
+                persona.PERSONA_SEGUNDOAPELLIDO,
+                persona.PERSONA_APELLIDOCASADA
+            }.Where(s => !string.IsNullOrWhiteSpace(s));
             clienteNombre = string.Join(" ", parts);
         }
         if (string.IsNullOrWhiteSpace(clienteNombre))
-            clienteNombre = pedido.CLIENTE_ID; // fallback
+            clienteNombre = pedido.CLIENTE_ID;
 
-        // ========= Líneas con nombre/imagen del producto =========
         var lineas = await (
             from d in _db.DETALLE_PEDIDO
             join p in _db.PRODUCTO on d.PRODUCTO_ID equals p.PRODUCTO_ID
@@ -452,27 +448,26 @@ public class PedidosController : Controller
             })
             .ToListAsync(ct);
 
-        var total = lineas.Sum(l => l.Subtotal);
-
         // ========= VM =========
+        var total = (pedido.TOTAL_PEDIDO != 0m) ? pedido.TOTAL_PEDIDO : lineas.Sum(x => x.Subtotal);
         var vm = new PedidoDetailsVM
         {
             PedidoId = pedido.PEDIDO_ID,
             EstadoId = pedido.ESTADO_PEDIDO_ID,
-            EstadoNombre = pedido.ESTADO_PEDIDO_ID, // si tienes catálogo, reemplaza por el nombre
+            EstadoNombre = pedido.ESTADO_PEDIDO_ID,
             ClienteId = pedido.CLIENTE_ID,
             ClienteNombre = clienteNombre,
             FechaPedido = pedido.FECHA_PEDIDO,
             FechaEntrega = pedido.FECHA_ENTREGA_PEDIDO.HasValue
-                ? pedido.FECHA_ENTREGA_PEDIDO.Value.ToDateTime(TimeOnly.MinValue)
-                : (DateTime?)null,
+                                ? pedido.FECHA_ENTREGA_PEDIDO.Value.ToDateTime(TimeOnly.MinValue)
+                                : (DateTime?)null,
             Observaciones = pedido.OBSERVACIONES_PEDIDO,
 
             RequiereAnticipo = pedido.REQUIERE_ANTICIPO,
             AnticipoEstado = pedido.ANTICIPO_ESTADO ?? "NO APLICA",
             AnticipoMinimo = pedido.ANTICIPO_MINIMO,
 
-            TotalPedido = total,
+            TotalPedido = total,   
             Lineas = lineas
         };
 
@@ -481,21 +476,26 @@ public class PedidosController : Controller
 
         vm.PuedeCotizar = st == "BORRADOR";
         vm.PuedeAprobar = st == "COTIZADO";
-        vm.PuedeProgramar = st == "APROBADO";
-        vm.PuedeFinalizar = st == "PROGRAMADO" || st == "EN_PRODU";
+        // (Si usas Programar como paso explícito, puedes añadirlo)
+        // vm.PuedeProgramar = st == "APROBADO";
+        vm.PuedeFinalizar = st == "PROGRAMADO" || st == "EN_PRODU" || st == "APROBADO"; // si habilitas Finalizar directo desde APROBADO
         vm.PuedeEntregar = st == "TERMINADO";
-        vm.PuedeCerrar = st == "ENTREGADO";
         vm.PuedePagarAnticipo = pedido.REQUIERE_ANTICIPO && string.Equals(pedido.ANTICIPO_ESTADO, "PENDIENTE", StringComparison.OrdinalIgnoreCase);
 
-        // Cancelar en estados tempranos (ajústalo a tu flujo)
-        vm.PuedeCancelar = st is "BORRADOR" or "COTIZADO" or "APROBADO" or "PROGRAMADO" or "EN_PRODU";
+        // Cancelar: solo APROBADO o EN_PRODU (flujo final acordado)
+        vm.PuedeCancelar = st is "APROBADO" or "EN_PRODU";
 
-        // Rechazar en cotizado o aprobado (si aplica a tu negocio)
-        vm.PuedeRechazar = st is "COTIZADO" or "APROBADO";
+        // Rechazar en COTIZADO (y si quieres en APROBADO)
+        vm.PuedeRechazar = st is "COTIZADO";
+
+        // ========= SALDO PENDIENTE =========
+        // Regla: Saldo = TOTAL_PEDIDO - ANTICIPO_MINIMO (redondeado a 2 decimales y nunca < 0)
+        var saldo = Math.Round(vm.TotalPedido - vm.AnticipoMinimo, 2);
+        if (saldo < 0) saldo = 0m;
+        vm.SaldoPendiente = saldo;
 
         return View(vm);
     }
-
 
     // ======================================================
     // GET: /Pedidos/Edit/{id}
@@ -509,38 +509,31 @@ public class PedidosController : Controller
 
         if (pedido == null) return NotFound();
 
-        // ===== Catálogo de productos para la vista (≠ PRODUCTO FINAL) =====
-        // Ajusta el filtro según tu modelo. Si tienes TIPO_PRODUCTO_NOMBRE, úsalo.
         var productos = await _db.PRODUCTO
-            .Where(p => p.ESTADO == true && p.TIPO_PRODUCTO.TIPO_PRODUCTO_NOMBRE != "PRODUCTO FINAL") 
+            .Where(p => p.ESTADO == true && p.TIPO_PRODUCTO.TIPO_PRODUCTO_NOMBRE != "PRODUCTO FINAL")
             .Select(p => new
             {
                 id = p.PRODUCTO_ID,
                 nombre = p.PRODUCTO_NOMBRE,
-                imagen = p.IMAGEN_PRODUCTO, 
-                                            // STOCK actual
+                imagen = p.IMAGEN_PRODUCTO,
                 stock = (decimal?)_db.INVENTARIO
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
-                            .Select(i => i.STOCK_ACTUAL)        
+                            .Select(i => i.STOCK_ACTUAL)
                             .FirstOrDefault() ?? 0m,
-                // COSTO sugerido desde inventario (último costo)
                 costo = (decimal?)_db.INVENTARIO
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
-                            .OrderByDescending(i => i.FECHA_CREACION)    
-                            .Select(i => i.COSTO_UNITARIO)      
+                            .OrderByDescending(i => i.FECHA_CREACION)
+                            .Select(i => i.COSTO_UNITARIO)
                             .FirstOrDefault() ?? 0m
             })
             .OrderBy(p => p.nombre)
             .ToListAsync();
 
-        // JSON para el JS (imagen/stock/costo)
-        var json = System.Text.Json.JsonSerializer.Serialize(
+        ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(
             productos,
             new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }
         );
-        ViewBag.ProductosJson = json;
 
-        // Combo del select (texto = nombre; value = id)
         var itemsCombo = productos
             .Select(p => new SelectListItem { Value = p.id, Text = p.nombre })
             .ToList();
@@ -558,7 +551,6 @@ public class PedidosController : Controller
             Detalles = pedido.DETALLE_PEDIDO.Select(d => new PedidoDetalleVM
             {
                 ProductoId = d.PRODUCTO_ID,
-                
                 ProductoNombre = _db.PRODUCTO.Where(p => p.PRODUCTO_ID == d.PRODUCTO_ID)
                                              .Select(p => p.PRODUCTO_NOMBRE)
                                              .FirstOrDefault(),
@@ -572,7 +564,6 @@ public class PedidosController : Controller
 
     // ==============================================
     // POST: /Pedidos/Edit/{id}
-    // Sincroniza cabecera y detalle SIN borrar todo
     // ==============================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, PedidoCreateEditVM vm, CancellationToken ct)
@@ -582,6 +573,18 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
 
         if (pedido == null) return NotFound();
+
+        //aquí empieza la desgracia xD
+
+        if (!vm.FechaEntregaDeseada.HasValue)
+        {
+            TempData["err"] = "Seleccione la fecha de entrega.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        bool hayCambiosCab = false;
+
+        //hasta acá todo bien, ahora el detalle
 
         if (string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
@@ -609,7 +612,7 @@ public class PedidosController : Controller
             }
         }
 
-        // ===== SNAPSHOT de campos supervisados (para auditar cambios) =====
+        // SNAPSHOT
         var snap = new
         {
             pedido.TOTAL_PEDIDO,
@@ -621,9 +624,6 @@ public class PedidosController : Controller
             pedido.ANTICIPO_MINIMO,
             ANT_EST = pedido.ANTICIPO_ESTADO ?? ""
         };
-
-        // ===== CABECERA =====
-        bool hayCambiosCab = false;
 
         if (!string.Equals(pedido.CLIENTE_ID, vm.ClienteId, StringComparison.Ordinal))
         {
@@ -649,7 +649,7 @@ public class PedidosController : Controller
             pedido.FECHA_MODIFICACION = DateTime.Now;
         }
 
-        // ===== DETALLE (UPSERT por PRODUCTO_ID) =====
+        // DETALLE (UPSERT por PRODUCTO_ID)
         bool hayCambiosDet = false;
 
         var existentesPorProd = pedido.DETALLE_PEDIDO
@@ -705,40 +705,11 @@ public class PedidosController : Controller
             }
         }
 
-        // ===== Recalcular totales/anticipo =====
+        // Totales/anticipo
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
+        DoblarTotalYRecalcularAnticipo(pedido);
 
-        // ===== AJUSTE ANTICIPO (mismo criterio que en Create) =====
-        if (!pedido.REQUIERE_ANTICIPO)
-        {
-            // No requiere anticipo → normaliza campos
-            var prevMin = pedido.ANTICIPO_MINIMO;
-            var prevEst = pedido.ANTICIPO_ESTADO;
-
-            pedido.ANTICIPO_MINIMO = 0m;
-            pedido.ANTICIPO_ESTADO = "NO APLICA";
-
-            // Si cambió algo, marca modificación de cabecera
-            if (prevMin != pedido.ANTICIPO_MINIMO || !string.Equals(prevEst ?? "", pedido.ANTICIPO_ESTADO, StringComparison.Ordinal))
-            {
-                pedido.USUARIO_MODIFICACION = UserName();
-                pedido.FECHA_MODIFICACION = DateTime.Now;
-                hayCambiosCab = true;
-            }
-        }
-        else
-        {
-            // Requiere anticipo → si no hay estado, arranca en PENDIENTE
-            if (string.IsNullOrWhiteSpace(pedido.ANTICIPO_ESTADO))
-            {
-                pedido.ANTICIPO_ESTADO = "PENDIENTE";
-                pedido.USUARIO_MODIFICACION = UserName();
-                pedido.FECHA_MODIFICACION = DateTime.Now;
-                hayCambiosCab = true;
-            }
-        }
-
-        // ===== Detectar cambios en campos supervisados =====
+        // ¿hubo cambios?
         bool cambioSupervisado =
             snap.TOTAL_PEDIDO != pedido.TOTAL_PEDIDO ||
             snap.FECHA_PEDIDO != pedido.FECHA_PEDIDO ||
@@ -756,7 +727,6 @@ public class PedidosController : Controller
             hayCambiosCab = true;
         }
 
-        // ===== ¿Hubo algo que guardar? =====
         bool hayCambios = hayCambiosCab || hayCambiosDet;
 
         if (!hayCambios)
@@ -781,11 +751,8 @@ public class PedidosController : Controller
         return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
     }
 
-
     // ======================================================
-    // GET/POST: /Pedidos/Cotizar/{id}
-    //   *GET muestra formulario (si agregas MO/Margen)
-    //   *POST marca como COTIZADO y recalcula totales
+    // GET: /Pedidos/Cotizar/{id}
     // ======================================================
     [HttpGet]
     public async Task<IActionResult> Cotizar(string id)
@@ -795,10 +762,22 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id);
         if (pedido == null) return NotFound();
 
+        // Solo BORRADOR puede entrar a pantalla de cotización (opcional, informativo)
+        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "BORRADOR", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "Solo un pedido BORRADOR puede ser cotizado.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         var vm = new PedidoCotizarVM { PedidoId = id };
         return View(vm);
     }
 
+    // ======================================================
+    // POST: /Pedidos/Cotizar/{id}
+    //   - Recalcula totales/anticipo SIN doblar
+    //   - Estado: BORRADOR -> COTIZADO
+    // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Cotizar(string id, PedidoCotizarVM vm, CancellationToken ct)
     {
@@ -807,7 +786,15 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
+        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "BORRADOR", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "Solo un pedido BORRADOR puede ser cotizado.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Recalcular totales/anticipo base (sin doblar)
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
+
         pedido.ESTADO_PEDIDO_ID = "COTIZADO";
         pedido.USUARIO_MODIFICACION = UserName();
         pedido.FECHA_MODIFICACION = DateTime.Now;
@@ -817,7 +804,7 @@ public class PedidosController : Controller
 
         TempData["ok"] = $"Cotización lista. Total Q{pedido.TOTAL_PEDIDO:N2}" +
                          (pedido.REQUIERE_ANTICIPO ? $" | Anticipo 25%: Q{pedido.ANTICIPO_MINIMO:N2}" : "");
-        return RedirectToAction("Details", new { id });
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // ======================================================
@@ -826,20 +813,118 @@ public class PedidosController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Aprobar(string id, CancellationToken ct)
     {
-        var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+        var pedido = await _db.PEDIDO
+            .Include(p => p.DETALLE_PEDIDO)
+            .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
-        pedido.ESTADO_PEDIDO_ID = "APROBADO";
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
+        // Si requiere anticipo, debe estar PAGADO
+        if (pedido.REQUIERE_ANTICIPO &&
+            !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "Para aprobar el pedido, el anticipo requerido debe estar PAGADO.";
+            return RedirectToAction("Details", new { id });
+        }
 
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Aprobó pedido {pedido.PEDIDO_ID}", ct);
+        // 🔒 VALIDACIÓN DE STOCK EN SERVIDOR (evita CHECK de inventario < 0)
+        var faltantes = new List<string>();
+        foreach (var d in pedido.DETALLE_PEDIDO)
+        {
+            var inv = await _db.INVENTARIO
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.PRODUCTO_ID == d.PRODUCTO_ID, ct);
 
-        TempData["ok"] = pedido.REQUIERE_ANTICIPO
-            ? $"Pedido aprobado. Requiere anticipo de Q{pedido.ANTICIPO_MINIMO:N2}."
-            : "Pedido aprobado.";
-        return RedirectToAction("Details", new { id });
+            var disponible = inv?.STOCK_ACTUAL ?? 0;
+            var req = RoundToInt(Convert.ToDecimal(d.CANTIDAD));
+            if (disponible < req)
+            {
+                // Obtiene nombre del producto (opcional)
+                var nombre = await _db.PRODUCTO
+                    .Where(p => p.PRODUCTO_ID == d.PRODUCTO_ID)
+                    .Select(p => p.PRODUCTO_NOMBRE)
+                    .FirstOrDefaultAsync(ct) ?? d.PRODUCTO_ID;
+
+                faltantes.Add($"{nombre} (Disp: {disponible}, Requerido: {req})");
+            }
+        }
+        if (faltantes.Count > 0)
+        {
+            TempData["err"] = "No se puede aprobar: stock insuficiente en:\n• " +
+                              string.Join("\n• ", faltantes);
+            return RedirectToAction("Details", new { id });
+        }
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // Estado
+            pedido.ESTADO_PEDIDO_ID = "APROBADO";
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+
+            foreach (var d in pedido.DETALLE_PEDIDO)
+            {
+                var prodId = d.PRODUCTO_ID;
+                var cant = RoundToInt(Convert.ToDecimal(d.CANTIDAD));
+
+                var yaReservado = await _db.KARDEX.AnyAsync(k =>
+                    k.PRODUCTO_ID == prodId &&
+                    k.REFERENCIA == pedido.PEDIDO_ID &&
+                    k.TIPO_MOVIMIENTO == "RESERVA PEDIDO", ct);
+
+                if (!yaReservado)
+                {
+                    // KARDEX (con PK válida de 10 chars)
+                    _db.KARDEX.Add(new KARDEX
+                    {
+                        KARDEX_ID = NewId10(),
+                        PRODUCTO_ID = prodId,
+                        FECHA = DateTime.Now,
+                        TIPO_MOVIMIENTO = "RESERVA PEDIDO",
+                        CANTIDAD = cant,
+                        COSTO_UNITARIO = 0m,
+                        REFERENCIA = pedido.PEDIDO_ID,
+                        USUARIO_CREACION = UserName(),
+                        FECHA_CREACION = DateTime.Now,
+                        ESTADO = true
+                    });
+
+                    // INVENTARIO: descuenta stock
+                    var inv = await _db.INVENTARIO.FirstOrDefaultAsync(i => i.PRODUCTO_ID == prodId, ct);
+                    if (inv == null)
+                    {
+                        inv = new INVENTARIO
+                        {
+                            INVENTARIO_ID = NewId10(),
+                            PRODUCTO_ID = prodId,
+                            STOCK_ACTUAL = 0,
+                            STOCK_MINIMO = 0,
+                            COSTO_UNITARIO = 0,
+                            ESTADO = true,
+                            USUARIO_CREACION = UserName(),
+                            FECHA_CREACION = DateTime.Now
+                        };
+                        _db.INVENTARIO.Add(inv);
+                    }
+                    inv.STOCK_ACTUAL -= cant; // ya validamos suficiente stock arriba
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            await _bitacora.LogAsync("KARDEX", "INSERT", UserName(), $"Reserva de insumos por pedido {pedido.PEDIDO_ID}", ct);
+            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Aprobó pedido {pedido.PEDIDO_ID}", ct);
+
+            TempData["ok"] = "Pedido aprobado y reservado.";
+            return RedirectToAction("Details", new { id });
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(ct);
+            TempData["err"] = "Error al aprobar y reservar: " + RootError(ex);
+            return RedirectToAction("Details", new { id });
+        }
     }
 
     // ======================================================
@@ -854,7 +939,20 @@ public class PedidosController : Controller
         if (!pedido.REQUIERE_ANTICIPO)
         {
             TempData["err"] = "Este pedido no requiere anticipo.";
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var st = (pedido.ESTADO_PEDIDO_ID ?? "").ToUpperInvariant();
+        if (st is "ENTREGADO" or "CANCELADO" or "RECHAZADO")
+        {
+            TempData["err"] = "No se puede registrar anticipo en el estado actual del pedido.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (!string.Equals(pedido.ANTICIPO_ESTADO, "PENDIENTE", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "El anticipo ya fue procesado previamente.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         pedido.ANTICIPO_ESTADO = "PAGADO";
@@ -865,42 +963,15 @@ public class PedidosController : Controller
         await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó anticipo PAGADO en pedido {pedido.PEDIDO_ID}", ct);
 
         TempData["ok"] = "Anticipo marcado como PAGADO.";
-        return RedirectToAction("Details", new { id });
-    }
-
-    // ======================================================
-    // POST: /Pedidos/Programar/{id}
-    // ======================================================
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Programar(string id, ProduccionProgramarVM vm, CancellationToken ct)
-    {
-        var pedido = await _db.PEDIDO
-            .Include(p => p.DETALLE_PEDIDO)
-            .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
-        if (pedido == null) return NotFound();
-
-        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
-        {
-            TempData["err"] = "No se puede programar: anticipo requerido no pagado.";
-            return RedirectToAction("Details", new { id });
-        }
-
-        pedido.ESTADO_PEDIDO_ID = "PROGRAMADO";
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
-
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Programó producción del pedido {pedido.PEDIDO_ID}", ct);
-
-        TempData["ok"] = "Producción programada.";
-        return RedirectToAction("Details", new { id });
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // ======================================================
     // POST: /Pedidos/Finalizar/{id}
-    //   - Descarga insumos (SALIDA PEDIDO)
-    //   - Carga producto final (ENTRADA PEDIDO)
-    //   - Cambia a TERMINADO
+    //   - (Validación) Si requiere anticipo y está PENDIENTE → bloquear
+    //   - Paso transitorio EN_PRODU (auditar)
+    //   - Conversión RESERVA → SALIDA (sin tocar stock de nuevo)
+    //   - Estado final: TERMINADO
     // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Finalizar(string id, CancellationToken ct)
@@ -910,79 +981,86 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
-        // Marcamos estado intermedio (opcional)
-        pedido.ESTADO_PEDIDO_ID = "EN_PRODU";
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Inició producción de {pedido.PEDIDO_ID}", ct);
-
-        // -------- SALIDA PEDIDO: descarga insumos --------
-        foreach (var d in pedido.DETALLE_PEDIDO)
+        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
-            var cant = RoundToInt(Convert.ToDecimal(d.CANTIDAD)); // cast seguro
-
-            _db.KARDEX.Add(new KARDEX
-            {
-                PRODUCTO_ID = d.PRODUCTO_ID,
-                FECHA = DateTime.Now,
-                TIPO_MOVIMIENTO = "SALIDA PEDIDO",
-                CANTIDAD = cant,
-                COSTO_UNITARIO = 0m, // TODO: si manejas costo promedio, calcula aquí
-                REFERENCIA = pedido.PEDIDO_ID,
-                USUARIO_CREACION = UserName(),
-                FECHA_CREACION = DateTime.Now,
-                ESTADO = true
-            });
-
-            var inv = await _db.INVENTARIO.FirstOrDefaultAsync(i => i.PRODUCTO_ID == d.PRODUCTO_ID, ct);
-            if (inv != null) inv.STOCK_ACTUAL -= cant;
-        }
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("KARDEX", "INSERT", UserName(), $"Descargó insumos por pedido {pedido.PEDIDO_ID}", ct);
-
-        // -------- ENTRADA PEDIDO: carga producto final --------
-        foreach (var d in pedido.DETALLE_PEDIDO)
-        {
-            var cant = RoundToInt(Convert.ToDecimal(d.CANTIDAD));
-
-            _db.KARDEX.Add(new KARDEX
-            {
-                PRODUCTO_ID = d.PRODUCTO_ID, // TODO: si el producto final es otro ID, cámbialo aquí
-                FECHA = DateTime.Now,
-                TIPO_MOVIMIENTO = "ENTRADA PEDIDO",
-                CANTIDAD = cant,
-                COSTO_UNITARIO = 0m,
-                REFERENCIA = pedido.PEDIDO_ID,
-                USUARIO_CREACION = UserName(),
-                FECHA_CREACION = DateTime.Now,
-                ESTADO = true
-            });
-
-            var inv = await _db.INVENTARIO.FirstOrDefaultAsync(i => i.PRODUCTO_ID == d.PRODUCTO_ID, ct);
-            if (inv != null) inv.STOCK_ACTUAL += cant;
+            TempData["err"] = "No se puede finalizar: el anticipo requerido está PENDIENTE.";
+            return RedirectToAction("Details", new { id });
         }
 
-        // Estado final
-        pedido.ESTADO_PEDIDO_ID = "TERMINADO";
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
+        using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // Paso intermedio para auditoría
+            pedido.ESTADO_PEDIDO_ID = "EN_PRODU";
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+            await _db.SaveChangesAsync(ct);
+            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Inició producción de {pedido.PEDIDO_ID}", ct);
 
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("KARDEX", "INSERT", UserName(), $"Cargó producto final por pedido {pedido.PEDIDO_ID}", ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Finalizó pedido {pedido.PEDIDO_ID}", ct);
+            foreach (var d in pedido.DETALLE_PEDIDO)
+            {
+                var prodId = d.PRODUCTO_ID;
 
-        TempData["ok"] = "Pedido finalizado. Movimientos de inventario registrados.";
-        return RedirectToAction("Details", new { id });
+                // Convertir RESERVA → SALIDA (misma fila, no cambia PK)
+                var reserva = await _db.KARDEX
+                    .Where(k => k.PRODUCTO_ID == prodId
+                                && k.REFERENCIA == pedido.PEDIDO_ID
+                                && k.TIPO_MOVIMIENTO == "RESERVA PEDIDO")
+                    .OrderBy(k => k.FECHA)
+                    .FirstOrDefaultAsync(ct);
+
+                if (reserva != null)
+                {
+                    reserva.TIPO_MOVIMIENTO = "SALIDA PEDIDO";
+                    reserva.FECHA = DateTime.Now;
+                    reserva.USUARIO_MODIFICACION = UserName();
+                    reserva.FECHA_MODIFICACION = DateTime.Now;
+                }
+                else
+                {
+                    // Fallback sin tocar inventario (ya se descontó en la reserva)
+                    _db.KARDEX.Add(new KARDEX
+                    {
+                        KARDEX_ID = NewId10(),
+                        PRODUCTO_ID = prodId,
+                        FECHA = DateTime.Now,
+                        TIPO_MOVIMIENTO = "SALIDA PEDIDO",
+                        CANTIDAD = RoundToInt(Convert.ToDecimal(d.CANTIDAD)),
+                        COSTO_UNITARIO = 0m,
+                        REFERENCIA = pedido.PEDIDO_ID,
+                        USUARIO_CREACION = UserName(),
+                        FECHA_CREACION = DateTime.Now,
+                        ESTADO = true
+                    });
+                }
+            }
+
+            // Estado final
+            pedido.ESTADO_PEDIDO_ID = "TERMINADO";
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            await _bitacora.LogAsync("KARDEX", "UPDATE", UserName(), $"Convertida RESERVA→SALIDA por pedido {pedido.PEDIDO_ID}", ct);
+            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Finalizó pedido {pedido.PEDIDO_ID}", ct);
+
+            TempData["ok"] = "Pedido finalizado. Reserva convertida a SALIDA PEDIDO (sin mover stock nuevamente).";
+            return RedirectToAction("Details", new { id });
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(ct);
+            TempData["err"] = "Error al finalizar: " + ex.Message;
+            return RedirectToAction("Details", new { id });
+        }
     }
 
     // ======================================================
     // POST: /Pedidos/Entregar/{id}
-    //   - Reglas sugeridas:
-    //     * Debe estar TERMINADO (o PROGRAMADO/EN_PRODU si quieres permitir antes)
-    //     * Si requiere anticipo, debe estar PAGADO
-    //     * Marca estado = ENTREGADO y fecha de modificación
-    //     * Si no tiene fecha de entrega, la fija a hoy
+    //   Requiere: TERMINADO, y si requiere anticipo → PAGADO
+    //   Mensaje incluye pendiente informativo (TOTAL - ANTICIPO_MINIMO)
     // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Entregar(string id, CancellationToken ct)
@@ -990,22 +1068,20 @@ public class PedidosController : Controller
         var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
-        // Si requiere anticipo, debe estar pagado
-        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
-        {
-            TempData["err"] = "No se puede entregar: anticipo requerido no pagado.";
-            return RedirectToAction("Details", new { id });
-        }
-
-        // Regla de estado previo: normalmente sólo si está TERMINADO
         if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "TERMINADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "El pedido debe estar TERMINADO para poder entregarlo.";
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Details), new { id });
         }
 
-        // Actualización
+        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "No se puede entregar: anticipo requerido no pagado.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         pedido.ESTADO_PEDIDO_ID = "ENTREGADO";
+
         if (!pedido.FECHA_ENTREGA_PEDIDO.HasValue)
             pedido.FECHA_ENTREGA_PEDIDO = DateOnly.FromDateTime(DateTime.Now);
 
@@ -1015,37 +1091,106 @@ public class PedidosController : Controller
         await _db.SaveChangesAsync(ct);
         await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó ENTREGADO el pedido {pedido.PEDIDO_ID}", ct);
 
-        TempData["ok"] = "Pedido entregado correctamente.";
-        return RedirectToAction("Details", new { id });
+        var pendiente = pedido.TOTAL_PEDIDO - pedido.ANTICIPO_MINIMO;
+        if (pendiente < 0) pendiente = 0m;
+        TempData["ok"] = $"Pedido entregado correctamente. Pendiente a cobrar: Q{pendiente:N2}.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // ======================================================
-    // POST: /Pedidos/Cerrar/{id}
-    //   - Reglas sugeridas:
-    //     * Sólo si está ENTREGADO
-    //     * Cambia estado a CERRADO y audita modificación
+    // POST: /Pedidos/Cancelar/{id}
+    //   - Solo permite cancelar en APROBADO o EN_PRODU (según flujo final)
+    //   - No realiza movimientos en INVENTARIO ni en KARDEX
     // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Cerrar(string id, CancellationToken ct)
+    public async Task<IActionResult> Cancelar(string id, CancellationToken ct)
+    {
+        var pedido = await _db.PEDIDO
+            .Include(p => p.DETALLE_PEDIDO)
+            .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+        if (pedido == null) return NotFound();
+
+        var st = (pedido.ESTADO_PEDIDO_ID ?? "").ToUpperInvariant();
+        if (st is not ("APROBADO" or "EN_PRODU"))
+        {
+            TempData["err"] = "Este pedido solo puede cancelarse en estado APROBADO o EN_PRODU.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // Reponer stock por cada RESERVA PEDIDO
+            foreach (var d in pedido.DETALLE_PEDIDO)
+            {
+                var reservas = await _db.KARDEX
+                    .Where(k => k.PRODUCTO_ID == d.PRODUCTO_ID
+                                && k.REFERENCIA == pedido.PEDIDO_ID
+                                && k.TIPO_MOVIMIENTO == "RESERVA PEDIDO")
+                    .ToListAsync(ct);
+
+                foreach (var r in reservas)
+                {
+                    // Reponer stock
+                    var inv = await _db.INVENTARIO.FirstOrDefaultAsync(i => i.PRODUCTO_ID == r.PRODUCTO_ID, ct);
+                    if (inv != null) inv.STOCK_ACTUAL += r.CANTIDAD;
+
+                    // Eliminar o anular la reserva
+                    _db.KARDEX.Remove(r);
+                }
+            }
+
+            pedido.ESTADO_PEDIDO_ID = "CANCELADO";
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            await _bitacora.LogAsync("KARDEX", "DELETE", UserName(), $"Reversión de reservas por cancelación {pedido.PEDIDO_ID}", ct);
+            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Canceló el pedido {pedido.PEDIDO_ID}", ct);
+
+            TempData["ok"] = "Pedido cancelado. Reservas revertidas y stock repuesto.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    // ======================================================
+    // POST: /Pedidos/Rechazar/{id}
+    //   - Solo permite RECHAZAR si está COTIZADO
+    //   - No toca inventario ni kardex
+    // ======================================================
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rechazar(string id, CancellationToken ct)
     {
         var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
-        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "ENTREGADO", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "COTIZADO", StringComparison.OrdinalIgnoreCase))
         {
-            TempData["err"] = "Para cerrar el pedido primero debe estar ENTREGADO.";
-            return RedirectToAction("Details", new { id });
+            TempData["err"] = "Solo se puede rechazar un pedido en estado COTIZADO.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
-        pedido.ESTADO_PEDIDO_ID = "CERRADO";
+        if (string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["err"] = "No es posible rechazar: el anticipo ya fue PAGADO. Cancela o gestiona la devolución primero.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        pedido.ESTADO_PEDIDO_ID = "RECHAZADO";
         pedido.USUARIO_MODIFICACION = UserName();
         pedido.FECHA_MODIFICACION = DateTime.Now;
 
         await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Cerró el pedido {pedido.PEDIDO_ID}", ct);
+        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Rechazó pedido {pedido.PEDIDO_ID}", ct);
 
-        TempData["ok"] = "Pedido cerrado correctamente.";
-        return RedirectToAction("Details", new { id });
+        TempData["ok"] = "Pedido rechazado correctamente.";
+        return RedirectToAction(nameof(Details), new { id });
     }
-
 }
