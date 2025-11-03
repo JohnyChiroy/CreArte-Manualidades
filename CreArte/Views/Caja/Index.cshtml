@@ -1,91 +1,610 @@
-﻿@model IEnumerable<CreArte.Models.CAJA>
+﻿@using CreArte.ModelsPartial
+@model CajaIndexVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Caja";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
-
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Index</title>
-</head>
-<body>
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.CAJA_NOMBRE)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_CREACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ELIMINADO)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ESTADO)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.CAJA_NOMBRE)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_CREACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_MODIFICACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ELIMINADO)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.USUARIO_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FECHA_ELIMINACION)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ESTADO)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.CAJA_ID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.CAJA_ID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.CAJA_ID">Delete</a>
-            </td>
-        </tr>
+@functions{
+    // Devuelve la siguiente dirección (asc/desc) en función de la columna activa.
+    string NextDir(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    // Dibuja la flecha ▲▼ de la columna activa
+    string Arrow(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
 }
-    </tbody>
-</table>
-</body>
-</html>
+
+<div class="container-fluid py-3">
+
+    <!-- =========================
+         BARRA SUPERIOR
+         ========================= -->
+    <div class="ua-toolbar">
+        <h2 class="m-0"></h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- Nueva sesión de caja -->
+            <a asp-controller="Caja" asp-action="Abrir" class="ua-btn ua-btn-new" title="Abrir nueva sesión de caja">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                NUEVA
+            </a>
+
+            <!-- Ver detalle (habilitado al seleccionar una fila) -->
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer" title="Ver detalle de la sesión">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/>
+                </svg>
+                DETALLE
+            </a>
+
+            <!-- Cerrar sesión seleccionada (solo si está abierta) -->
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnCerrar" title="Cerrar sesión de caja">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 6h18v2H3V6zm0 10h18v2H3v-2zm0-5h18v2H3v-2z"/>
+                </svg>
+                CERRAR
+            </a>
+
+            <!-- Exportar (placeholder) -->
+            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/>
+                </svg>
+                EXPORTAR
+            </a>
+
+            <!-- Reporte (placeholder) -->
+            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+                </svg>
+                REPORTE
+            </a>
+        </div>
+
+        <!-- Buscador global (ID sesión / referencia) -->
+        <form method="get" asp-controller="Cajas" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="Sort" value="@(Model.Sort ?? "apertura")" />
+            <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+            <input name="Search" value="@Model.Search" placeholder="Buscar por ID de sesión…" />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- =========================
+         FORM OCULTO PARA FILTROS/ESTADO
+         ========================= -->
+    <form id="uaFilterForm" method="get" asp-controller="Cajas" asp-action="Index">
+        <input type="hidden" name="Search" value="@Model.Search" />
+        <input type="hidden" name="Page" value="1" />
+        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+
+        <!-- Mantener orden actual -->
+        <input type="hidden" name="Sort" value="@(Model.Sort ?? "apertura")" />
+        <input type="hidden" name="Dir"  value="@(Model.Dir  ?? "desc")" />
+
+        <!-- Valores actuales -->
+        <input type="hidden" id="ua_val_usuario" value="@(Model.Usuario)" />
+        <input type="hidden" id="ua_val_desde" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" id="ua_val_hasta" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" />
+        <input type="hidden" id="ua_val_abierta" value="@(Model.Abierta?.ToString().ToLower())" />
+        <input type="hidden" id="ua_val_mmin" value="@(Model.MontoMin?.ToString("0.##"))" />
+        <input type="hidden" id="ua_val_mmax" value="@(Model.MontoMax?.ToString("0.##"))" />
+    </form>
+
+    <!-- =========================
+         TABLA
+         ========================= -->
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+            <thead>
+                <tr>
+                    <!-- Checkbox maestro -->
+                    <th class="ua-col-check text-center align-middle">
+                        <input type="checkbox" class="form-check-input" id="chkAll"
+                               onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                    </th>
+
+                    <!-- ID Sesión -->
+                    <th style="width:170px;">
+                        <div class="ua-th">
+                            @{
+                                var next_id = NextDir("id", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_id = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "id", Dir  = next_id, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_id = (Model.Sort ?? "apertura").Equals("id", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_id ? "" : "inactive")" href="@href_id">
+                                <span class="ua-title">SESIÓN</span>
+                                <span class="ua-arrow">@Arrow("id", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- FECHA APERTURA (ordenable + popover rango) -->
+                    <th style="width:260px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_ap = NextDir("apertura", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_ap = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "apertura", Dir  = next_ap, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_ap = (Model.Sort ?? "apertura").Equals("apertura", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_ap ? "" : "inactive")" href="@href_ap">
+                                <span class="ua-title">APERTURA</span>
+                                <span class="ua-arrow">@Arrow("apertura", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popFecha" title="Filtrar fecha">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popFecha" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <div class="ua-dates">
+                                    <div><small>Desde</small><input type="date" id="fDesde" value="@(Model.Desde?.ToString("yyyy-MM-dd"))" /></div>
+                                    <div><small>Hasta</small><input type="date" id="fHasta" value="@(Model.Hasta?.ToString("yyyy-MM-dd"))" /></div>
+                                </div>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearFecha()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyFecha()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- FECHA CIERRE (ordenable) -->
+                    <th style="width:200px;">
+                        <div class="ua-th">
+                            @{
+                                var next_cie = NextDir("cierre", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_cie = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "cierre", Dir  = next_cie, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_cie = (Model.Sort ?? "apertura").Equals("cierre", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_cie ? "" : "inactive")" href="@href_cie">
+                                <span class="ua-title">CIERRE</span>
+                                <span class="ua-arrow">@Arrow("cierre", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- USUARIO (ordenable + popover texto) -->
+                    <th>
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_usr = NextDir("usuario", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_usr = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "usuario", Dir  = next_usr, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_usr = (Model.Sort ?? "apertura").Equals("usuario", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_usr ? "" : "inactive")" href="@href_usr">
+                                <span class="ua-title">USUARIO</span>
+                                <span class="ua-arrow">@Arrow("usuario", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popUsuario" title="Filtrar usuario">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popUsuario" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fUsuario" placeholder="Nombre de usuario…"
+                                       value="@(Model.Usuario)" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearUsuario()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyUsuario()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- Monto inicial (ordenable) -->
+                    <th class="text-end" style="width:150px;">
+                        <div class="ua-th">
+                            @{
+                                var next_ini = NextDir("inicial", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_ini = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "inicial", Dir  = next_ini, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_ini = (Model.Sort ?? "apertura").Equals("inicial", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_ini ? "" : "inactive")" href="@href_ini">
+                                <span class="ua-title">INICIAL</span>
+                                <span class="ua-arrow">@Arrow("inicial", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- Ingresos (ordenable) -->
+                    <th class="text-end" style="width:150px;">
+                        <div class="ua-th">
+                            @{
+                                var next_ing = NextDir("ingresos", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_ing = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "ingresos", Dir  = next_ing, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_ing = (Model.Sort ?? "apertura").Equals("ingresos", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_ing ? "" : "inactive")" href="@href_ing">
+                                <span class="ua-title">INGRESOS</span>
+                                <span class="ua-arrow">@Arrow("ingresos", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- Egresos (ordenable) -->
+                    <th class="text-end" style="width:150px;">
+                        <div class="ua-th">
+                            @{
+                                var next_egr = NextDir("egresos", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_egr = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "egresos", Dir  = next_egr, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_egr = (Model.Sort ?? "apertura").Equals("egresos", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_egr ? "" : "inactive")" href="@href_egr">
+                                <span class="ua-title">EGRESOS</span>
+                                <span class="ua-arrow">@Arrow("egresos", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+                        </div>
+                    </th>
+
+                    <!-- Saldo (ordenable + popover rango) -->
+                    <th class="text-end" style="width:220px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_sal = NextDir("saldo", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_sal = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "saldo", Dir  = next_sal, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_sal = (Model.Sort ?? "apertura").Equals("saldo", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_sal ? "" : "inactive")" href="@href_sal">
+                                <span class="ua-title">SALDO</span>
+                                <span class="ua-arrow">@Arrow("saldo", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popSaldo" title="Filtrar saldo">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popSaldo" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <div class="ua-dates">
+                                    <div><small>Mín</small><input type="number" step="0.01" id="fMin" value="@(Model.MontoMin?.ToString("0.##"))" /></div>
+                                    <div><small>Máx</small><input type="number" step="0.01" id="fMax" value="@(Model.MontoMax?.ToString("0.##"))" /></div>
+                                </div>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearSaldo()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplySaldo()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- Estado (ordenable + popover select) -->
+                    <th style="width:160px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_est = NextDir("estado", Model.Sort ?? "apertura", Model.Dir ?? "desc");
+                                var href_est = Url.Action("Index", "Cajas", new {
+                                    Search = Model.Search,
+                                    Usuario = Model.Usuario,
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Abierta = Model.Abierta,
+                                    MontoMin = Model.MontoMin,
+                                    MontoMax = Model.MontoMax,
+                                    Sort = "estado", Dir  = next_est, Page = 1, PageSize = Model.PageSize
+                                });
+                                var isActive_est = (Model.Sort ?? "apertura").Equals("estado", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_est ? "" : "inactive")" href="@href_est">
+                                <span class="ua-title">ESTADO</span>
+                                <span class="ua-arrow">@Arrow("estado", Model.Sort ?? "apertura", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <select id="fAbierta" class="ua-input">
+                                    <option value="">(Todas)</option>
+                                    <option value="true"  selected="@(Model.Abierta == true  ? "selected" : null)">Abiertas</option>
+                                    <option value="false" selected="@(Model.Abierta == false ? "selected" : null)">Cerradas</option>
+                                </select>
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearEstado()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyEstado()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+            @if (Model.Items != null && Model.Items.Any())
+            {
+                foreach (var it in Model.Items)
+                {
+                    <tr class="ua-rowitem" data-id="@it.CajaSesionId" data-abierta="@(it.Abierta ? "true" : "false")">
+                        <td>
+                            <input type="checkbox" class="form-check-input ua-rowchk" value="@it.CajaSesionId" />
+                        </td>
+                        <td>@it.CajaSesionId</td>
+                        <td>@it.FechaApertura.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@(it.FechaCierre.HasValue ? it.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                        <td>@it.UsuarioNombre</td>
+                        <td class="text-end">Q @it.MontoInicial.ToString("N2")</td>
+                        <td class="text-end">Q @it.TotalIngresos.ToString("N2")</td>
+                        <td class="text-end">Q @it.TotalEgresos.ToString("N2")</td>
+                        <td class="text-end fw-semibold">Q @it.SaldoFinal.ToString("N2")</td>
+                        <td>
+                            <span class="badge @(it.Abierta ? "bg-success" : "bg-secondary")">
+                                @(it.Abierta ? "ABIERTA" : "CERRADA")
+                            </span>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="10" class="text-center py-4">No hay registros para mostrar.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- =========================
+         PAGINACIÓN
+         ========================= -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de caja">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index", "Cajas", new {
+                               Search = Model.Search,
+                               Usuario = Model.Usuario,
+                               Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                               Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                               Abierta = Model.Abierta,
+                               MontoMin = Model.MontoMin,
+                               MontoMax = Model.MontoMax,
+                               Sort = Model.Sort,
+                               Dir  = Model.Dir,
+                               Page = p,
+                               PageSize = Model.PageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index", "Cajas", new {
+                               Search = Model.Search,
+                               Usuario = Model.Usuario,
+                               Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                               Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                               Abierta = Model.Abierta,
+                               MontoMin = Model.MontoMin,
+                               MontoMax = Model.MontoMax,
+                               Sort = Model.Sort,
+                               Dir  = Model.Dir,
+                               Page = Model.Page + 1,
+                               PageSize = Model.PageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts{
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function () {
+            // Tooltips (si corresponde)
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+            // Notificaciones TempData
+            const ok = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["error"] ?? "")';
+            if (ok)  Swal.fire({ icon: 'success', title: ok,  timer: 2800, showConfirmButton: false });
+            if (err) Swal.fire({ icon: 'error',   title: err, timer: 2800, showConfirmButton: false });
+
+            // Popovers (filtros)
+            document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-pop');
+                    document.querySelectorAll('.ua-popover').forEach(p => p.setAttribute('aria-hidden','true'));
+                    const pop = document.getElementById(id);
+                    if (pop) pop.setAttribute('aria-hidden', pop.getAttribute('aria-hidden') === 'true' ? 'false' : 'true');
+                });
+            });
+            document.addEventListener('click', e => {
+                if (!e.target.closest('.ua-popover-wrap')) {
+                    document.querySelectorAll('.ua-popover').forEach(p => p.setAttribute('aria-hidden','true'));
+                }
+            });
+
+            // Form de filtros
+            const form = document.getElementById('uaFilterForm');
+            function set(name, val) {
+                let input = form.querySelector(`[name="${name}"]`);
+                if (!input) { input = document.createElement('input'); input.type='hidden'; input.name=name; form.appendChild(input); }
+                input.value = val ?? '';
+            }
+            function submit() { form.submit(); }
+
+            // Fecha (apertura)
+            window.uaApplyFecha = function(){
+                set('Desde', document.getElementById('fDesde').value);
+                set('Hasta', document.getElementById('fHasta').value);
+                submit();
+            };
+            window.uaClearFecha = function(){
+                set('Desde',''); set('Hasta',''); submit();
+            };
+
+            // Usuario (texto)
+            window.uaApplyUsuario = function(){
+                set('Usuario', document.getElementById('fUsuario').value);
+                submit();
+            };
+            window.uaClearUsuario = function(){
+                set('Usuario',''); submit();
+            };
+
+            // Estado (abierta/cerrada)
+            window.uaApplyEstado = function(){
+                set('Abierta', document.getElementById('fAbierta').value);
+                submit();
+            };
+            window.uaClearEstado = function(){
+                set('Abierta',''); submit();
+            };
+
+            // Saldo (rango)
+            window.uaApplySaldo = function(){
+                set('MontoMin', document.getElementById('fMin').value);
+                set('MontoMax', document.getElementById('fMax').value);
+                submit();
+            };
+            window.uaClearSaldo = function(){
+                set('MontoMin',''); set('MontoMax',''); submit();
+            };
+
+            // Selección de fila + activar botones
+            const btnVer = document.getElementById('btnVer');
+            const btnCerrar = document.getElementById('btnCerrar');
+            let selectedId = null;
+            let selectedOpen = false;
+
+            function toggleButtons() {
+                const hasSel = !!selectedId;
+                if (btnVer)    btnVer.classList.toggle('is-disabled', !hasSel);
+                if (btnCerrar) btnCerrar.classList.toggle('is-disabled', !(hasSel && selectedOpen));
+            }
+            function clearSelection() {
+                document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+                document.querySelectorAll('.ua-rowchk').forEach(c => c.checked = false);
+                selectedId = null; selectedOpen = false;
+                toggleButtons();
+            }
+            function applySelection(row) {
+                document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+                row.classList.add('row-selected');
+                document.querySelectorAll('.ua-rowchk').forEach(c => {
+                    if (c.closest('.ua-rowitem') !== row) c.checked = false;
+                });
+                selectedId = row.getAttribute('data-id') || null;
+                selectedOpen = (row.getAttribute('data-abierta') === 'true');
+                toggleButtons();
+            }
+
+            document.addEventListener('change', e => {
+                const chk = e.target.closest('.ua-rowchk'); if (!chk) return;
+                const row = chk.closest('.ua-rowitem'); if (!row) return;
+                if (chk.checked) applySelection(row); else clearSelection();
+            });
+
+            document.addEventListener('click', function (e) {
+                const row = e.target.closest('.ua-rowitem');
+                if (!row) return;
+                if (e.target.closest('a,button,select,textarea,label,input')) return;
+                const chk = row.querySelector('.ua-rowchk');
+                if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+            });
+
+            // Navegación por botones
+            if (btnVer) {
+                btnVer.addEventListener('click', e => {
+                    e.preventDefault();
+                    if (!selectedId) { Swal.fire("Seleccione una sesión","Elija una fila para ver el detalle.","info"); return; }
+                    window.location.href = '@Url.Action("Detalle","Cajas")/' + encodeURIComponent(selectedId);
+                });
+            }
+            if (btnCerrar) {
+                btnCerrar.addEventListener('click', e => {
+                    e.preventDefault();
+                    if (!selectedId) { Swal.fire("Seleccione una sesión","Elija una fila abierta para cerrar.","info"); return; }
+                    // Vamos al GET Cerrar para confirmar y mostrar resumen
+                    window.location.href = '@Url.Action("Cerrar","Cajas")/' + encodeURIComponent(selectedId);
+                });
+            }
+        })();
+    </script>
+}

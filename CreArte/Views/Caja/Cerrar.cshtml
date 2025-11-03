@@ -1,0 +1,103 @@
+﻿@model CreArte.ModelsPartial.CajaCierreVM
+@{
+    ViewData["Title"] = "Cerrar Caja";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-3">
+    <!-- Toolbar -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Cerrar sesión de caja</h2>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-controller="Caja" asp-action="Index" class="ua-btn ua-btn-view" title="Volver a listado">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 19l-7-7 7-7v14zm3-14h8v14h-8V5z" /></svg>
+                LISTADO
+            </a>
+            <a asp-controller="Caja" asp-action="Detalle" asp-route-id="@Model.CajaSesionId" class="ua-btn ua-btn-reporte" title="Ver movimientos">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2z" /></svg>
+                DETALLE
+            </a>
+        </div>
+        <div></div>
+    </div>
+
+    <div class="ua-card">
+        <!-- Resumen de montos -->
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Monto inicial</div>
+                    <div class="fs-5 fw-semibold text-center">Q @Model.MontoInicial.ToString("N2")</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Ingresos</div>
+                    <div class="fs-5 fw-semibold text-center">Q @Model.TotalIngresos.ToString("N2")</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Egresos</div>
+                    <div class="fs-5 fw-semibold text-center">Q @Model.TotalEgresos.ToString("N2")</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Saldo final</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:#BF265E">Q @Model.SaldoFinal.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form de cierre -->
+        <form asp-action="Cerrar" method="post" id="frmCerrar" class="mt-3">
+            @Html.AntiForgeryToken()
+
+            <!-- IDs necesarios para el POST -->
+            <input type="hidden" asp-for="CajaSesionId" />
+            <input type="hidden" asp-for="UsuarioId" value="@(User.Identity?.Name)" />
+
+            <div class="mb-3">
+                <label asp-for="Observaciones" class="form-label"><strong>Observaciones de cierre:</strong></label>
+                <textarea asp-for="Observaciones" class="form-control" maxlength="250" placeholder="Opcional (arqueo, diferencias, etc.)"></textarea>
+            </div>
+
+            <div class="ua-actions">
+                <a class="btn-cancel" href="@Url.Action("Index", "Caja")">
+                    <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+                </a>
+                <button id="btnCerrar" type="submit" class="btn-save">
+                    <i class="bi bi-lock-fill"></i> <span>Cerrar caja</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirmación antes de cerrar
+        document.getElementById('frmCerrar').addEventListener('submit', function(e){
+            e.preventDefault();
+            const saldo = '@Model.SaldoFinal'.replace(',', '.'); // asegura decimal
+            Swal.fire({
+                icon:'question',
+                title:'¿Cerrar caja?',
+                html:`Saldo final: <b>Q ${Number(saldo).toFixed(2)}</b>`,
+                showCancelButton:true, confirmButtonText:'Cerrar', cancelButtonText:'Revisar'
+            }).then(r => {
+                if (r.isConfirmed) e.target.submit();
+            });
+        });
+
+        // Mensajes TempData
+        (function(){
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["error"] ?? "")';
+            if (ok)  Swal.fire({icon:'success',title:ok,timer:2600,showConfirmButton:false});
+            if (err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
+        })();
+    </script>
+}

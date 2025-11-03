@@ -25,24 +25,136 @@ namespace CreArte.Controllers
         // ===========================================================
         // GET: /Ventas
         // ===========================================================
-        public async Task<IActionResult> Index()
+        [HttpGet]
+        public async Task<IActionResult> Index([FromQuery] VentaIndexVM vm)
         {
-            // Join explícito para respetar tu modelo: CLIENTE -> PERSONA (nombre)
-            var query = from v in _db.VENTA
-                        join p in _db.PERSONA on v.CLIENTE_ID equals p.PERSONA_ID
-                        join u in _db.USUARIO on v.USUARIO_ID equals u.USUARIO_ID
-                        orderby v.FECHA descending
-                        select new VentaIndexVM
-                        {
-                            VentaId = v.VENTA_ID,
-                            ClienteNombre = (p.PERSONA_PRIMERNOMBRE + " " + p.PERSONA_PRIMERAPELLIDO),
-                            Fecha = v.FECHA,
-                            Total = v.TOTAL,
-                            UsuarioNombre = u.USUARIO_NOMBRE
-                        };
+            var q =
+                from v in _db.VENTA.AsNoTracking()
+                join c in _db.CLIENTE on v.CLIENTE_ID equals c.CLIENTE_ID
+                join p in _db.PERSONA on c.CLIENTE_ID equals p.PERSONA_ID
+                join u in _db.USUARIO on v.USUARIO_ID equals u.USUARIO_ID
+                select new VentaIndexItemVM
+                {
+                    VentaId = v.VENTA_ID,
+                    Fecha = v.FECHA,
+                    ClienteNombre = (
+                        (p.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (p.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (p.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (p.PERSONA_SEGUNDOAPELLIDO ?? "")
+                    ).Trim(),
+                    UsuarioNombre = u.USUARIO_NOMBRE ?? u.USUARIO_ID,
+                    Total = v.TOTAL,
+                    Estado = v.ESTADO
+                };
 
-            var ventas = await query.ToListAsync();
-            return View(ventas);
+            // --- Filtros ---
+            if (!string.IsNullOrWhiteSpace(vm.Search))
+            {
+                var s = vm.Search.Trim();
+                q = q.Where(x =>
+                    x.VentaId.Contains(s) ||
+                    x.ClienteNombre.Contains(s) ||
+                    x.UsuarioNombre.Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(vm.Cliente))
+                q = q.Where(x => x.ClienteNombre.Contains(vm.Cliente));
+
+            if (!string.IsNullOrWhiteSpace(vm.Usuario))
+                q = q.Where(x => x.UsuarioNombre.Contains(vm.Usuario));
+
+            if (vm.Desde.HasValue)
+                q = q.Where(x => x.Fecha >= vm.Desde.Value);
+
+            if (vm.Hasta.HasValue)
+            {
+                var hasta = vm.Hasta.Value.Date.AddDays(1).AddTicks(-1);
+                q = q.Where(x => x.Fecha <= hasta);
+            }
+
+            if (vm.TotalMin.HasValue)
+                q = q.Where(x => x.Total >= vm.TotalMin.Value);
+            if (vm.TotalMax.HasValue)
+                q = q.Where(x => x.Total <= vm.TotalMax.Value);
+
+            // --- Orden ---
+            bool asc = string.Equals(vm.Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            switch ((vm.Sort ?? "fecha").ToLower())
+            {
+                case "cliente": q = asc ? q.OrderBy(x => x.ClienteNombre) : q.OrderByDescending(x => x.ClienteNombre); break;
+                case "usuario": q = asc ? q.OrderBy(x => x.UsuarioNombre) : q.OrderByDescending(x => x.UsuarioNombre); break;
+                case "total": q = asc ? q.OrderBy(x => x.Total) : q.OrderByDescending(x => x.Total); break;
+                default: q = asc ? q.OrderBy(x => x.Fecha) : q.OrderByDescending(x => x.Fecha); break;
+            }
+
+            // --- Paginación ---
+            vm.TotalItems = await q.CountAsync();
+            if (vm.PageSize <= 0) vm.PageSize = 10;
+            vm.TotalPages = (int)Math.Ceiling((double)vm.TotalItems / vm.PageSize);
+            if (vm.Page <= 0) vm.Page = 1;
+            if (vm.TotalPages > 0 && vm.Page > vm.TotalPages) vm.Page = vm.TotalPages;
+
+            vm.Items = await q
+                .Skip((vm.Page - 1) * vm.PageSize)
+                .Take(vm.PageSize)
+                .ToListAsync();
+
+            return View(vm);
+        }
+
+        // ==========================================
+        // GET: /Ventas/Details/{id}
+        // ==========================================
+        [HttpGet]
+        public async Task<IActionResult> Details(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                TempData["err"] = "ID de venta no especificado.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var venta = await (from v in _db.VENTA
+                               join c in _db.CLIENTE on v.CLIENTE_ID equals c.CLIENTE_ID
+                               join p in _db.PERSONA on c.CLIENTE_ID equals p.PERSONA_ID
+                               join u in _db.USUARIO on v.USUARIO_ID equals u.USUARIO_ID
+                               where v.VENTA_ID == id
+                               select new VentaDetailsVM
+                               {
+                                   VentaId = v.VENTA_ID,
+                                   Fecha = v.FECHA,
+                                   ClienteNombre = (
+                                       (p.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                                       (p.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                                       (p.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                                       (p.PERSONA_SEGUNDOAPELLIDO ?? "")
+                                   ).Trim(),
+                                   UsuarioNombre = u.USUARIO_NOMBRE ?? u.USUARIO_ID,
+                                   Total = v.TOTAL,
+                                   Estado = v.ESTADO
+                               }).FirstOrDefaultAsync();
+
+            if (venta == null)
+            {
+                TempData["err"] = "No se encontró la venta especificada.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            venta.Lineas = await (from d in _db.DETALLE_VENTA
+                                  join i in _db.INVENTARIO on d.INVENTARIO_ID equals i.INVENTARIO_ID
+                                  join prod in _db.PRODUCTO on d.PRODUCTO_ID equals prod.PRODUCTO_ID
+                                  where d.VENTA_ID == id
+                                  select new VentaLineaVM
+                                  {
+                                      ProductoId = d.PRODUCTO_ID,
+                                      ProductoNombre = prod.PRODUCTO_NOMBRE ?? prod.PRODUCTO_ID,
+                                      ImagenProducto = prod.IMAGEN_PRODUCTO,
+                                      Cantidad = d.CANTIDAD,
+                                      PrecioUnitario = d.PRECIO_UNITARIO
+                                  }).ToListAsync();
+
+            return View(venta);
         }
 
         // ===========================================================

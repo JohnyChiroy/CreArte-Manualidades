@@ -63,17 +63,46 @@ namespace CreArte.ModelsPartial
         public decimal Subtotal => Math.Round((Cantidad * PrecioUnitario) - Descuento + Impuesto, 2);
     }
 
-    // ===============================
-    //  VENTA - Listado
-    // ===============================
-    public class VentaIndexVM
+    // ===============================================
+    // Ítem de la grilla (una venta)
+    // ===============================================
+    public class VentaIndexItemVM
     {
         public string VentaId { get; set; } = null!;
-        public string ClienteNombre { get; set; } = null!;
         public DateTime Fecha { get; set; }
-        public decimal Total { get; set; }
+        public string ClienteNombre { get; set; } = null!;
         public string UsuarioNombre { get; set; } = null!;
+        public decimal Total { get; set; }
+        public bool Estado { get; set; }  // true = activa, false = anulada (por si usas ese campo)
     }
+
+    // ===============================================
+    // ViewModel completo (filtros + paginación)
+    // ===============================================
+    public class VentaIndexVM
+    {
+        public List<VentaIndexItemVM> Items { get; set; } = new();
+
+        // Filtros
+        public string? Search { get; set; }        // Buscar por ID o cliente
+        public string? Cliente { get; set; }
+        public string? Usuario { get; set; }
+        public DateTime? Desde { get; set; }
+        public DateTime? Hasta { get; set; }
+        public decimal? TotalMin { get; set; }
+        public decimal? TotalMax { get; set; }
+
+        // Orden
+        public string? Sort { get; set; } = "fecha";
+        public string? Dir { get; set; } = "desc";
+
+        // Paginación
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public int TotalItems { get; set; }
+        public int TotalPages { get; set; }
+    }
+
 
     // ===============================
     // REVERSIÓN DE VENTA (ANULACIÓN O DEVOLUCIÓN)
@@ -97,5 +126,31 @@ namespace CreArte.ModelsPartial
         public int CantidadDevuelta { get; set; } // a devolver
         public decimal PrecioUnitario { get; set; }
     }
+
+    // =============================
+    // DETALLE DE VENTA (para vista Details)
+    // =============================
+    public class VentaLineaVM
+    {
+        public string ProductoId { get; set; } = null!;
+        public string ProductoNombre { get; set; } = null!;
+        public string? ImagenProducto { get; set; }
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Subtotal => Math.Round(Cantidad * PrecioUnitario, 2);
+    }
+
+    public class VentaDetailsVM
+    {
+        public string VentaId { get; set; } = null!;
+        public DateTime Fecha { get; set; }
+        public string ClienteNombre { get; set; } = null!;
+        public string UsuarioNombre { get; set; } = null!;
+        //public string? Observaciones { get; set; }
+        public decimal Total { get; set; }
+        public bool Estado { get; set; }   // true = activa, false = anulada
+        public List<VentaLineaVM> Lineas { get; set; } = new();
+    }
+
 
 }

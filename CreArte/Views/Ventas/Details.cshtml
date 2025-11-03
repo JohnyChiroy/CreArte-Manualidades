@@ -1,99 +1,167 @@
-﻿@model CreArte.Models.VENTA
+﻿@using CreArte.ModelsPartial
+@model VentaDetailsVM
 
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle de Venta";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!DOCTYPE html>
+@section Styles {
+    <style>
+        .ua-kv-mini .lbl {
+            font-size: .8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+        .ua-kv-mini .val {
+            font-weight: 600;
+        }
 
-<div>
-    <h4>VENTA</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.TOTAL)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.TOTAL)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CLIENTE)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CLIENTE.CLIENTE_ID)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO.USUARIO_ID)
-        </dd>
-    </dl>
+        tfoot td {
+            font-weight: 600;
+        }
+
+        .ua-img-thumb-fila-details {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+    </style>
+}
+
+<div class="ua-card">
+    <!-- ========================= TOOLBAR ========================= -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Detalle Venta @Model.VentaId</h2>
+
+        <div class="d-flex align-items-center gap-2">
+            @if (Model.Estado)
+            {
+                <form asp-action="Anular" asp-controller="Ventas" asp-route-id="@Model.VentaId" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Anular esta venta?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-anular">
+                        <i class="bi bi-x-circle"></i> <span>Anular</span>
+                    </button>
+                </form>
+            }
+            else
+            {
+                <span class="badge bg-danger">VENTA ANULADA</span>
+            }
+        </div>
+    </div>
+
+    <!-- ========================= ENCABEZADO ========================= -->
+    <div class="ua-row" style="margin-top:12px;">
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Cliente</div>
+                <div class="val">@Model.ClienteNombre</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Usuario</div>
+                <div class="val">@Model.UsuarioNombre</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Fecha Venta</div>
+                <div class="val">@Model.Fecha.ToString("dd/MM/yyyy HH:mm")</div>
+            </div>
+        </div>
+
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Estado</div>
+                <div class="val">
+                    <span class="badge @(Model.Estado ? "bg-success" : "bg-danger")">
+                        @(Model.Estado ? "ACTIVA" : "ANULADA")
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@*     <!-- Observaciones -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field" style="flex:1 1 100%;">
+            <div class="ua-kv-mini">
+                <div class="lbl">Observaciones</div>
+                <div class="val">@(Model.Observaciones ?? "-")</div>
+            </div>
+        </div>
+    </div> *@
+
+    <!-- Total -->
+    <div class="ua-row" style="margin-top:8px;">
+        <div class="ua-field">
+            <div class="ua-kv-mini">
+                <div class="lbl">Total Venta</div>
+                <div class="val text-primary">Q @Model.Total.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================= DETALLE PRODUCTOS ========================= -->
+    <div class="table-responsive mt-2">
+        <table class="table table-sm align-middle ua-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th class="text-center">Imagen</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-center">Precio</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lineas)
+                {
+                    <tr>
+                        <td>@l.ProductoId</td>
+                        <td>@l.ProductoNombre</td>
+                        <td class="text-center">
+                            @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
+                            {
+                                <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
+                        <td class="text-center">@l.Cantidad</td>
+                        <td class="text-center">@l.PrecioUnitario.ToString("N2")</td>
+                        <td class="text-end">@l.Subtotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="text-end fw-bold">Total:</td>
+                    <td class="text-end text-primary fw-bold">
+                        Q @Model.Total.ToString("N2")
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- ========================= ACCIONES ========================= -->
+    <div class="ua-actions" style="margin-top:12px;">
+        <a asp-action="Index" asp-controller="Ventas" class="btn-cancel">
+            <i class="bi bi-arrow-left"></i> <span>Volver</span>
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.VENTA_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>

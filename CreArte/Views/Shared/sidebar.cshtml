@@ -16,29 +16,29 @@
 <aside class="app-sidebar" id="sidebar">
     @* <div class="sidebar-title">Módulos</div> *@
 
-    <!-- Compras -->
-    <a asp-controller="Compras" asp-action="Index"
-       class="nav-item @(currentController == "compras" ? "is-active" : "")">
-        <i class="bi bi-basket"></i> <span>Compras</span>
-    </a>
-
-    <!-- Inventario -->
-    <a asp-controller="Inventario" asp-action="Index"
-       class="nav-item @(currentController == "inventario" ? "is-active" : "")">
-        <i class="bi bi-stack"></i> <span>Inventario</span>
-    </a>
-
-    <!-- Kardex -->
-    <a asp-controller="Kardex" asp-action="Index"
-       class="nav-item @(currentController == "kardex" ? "is-active" : "")">
-        <i class="bi bi-building-gear"></i> <span>Kardex</span>
-    </a>
-
     <!-- Items del menú -->
     <nav class="sidebar-nav">
+        <!-- Compras -->
+        <a asp-controller="Compras" asp-action="Index"
+           class="nav-item @(currentController == "compras" ? "is-active" : "")">
+            <i class="bi bi-basket"></i> <span>Compras</span>
+        </a>
+
+        <!-- Inventario -->
+        <a asp-controller="Inventario" asp-action="Index"
+           class="nav-item @(currentController == "inventario" ? "is-active" : "")">
+            <i class="bi bi-stack"></i> <span>Inventario</span>
+        </a>
+
+        <!-- Kardex -->
+        <a asp-controller="Kardex" asp-action="Index"
+           class="nav-item @(currentController == "kardex" ? "is-active" : "")">
+            <i class="bi bi-building-gear"></i> <span>Kardex</span>
+        </a>
+
         <!-- Caja -->
         <a asp-controller="Caja" asp-action="Index"
-           class="nav-item @(currentController == "Caja" ? "is-active" : "")">
+           class="nav-item @(currentController == "caja" ? "is-active" : "")">
             <i class="bi bi-cash-stack"></i> <span>Caja</span>
         </a>
 

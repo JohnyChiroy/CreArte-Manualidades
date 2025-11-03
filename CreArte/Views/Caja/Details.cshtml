@@ -1,81 +1,132 @@
-﻿@model CreArte.Models.CAJA
-
+﻿@model List<CreArte.ModelsPartial.CajaDetalleMovimientoVM>
 @{
-    Layout = null;
+    ViewData["Title"] = "Detalle de Caja";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var sesionId = ViewBag.SesionId as string ?? "";
+    decimal totalIng = Model?.Where(x => x.TipoMovimiento == "INGRESO").Sum(x => x.Monto) ?? 0m;
+    decimal totalEgr = Model?.Where(x => x.TipoMovimiento == "EGRESO").Sum(x => x.Monto) ?? 0m;
+    decimal saldo = totalIng - totalEgr; // solo movimientos (el inicial se ve en Cerrar)
 }
 
-<!DOCTYPE html>
+<div class="container-fluid py-3">
+    <!-- Toolbar -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Movimientos de Caja <span class="text-muted">@sesionId</span></h2>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-controller="Caja" asp-action="Index" class="ua-btn ua-btn-view" title="Volver a listado">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 19l-7-7 7-7v14zm3-14h8v14h-8V5z" /></svg>
+                LISTADO
+            </a>
+            <a asp-controller="Caja" asp-action="Cerrar" asp-route-id="@sesionId" class="ua-btn ua-btn-edit" title="Ir a cierre">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 10h18v2H3v-2zm0-5h18v2H3v-2z" /></svg>
+                CIERRE
+            </a>
+            <!-- Exportar/Reporte placeholders -->
+            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z" /></svg>
+                EXPORTAR
+            </a>
+            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2z" /></svg>
+                REPORTE
+            </a>
+        </div>
+        <div></div>
+    </div>
 
-<html>
-<head>
-    <meta name="viewport" content="width=device-width" />
-    <title>Details</title>
-</head>
-<body>
+    <div class="ua-card">
+        <!-- Resumen superior -->
+        <div class="row g-3 mb-2">
+            <div class="col-md-4">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Ingresos</div>
+                    <div class="fs-5 fw-semibold text-center">Q @totalIng.ToString("N2")</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Egresos</div>
+                    <div class="fs-5 fw-semibold text-center">Q @totalEgr.ToString("N2")</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ua-stat p-3 border rounded-3">
+                    <div class="text-muted small text-center">Saldo movimientos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:#BF265E">Q @saldo.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
 
-<div>
-    <h4>CAJA</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CAJA_NOMBRE)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CAJA_NOMBRE)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_CREACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_CREACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_MODIFICACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_MODIFICACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ELIMINADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ELIMINADO)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.USUARIO_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.USUARIO_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FECHA_ELIMINACION)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FECHA_ELIMINACION)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ESTADO)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ESTADO)
-        </dd>
-    </dl>
+        <!-- Tabla de movimientos -->
+        <div class="table-responsive">
+            <table class="table ua-table align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:180px;">MOVIMIENTO</th>
+                        <th style="width:200px;">FECHA</th>
+                        <th>TIPO</th>
+                        <th>REFERENCIA</th>
+                        <th>USUARIO</th>
+                        <th class="text-end" style="width:160px;">MONTO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var m in Model.OrderByDescending(x => x.Fecha))
+                        {
+                            <tr>
+                                <td>@m.MovimientoId</td>
+                                <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <span class="badge @(m.TipoMovimiento == "INGRESO" ? "bg-success" : "bg-danger")">
+                                        @m.TipoMovimiento
+                                    </span>
+                                </td>
+                                <td>@m.Referencia</td>
+                                <td>@m.UsuarioNombre</td>
+                                <td class="text-end">Q @m.Monto.ToString("N2")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="6" class="text-center py-4">Sin movimientos.</td></tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="5" class="text-end">Totales</th>
+                        <th class="text-end">
+                            <div>Ingresos: <strong>Q @totalIng.ToString("N2")</strong></div>
+                            <div>Egresos: <strong>Q @totalEgr.ToString("N2")</strong></div>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Acciones inferiores -->
+        <div class="ua-actions">
+            <a class="btn-cancel" href="@Url.Action("Index", "Caja")">
+                <i class="bi bi-arrow-left"></i> <span>Volver</span>
+            </a>
+            <a class="btn-save" href="@Url.Action("Cerrar", "Caja", new { id = sesionId })">
+                <i class="bi bi-lock-fill"></i> <span>Ir a cierre</span>
+            </a>
+        </div>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.CAJA_ID">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
-</body>
-</html>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Mensajes TempData
+        (function(){
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["error"] ?? "")';
+            if (ok)  Swal.fire({icon:'success',title:ok,timer:2600,showConfirmButton:false});
+            if (err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
+        })();
+    </script>
+}

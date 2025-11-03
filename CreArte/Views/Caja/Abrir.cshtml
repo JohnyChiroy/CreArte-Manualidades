@@ -1,0 +1,83 @@
+﻿@model CreArte.ModelsPartial.CajaAperturaVM
+@{
+    ViewData["Title"] = "Abrir Caja";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-3">
+    <!-- Toolbar superior -->
+    <div class="ua-toolbar">
+        <h2 class="m-0">Abrir sesión de caja</h2>
+        <!-- Buscador vacío (no aplica en esta pantalla) -->
+        <div></div>
+    </div>
+
+    <div class="ua-card">
+        <!-- Form principal -->
+        <form asp-action="Abrir" method="post" id="frmAbrir" autocomplete="off">
+            @Html.AntiForgeryToken()
+
+            <!-- Usuario: usamos el actual y lo enviamos oculto -->
+            <input asp-for="UsuarioId" type="hidden" value="@(User.Identity?.Name)" />
+            <div class="mb-2">
+                <label class="form-label"><strong>Usuario:</strong></label>
+                <div class="form-control" style="background:#f8f9fa" readonly>@(User.Identity?.Name ?? "usuario")</div>
+            </div>
+
+            <!-- Monto inicial -->
+            <div class="mb-2">
+                <label asp-for="MontoInicial" class="form-label"><strong>Monto inicial (Q):*</strong></label>
+                <input asp-for="MontoInicial" type="number" step="0.01" min="0" class="form-control" required />
+                <span asp-validation-for="MontoInicial" class="text-danger"></span>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="mb-3">
+                <label asp-for="Observaciones" class="form-label"><strong>Observaciones:</strong></label>
+                <textarea asp-for="Observaciones" class="form-control" maxlength="200" placeholder="Opcional"></textarea>
+            </div>
+
+            <!-- Acciones -->
+            <div class="ua-actions">
+                <a class="btn-cancel" href="@Url.Action("Index", "Caja")">
+                    <i class="bi bi-x-circle"></i> <span>Cancelar</span>
+                </a>
+                <button id="btnAbrir" type="submit" class="btn-save">
+                    <i class="bi bi-unlock-fill"></i> <span>Abrir caja</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Confirma apertura antes de enviar
+        document.getElementById('frmAbrir').addEventListener('submit', function(e){
+            e.preventDefault();
+            const monto = Number(document.querySelector('[name="MontoInicial"]').value || 0);
+            if (monto < 0) {
+                Swal.fire({icon:'warning', title:'Monto inválido', text:'El monto inicial no puede ser negativo.'});
+                return;
+            }
+            Swal.fire({
+                icon:'question',
+                title:'¿Abrir caja?',
+                html:`Monto inicial: <b>Q ${monto.toFixed(2)}</b>`,
+                showCancelButton:true, confirmButtonText:'Abrir', cancelButtonText:'Cancelar'
+            }).then(r => {
+                if (r.isConfirmed) e.target.submit();
+            });
+        });
+
+        // Mensajes TempData
+        (function(){
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["error"] ?? "")';
+            if (ok)  Swal.fire({icon:'success',title:ok,timer:2600,showConfirmButton:false});
+            if (err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
+        })();
+    </script>
+}
