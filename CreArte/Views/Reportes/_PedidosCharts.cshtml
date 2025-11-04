@@ -1,0 +1,77 @@
+﻿@model CreArte.ModelsPartial.PedidosReportVM
+@using System.Text.Json
+@{
+    // Traemos el radar pasado por ViewBag desde el controller
+    var radar = (List<CreArte.ModelsPartial.EtiquetaValor>)ViewBag.RadarClientes;
+}
+
+<div class="container-fluid">
+    <div class="row g-4">
+
+        <!-- Doughnut: pedidos por estado -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Pedidos por estado</h6>
+                    <canvas id="chPedEstados" height="230"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barras apiladas: Finalizados vs Pendientes por mes -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Finalizados vs Pendientes (mensual)</h6>
+                    <canvas id="chPedCumplimiento" height="230"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Radar: % finalización por tipo de cliente -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Cumplimiento por tipo de cliente (%)</h6>
+                    <canvas id="chPedRadar" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const CRE_MAGENTA="#BF265E", CRE_MAGENTA2="#BF419E", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_GOLD="#F2B90F";
+
+    // Doughnut
+    const estLabels = @Html.Raw(JsonSerializer.Serialize(Model.PedidosPorEstado.Select(x => x.Etiqueta)));
+    const estValues = @Html.Raw(JsonSerializer.Serialize(Model.PedidosPorEstado.Select(x => x.Valor)));
+    new Chart(document.getElementById('chPedEstados'),{
+      type:'doughnut',
+      data:{labels:estLabels,datasets:[{data:estValues,backgroundColor:[CRE_MAGENTA,CRE_GOLD,CRE_NAVY,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+    });
+
+    // Barras apiladas
+    const mLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsPeriodo));
+    const mFin    = @Html.Raw(JsonSerializer.Serialize(Model.Cumplidos));
+    const mPend   = @Html.Raw(JsonSerializer.Serialize(Model.Atrasados));
+    new Chart(document.getElementById('chPedCumplimiento'),{
+      type:'bar',
+      data:{labels:mLabels,datasets:[
+        {label:'Finalizados',data:mFin,backgroundColor:CRE_LIME},
+        {label:'Pendientes', data:mPend,backgroundColor:CRE_MAGENTA}
+      ]},
+      options:{responsive:true,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}
+    });
+
+    // Radar
+    const rLabels = @Html.Raw(JsonSerializer.Serialize(radar.Select(x => x.Etiqueta)));
+    const rData   = @Html.Raw(JsonSerializer.Serialize(radar.Select(x => x.Valor)));
+    new Chart(document.getElementById('chPedRadar'),{
+      type:'radar',
+      data:{labels:rLabels,datasets:[{label:'% Finalizados',data:rData,borderColor:CRE_MAGENTA,backgroundColor:CRE_MAGENTA+'33',borderWidth:2,pointBackgroundColor:CRE_NAVY}]},
+      options:{responsive:true,scales:{r:{beginAtZero:true,max:100,ticks:{stepSize:20}}}}
+    });
+</script>

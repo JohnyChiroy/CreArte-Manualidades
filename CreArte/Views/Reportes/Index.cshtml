@@ -1,0 +1,138 @@
+﻿@{
+    ViewData["Title"] = "Reportes | CreArte";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- ============================
+     IMPORTAR Chart.js (CDN)
+     Lo usamos en los partials que cargaremos en el modal.
+     ============================ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="~/css/reportes.css" />
+
+<div class="ua-reportes-wrap container">
+    <div class="ua-header">
+        <h1></h1>
+        <!-- Botón opcional para ir a un dashboard global -->
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-house"></i> Inicio
+        </a>
+    </div>
+
+    <!-- GRID de tarjetas (como tu prototipo) -->
+    <div class="ua-grid">
+
+        <!-- Tarjeta: Ventas -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Ventas", "Reportes")">
+            <div class="ua-icon">
+                <!-- SVG tipo barras + línea (parecido a tu imagen) -->
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor" aria-hidden="true">
+                    <path d="M3 3h2v18H3zM7 13h2v8H7zM11 9h2v12h-2zM15 5h2v16h-2zM19 2h2v19h-2z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Ventas</p>
+                <p class="ua-sub">Ingresos, tickets, top productos</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Pedidos -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Pedidos", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M9 2h6l1 2h4v2H4V4h4l1-2zm-5 6h16l-1.5 12.5A2 2 0 0 1 16.5 22h-9a2 2 0 0 1-1.99-1.75L4 8zM8 12v6h2v-6H8zm6 0v6h2v-6h-2z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Pedidos</p>
+                <p class="ua-sub">Estado, cumplimientos, atrasos</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Compras -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Compras", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M7 4h10l1 2h3v2H3V6h3l1-2zM4 9h16l-1.3 9.1A2 2 0 0 1 16.7 20H7.3a2 2 0 0 1-1.99-1.9L4 9zM8 12v6h2v-6H8zm6 0v6h2v-6h-2z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Compras</p>
+                <p class="ua-sub">Proveedores, costos, frecuencia</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Inventario -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Inventario", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M3 3h18v4H3V3zm2 6h14v12H5V9zm4 2v8h2v-8H9zm4 0v8h2v-8h-2z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Inventario</p>
+                <p class="ua-sub">Existencias, rotación, quiebres</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Empleados -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Empleados", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Empleados</p>
+                <p class="ua-sub">Cargos, desempeño, ausencias</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Usuarios -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Usuarios", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM6 13a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm10 2a6 6 0 0 1 6 6h-4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2H6a6 6 0 0 1 6-6z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Usuarios</p>
+                <p class="ua-sub">Roles, accesos, auditoría</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Clientes -->
+        <div class="ua-card-reporte" data-endpoint="@Url.Action("Clientes", "Reportes")">
+            <div class="ua-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor">
+                    <path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM6 13a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm10 2a6 6 0 0 1 6 6h-4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2H6a6 6 0 0 1 6-6z" />
+                </svg>
+            </div>
+            <div>
+                <p class="ua-title">Clientes</p>
+                <p class="ua-sub">Segmentos, recurrencia, top</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal reutilizable para cargar Partial con gráficas -->
+<div class="modal fade" id="reporteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="border-bottom: 3px solid var(--crearte-secundario);">
+                <h5 class="modal-title fw-bold" id="reporteModalLabel">Detalle del reporte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="reporteModalBody">
+                <!-- Aquí se inyecta el Partial con las gráficas -->
+                <div class="text-center py-5">Cargando…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS para manejar los clics y cargar los partials -->
+<script src="~/js/reportes-index.js"></script>

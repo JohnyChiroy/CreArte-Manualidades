@@ -1,12 +1,13 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using CreArte.Data;
+﻿using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial;
 using CreArte.Services.Bitacora;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace CreArte.Controllers
 {
@@ -19,6 +20,38 @@ namespace CreArte.Controllers
         {
             _db = db;
             _bitacora = bitacora;
+        }
+
+        // ===============================
+        // Helpers comunes (mismo patrón que Pedidos)
+        // ===============================
+        private string UserName() => User?.Identity?.Name ?? "sistema";
+
+        private static int RoundToInt(decimal value)
+            => (int)Math.Round(value, 0, MidpointRounding.AwayFromZero);
+
+        // Genera IDs para CAJA_SESION: CS00000000
+        private async Task<string> SiguienteCajaSesionIdAsync()
+        {
+            const string prefijo = "CS";
+            const int ancho = 8;
+
+            var ids = await _db.CAJA_SESION
+                .Select(s => s.SESION_ID)
+                .Where(id => id.StartsWith(prefijo))
+                .ToListAsync();
+
+            int maxNum = 0;
+            var rx = new Regex(@"^" + prefijo + @"(?<n>\d+)$");
+            foreach (var id in ids)
+            {
+                var m = rx.Match(id ?? "");
+                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n))
+                    if (n > maxNum) maxNum = n;
+            }
+
+            var siguiente = maxNum + 1;
+            return prefijo + siguiente.ToString(new string('0', ancho));
         }
 
         // ===============================
@@ -130,7 +163,7 @@ namespace CreArte.Controllers
         // ===========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Abrir(CajaAperturaVM vm)
+        public async Task<IActionResult> Abrir(CajaAperturaVM vm, CancellationToken ct)
         {
             if (!ModelState.IsValid)
             {
@@ -138,9 +171,9 @@ namespace CreArte.Controllers
                 return View(vm);
             }
 
-            // Verificar si ya existe una sesión abierta
+            // ¿Ya existe sesión abierta para ese usuario?
             var abierta = await _db.CAJA_SESION
-                .AnyAsync(c => c.USUARIO_APERTURA_ID == vm.UsuarioId && c.ESTADO == true);
+                .AnyAsync(c => c.USUARIO_APERTURA_ID == vm.UsuarioId && c.ESTADO == true, ct);
 
             if (abierta)
             {
@@ -150,22 +183,23 @@ namespace CreArte.Controllers
 
             var sesion = new CAJA_SESION
             {
-                SESION_ID = "CSJ" + Guid.NewGuid().ToString("N")[..7],
+                SESION_ID = await SiguienteCajaSesionIdAsync(),
                 USUARIO_APERTURA_ID = vm.UsuarioId,
                 FECHA_APERTURA = DateTime.Now,
                 MONTO_INICIAL = vm.MontoInicial,
                 ESTADO = true,
-                USUARIO_CREACION = vm.UsuarioId,
+
+                USUARIO_CREACION = UserName(),
                 FECHA_CREACION = DateTime.Now
             };
 
             _db.CAJA_SESION.Add(sesion);
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
 
-            await _bitacora.LogAsync("CAJA_SESION", "INSERT", vm.UsuarioId,
-                $"Caja abierta (Monto inicial: Q{vm.MontoInicial:F2}).");
+            await _bitacora.LogAsync("CAJA_SESION", "INSERT", UserName(),
+                $"Caja {sesion.SESION_ID} abierta (Monto inicial: Q{vm.MontoInicial:F2}).", ct);
 
-            TempData["ok"] = "Caja abierta correctamente.";
+            TempData["ok"] = $"Caja {sesion.SESION_ID} abierta correctamente.";
             return RedirectToAction(nameof(Index));
         }
 

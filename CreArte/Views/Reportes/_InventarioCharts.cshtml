@@ -1,0 +1,115 @@
+﻿@model CreArte.ModelsPartial.InventarioReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+        <!-- 1) Stock vs Mínimo -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Stock actual vs. mínimo (Top 12 riesgo)</h6>
+                    <canvas id="chInvStockMin" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2) Rotación -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Rotación (últimos 6 meses)</h6>
+                    <canvas id="chInvRotacion" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="col-12">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:#F6F8FF;border:1px solid #E6EBFF">
+                        <div class="text-muted small">Productos bajo mínimo</div>
+                        <div class="fs-4 fw-bold" style="color:#BF265E">@Model.ProductosBajoMinimo</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:#FFF7E0;border:1px solid #F2D269">
+                        <div class="text-muted small">Productos en quiebre</div>
+                        <div class="fs-4 fw-bold" style="color:#242259">@Model.ProductosEnQuiebre</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:#F4FBEA;border:1px solid #D7F0B0">
+                        <div class="text-muted small">Total de productos</div>
+                        <div class="fs-4 fw-bold" style="color:#C5D930">@Model.TotalProductos</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ================================
+    // Paleta CreArte (de tu imagen)
+    // ================================
+    const CRE_MAGENTA = "#BF265E";
+    const CRE_MAGENTA_2 = "#BF419E";
+    const CRE_NAVY    = "#242259";
+    const CRE_LIME    = "#C5D930";
+    const CRE_GOLD    = "#F2B90F";
+
+    // ================================
+    // Datos del ViewModel -> JS
+    // ================================
+    const inv_labelsProductos = @Html.Raw(JsonSerializer.Serialize(Model.LabelsProductos));
+    const inv_stockActual     = @Html.Raw(JsonSerializer.Serialize(Model.StockActual));
+    const inv_stockMinimo     = @Html.Raw(JsonSerializer.Serialize(Model.StockMinimo));
+
+    const inv_labelsMes       = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+    const inv_seriesRotacion  = @Html.Raw(JsonSerializer.Serialize(Model.SeriesRotacion));
+
+    // ================================
+    // 1) Barras horizontales: Stock vs Mínimo
+    // ================================
+    new Chart(document.getElementById('chInvStockMin'), {
+      type: 'bar',
+      data: {
+        labels: inv_labelsProductos,
+        datasets: [
+          { label: 'Stock actual', data: inv_stockActual, backgroundColor: CRE_NAVY },
+          { label: 'Stock mínimo', data: inv_stockMinimo, backgroundColor: CRE_GOLD }
+        ]
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: { legend: { position: 'bottom' } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+
+    // ================================
+    // 2) Línea múltiple: Rotación
+    // ================================
+    const rotDatasets = inv_seriesRotacion.map(s => ({
+      label: s.label ?? s.Label,
+      data:  s.data  ?? s.Data,
+      borderColor: s.color ?? s.Color ?? CRE_MAGENTA,
+      backgroundColor: (s.color ?? s.Color ?? CRE_MAGENTA) + '22',
+      borderWidth: 3,
+      tension: .35,
+      pointRadius: 3,
+      fill: true
+    }));
+
+    new Chart(document.getElementById('chInvRotacion'), {
+      type: 'line',
+      data: { labels: inv_labelsMes, datasets: rotDatasets },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+</script>

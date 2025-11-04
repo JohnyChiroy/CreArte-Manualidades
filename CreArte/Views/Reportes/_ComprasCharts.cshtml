@@ -1,0 +1,137 @@
+﻿@model CreArte.ModelsPartial.ComprasReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+        <!-- 1) Gasto mensual -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-3">Gasto mensual</h6>
+                        <div class="badge" style="background:#F2B90F;color:#242259">
+                            Lead time prom.: @Model.LeadTimePromedioDias.ToString("0.0") días
+                        </div>
+                    </div>
+                    <canvas id="chCompGasto" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2) Top proveedores por monto -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Top proveedores por monto (Q)</h6>
+                    <canvas id="chCompTopMonto" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3) Top proveedores por cantidad -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Top proveedores por cantidad</h6>
+                    <canvas id="chCompTopCant" height="260"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ================================
+    // Paleta CreArte
+    // ================================
+    const CRE_MAGENTA = "#BF265E";
+    const CRE_MAGENTA_2 = "#BF419E";
+    const CRE_NAVY    = "#242259";
+    const CRE_LIME    = "#C5D930";
+    const CRE_GOLD    = "#F2B90F";
+
+    // ================================
+    // Datos del ViewModel -> JS
+    // ================================
+    const comp_labelsMes = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+    const comp_gastoMes  = @Html.Raw(JsonSerializer.Serialize(Model.GastoPorMes));
+
+    const comp_topMontoCat = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorMonto.Select(x => x.Categoria)));
+    const comp_topMontoVal = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorMonto.Select(x => x.Valor)));
+
+    const comp_topCantCat  = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorCantidad.Select(x => x.Categoria)));
+    const comp_topCantVal  = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorCantidad.Select(x => x.Valor)));
+
+    // ================================
+    // 1) Línea: Gasto mensual
+    // ================================
+    new Chart(document.getElementById('chCompGasto'), {
+      type: 'line',
+      data: {
+        labels: comp_labelsMes,
+        datasets: [{
+          label: 'Q por mes',
+          data: comp_gastoMes,
+          borderColor: CRE_MAGENTA,
+          backgroundColor: CRE_MAGENTA + '22',
+          borderWidth: 3,
+          tension: .35,
+          pointRadius: 3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => 'Q ' + ctx.parsed.y } }
+        },
+        scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Q ' + v } } }
+      }
+    });
+
+    // ================================
+    // 2) Barras horizontales: Top por monto
+    // ================================
+    new Chart(document.getElementById('chCompTopMonto'), {
+      type: 'bar',
+      data: {
+        labels: comp_topMontoCat,
+        datasets: [{
+          label: 'Q',
+          data: comp_topMontoVal,
+          backgroundColor: [CRE_NAVY, CRE_GOLD, CRE_MAGENTA, CRE_MAGENTA_2, CRE_LIME]
+        }]
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => 'Q ' + ctx.parsed.x } }
+        },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+
+    // ================================
+    // 3) Barras horizontales: Top por cantidad
+    // ================================
+    new Chart(document.getElementById('chCompTopCant'), {
+      type: 'bar',
+      data: {
+        labels: comp_topCantCat,
+        datasets: [{
+          label: 'Unidades',
+          data: comp_topCantVal,
+          backgroundColor: [CRE_LIME, CRE_MAGENTA, CRE_NAVY, CRE_GOLD, CRE_MAGENTA_2]
+        }]
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+</script>

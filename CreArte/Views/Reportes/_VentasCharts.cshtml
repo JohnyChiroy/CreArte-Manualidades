@@ -1,0 +1,87 @@
+﻿@model CreArte.ModelsPartial.VentasReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+
+        <!-- Línea: Ventas por mes -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Ventas por mes (últimos 6)</h6>
+                    <canvas id="chVentasLinea" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barras: Top productos -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Top 5 productos más vendidos</h6>
+                    <canvas id="chVentasBarras" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pie: Ventas por categoría -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Distribución de ventas por categoría</h6>
+                    <canvas id="chVentasPie" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="col-lg-7 d-flex align-items-center">
+            <div class="row w-100">
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 rounded-3" style="background:#F6F8FF;border:1px solid #E6EBFF">
+                        <div class="text-muted small">Ventas totales (6 meses)</div>
+                        <div class="fs-4 fw-bold" style="color:#BF265E">Q @Model.TotalPeriodo.ToString("N2")</div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 rounded-3" style="background:#FFF7E0;border:1px solid #F2D269">
+                        <div class="text-muted small">Tickets generados</div>
+                        <div class="fs-4 fw-bold" style="color:#242259">@Model.TicketsPeriodo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const CRE_MAGENTA="#BF265E", CRE_MAGENTA2="#BF419E", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_GOLD="#F2B90F";
+
+    // Línea
+    const v_labels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsPeriodo));
+    const v_data   = @Html.Raw(JsonSerializer.Serialize(Model.SeriesPeriodo[0].Data));
+    new Chart(document.getElementById('chVentasLinea'),{
+      type:'line',
+      data:{labels:v_labels,datasets:[{label:'Q total',data:v_data,borderColor:CRE_MAGENTA,backgroundColor:CRE_MAGENTA+'22',borderWidth:3,tension:.35,fill:true}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+
+    // Barras (Top productos)
+    const topLabels = @Html.Raw(JsonSerializer.Serialize(Model.TopProductos.Select(x => x.Categoria)));
+    const topValues = @Html.Raw(JsonSerializer.Serialize(Model.TopProductos.Select(x => x.Valor)));
+    new Chart(document.getElementById('chVentasBarras'),{
+      type:'bar',
+      data:{labels:topLabels,datasets:[{label:'Unidades',data:topValues,backgroundColor:[CRE_NAVY,CRE_GOLD,CRE_MAGENTA,CRE_MAGENTA2,CRE_LIME]}]},
+      options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}
+    });
+
+    // Pie (Ventas por categoría) — reusamos MetodosPago como “segmentos”
+    const catLabels = @Html.Raw(JsonSerializer.Serialize(Model.MetodosPago.Select(x => x.Etiqueta)));
+    const catValues = @Html.Raw(JsonSerializer.Serialize(Model.MetodosPago.Select(x => x.Valor)));
+    new Chart(document.getElementById('chVentasPie'),{
+      type:'pie',
+      data:{labels:catLabels,datasets:[{data:catValues,backgroundColor:[CRE_MAGENTA,CRE_GOLD,CRE_NAVY,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+    });
+</script>

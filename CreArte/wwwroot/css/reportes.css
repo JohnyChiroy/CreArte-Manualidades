@@ -1,0 +1,95 @@
+/* ===============================
+   Paleta CreArte (ajústala si deseas)
+   =============================== */
+:root {
+    --crearte-primario: #BF265E; /* Magenta */
+    --crearte-secundario: #EFBD21; /* Dorado */
+    --crearte-azul: #2E5AAC; /* Azul acento */
+    --crearte-azul-claro: #DDE8FF; /* Fondo suave */
+    --crearte-texto: #333333;
+}
+
+/* Contenedor general (espaciado limpio) */
+.ua-reportes-wrap {
+    padding: 1rem 0 2rem 0;
+}
+
+/* Grid de 3 columnas en desktop, 2 en tablet, 1 en móvil */
+.ua-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+}
+
+@media (max-width: 992px) {
+    .ua-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .ua-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tarjeta tipo “botón” (según tu prototipo) */
+.ua-card-reporte {
+    background: #fff;
+    border: 2px solid var(--crearte-azul-claro);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 22px rgba(0,0,0,.06);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+    .ua-card-reporte:hover {
+        transform: translateY(-2px);
+        border-color: var(--crearte-primario);
+        box-shadow: 0 10px 28px rgba(191,38,94,.18);
+    }
+
+/* Icono grande alineado a la izquierda */
+.ua-icon {
+    width: 72px;
+    height: 72px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: var(--crearte-azul-claro);
+    color: var(--crearte-azul);
+}
+
+/* Título del módulo */
+.ua-title {
+    margin: 0;
+    font-weight: 700;
+    color: var(--crearte-texto);
+    font-size: 1.1rem;
+}
+
+/* Pie (texto auxiliar) */
+.ua-sub {
+    margin: 2px 0 0 0;
+    color: #6b7280;
+    font-size: .92rem;
+}
+
+/* Header simple para index */
+.ua-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+    .ua-header h1 {
+        font-weight: 800;
+        font-size: 1.6rem;
+        margin: 0;
+        color: var(--crearte-primario);
+    }
