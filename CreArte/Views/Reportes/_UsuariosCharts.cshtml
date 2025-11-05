@@ -1,0 +1,83 @@
+﻿@model CreArte.ModelsPartial.UsuariosReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+
+        <!-- Doughnut: Usuarios por rol -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Usuarios por rol</h6>
+                    <canvas id="chUsrRol" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Línea: Actividad (altas por día) -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Altas de usuarios (últimos 14 días)</h6>
+                    <canvas id="chUsrActividad" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="col-12">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:#FFF7E0;border:1px solid #F2D269">
+                        <div class="text-muted small">Intentos fallidos</div>
+                        <div class="fs-4 fw-bold" style="color:#242259">@Model.IntentosFallidosPeriodo</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:#F4FBEA;border:1px solid #D7F0B0">
+                        <div class="text-muted small">Usuarios bloqueados</div>
+                        <div class="fs-4 fw-bold" style="color:#C5D930">@Model.UsuariosBloqueadosPeriodo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const CRE_MAGENTA="#BF265E", CRE_MAGENTA2="#BF419E", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_GOLD="#F2B90F";
+
+    // Doughnut (Usuarios por rol)
+    const rolLabels = @Html.Raw(JsonSerializer.Serialize(Model.UsuariosPorRol.Select(x => x.Categoria)));
+    const rolValues = @Html.Raw(JsonSerializer.Serialize(Model.UsuariosPorRol.Select(x => x.Valor)));
+    new Chart(document.getElementById('chUsrRol'),{
+      type:'doughnut',
+      data:{labels:rolLabels,datasets:[{data:rolValues,backgroundColor:[CRE_MAGENTA,CRE_GOLD,CRE_NAVY,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+    });
+
+    // Línea (actividad diaria)
+    const diaLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsDia));
+    const diaValues = @Html.Raw(JsonSerializer.Serialize(Model.LoginsPorDia));
+    new Chart(document.getElementById('chUsrActividad'),{
+      type:'line',
+      data:{
+        labels:diaLabels,
+        datasets:[{
+          label:'Altas diarias',
+          data:diaValues,
+          borderColor:CRE_MAGENTA,
+          backgroundColor:CRE_MAGENTA+'22',
+          borderWidth:3,
+          tension:.35,
+          fill:true
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true}}
+      }
+    });
+</script>

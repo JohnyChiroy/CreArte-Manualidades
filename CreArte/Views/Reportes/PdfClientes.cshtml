@@ -1,0 +1,110 @@
+﻿@model CreArte.ModelsPartial.ClientesReportVM
+@using System.Text.Json
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Clientes</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #BF265E;
+            padding-bottom: 6px;
+            margin-bottom: 10px
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #242259;
+            margin: 0
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #111
+        }
+    </style>
+</head>
+<body>
+    <div class="hdr">
+        <div>
+            <h1 class="title">Clientes</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now:dd/MM/yyyy HH:mm</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h6>Segmentación de clientes</h6>
+            <canvas id="chSeg" height="180"></canvas>
+        </div>
+        <div class="card">
+            <h6>Clientes recurrentes (últimos 6 meses)</h6>
+            <canvas id="chRec" height="180"></canvas>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+        <h6>Top 5 clientes por monto (Q)</h6>
+        <canvas id="chTop" height="200"></canvas>
+    </div>
+
+    <script>
+        const CRE_MAGENTA="#BF265E", CRE_GOLD="#F2B90F", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        const sLabels = @Html.Raw(JsonSerializer.Serialize(Model.Segmentacion.Select(x => x.Etiqueta)));
+        const sVals = @Html.Raw(JsonSerializer.Serialize(Model.Segmentacion.Select(x => x.Valor)));
+        new Chart(document.getElementById('chSeg'),{
+          type:'doughnut',
+          data:{labels:sLabels,datasets:[{data:sVals,backgroundColor:[CRE_GOLD,CRE_NAVY,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+          options:{plugins:{legend:{position:'bottom'}}}
+        });
+
+        const rLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+        const rVals = @Html.Raw(JsonSerializer.Serialize(Model.ClientesRecurrentesPorMes));
+        new Chart(document.getElementById('chRec'),{
+          type:'line',
+          data:{labels:rLabels,datasets:[{data:rVals,borderColor:CRE_MAGENTA,backgroundColor:CRE_MAGENTA+'22',borderWidth:3,tension:.35,fill:true}]},
+          options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+        });
+
+        const tLabels = @Html.Raw(JsonSerializer.Serialize(Model.TopClientesPorMonto.Select(x => x.Categoria)));
+        const tVals = @Html.Raw(JsonSerializer.Serialize(Model.TopClientesPorMonto.Select(x => x.Valor)));
+        new Chart(document.getElementById('chTop'),{
+          type:'bar',
+          data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:[CRE_NAVY,CRE_GOLD,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+          options:{plugins:{legend:{display:false}},indexAxis:'y',scales:{x:{beginAtZero:true}}}
+        });
+    </script>
+</body>
+</html>

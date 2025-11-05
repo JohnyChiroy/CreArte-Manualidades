@@ -1,0 +1,115 @@
+﻿@model CreArte.ModelsPartial.UsuariosReportVM
+@using System.Text.Json
+@{
+    Layout = null; /* PDF limpio */
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Usuarios</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px;
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #BF265E;
+            padding-bottom: 6px;
+            margin-bottom: 10px
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #242259;
+            margin: 0
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #111
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        .kpi {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px
+        }
+    </style>
+</head>
+<body>
+    <div class="hdr">
+        <div>
+            <h1 class="title">Usuarios</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now:dd/MM/yyyy HH:mm</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h6>Usuarios por rol</h6>
+            <canvas id="chUsrRol" height="180"></canvas>
+        </div>
+        <div class="card">
+            <h6>Altas de usuarios (últimos 14 días)</h6>
+            <canvas id="chUsrAct" height="180"></canvas>
+        </div>
+    </div>
+
+    <div class="kpis" style="margin-top:10px">
+        <div class="kpi"><div class="sub">Intentos fallidos</div><div style="font-size:22px;font-weight:800;color:#242259">@Model.IntentosFallidosPeriodo</div></div>
+        <div class="kpi"><div class="sub">Usuarios bloqueados</div><div style="font-size:22px;font-weight:800;color:#BF265E">@Model.UsuariosBloqueadosPeriodo</div></div>
+    </div>
+
+    <script>
+        const CRE_MAGENTA="#BF265E", CRE_GOLD="#F2B90F", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        const rolLabels = @Html.Raw(JsonSerializer.Serialize(Model.UsuariosPorRol.Select(x => x.Categoria)));
+        const rolValues = @Html.Raw(JsonSerializer.Serialize(Model.UsuariosPorRol.Select(x => x.Valor)));
+        new Chart(document.getElementById('chUsrRol'),{
+          type:'doughnut',
+          data:{labels:rolLabels,datasets:[{data:rolValues,backgroundColor:[CRE_MAGENTA,CRE_GOLD,CRE_NAVY,CRE_LIME,CRE_MAGENTA2]}]},
+          options:{plugins:{legend:{position:'bottom'}}}
+        });
+
+        const diaLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsDia));
+        const diaValues = @Html.Raw(JsonSerializer.Serialize(Model.LoginsPorDia));
+        new Chart(document.getElementById('chUsrAct'),{
+          type:'line',
+          data:{labels:diaLabels,datasets:[{data:diaValues,borderColor:CRE_MAGENTA,backgroundColor:CRE_MAGENTA+'22',borderWidth:3,tension:.35,fill:true}]},
+          options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+        });
+    </script>
+</body>
+</html>

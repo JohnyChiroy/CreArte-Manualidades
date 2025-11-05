@@ -1,0 +1,194 @@
+﻿@model CreArte.ModelsPartial.ComprasReportVM
+@using System.Text.Json
+@{
+    /* -----------------------------------------------------------
+       Vista PDF de Compras (wkhtmltopdf/Rotativa)
+       - Usa tu ComprasReportVM real:
+         LabelsMes (List<string>)
+         GastoPorMes (List<decimal>)
+         TopProveedoresPorMonto (List<CategoriaValor>)
+         TopProveedoresPorCantidad (List<CategoriaValor>)
+         LeadTimePromedioDias (double)
+       ----------------------------------------------------------- */
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Compras</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --cre-magenta: #BF265E;
+            --cre-mag2: #BF419E;
+            --cre-navy: #242259;
+            --cre-lime: #C5D930;
+            --cre-gold: #F2B90F;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px;
+            color: #222;
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--cre-magenta);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--cre-navy)
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #222
+        }
+
+        .kpi {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 12px
+        }
+
+            .kpi .lbl {
+                font-size: 12px;
+                color: #777
+            }
+
+            .kpi .val {
+                font-size: 22px;
+                font-weight: 800;
+                color: var(--cre-navy)
+            }
+
+        .foot {
+            margin-top: 10px;
+            text-align: right;
+            color: #888;
+            font-size: 11px
+        }
+    </style>
+</head>
+<body>
+    <!-- ======= Header ======= -->
+    <div class="hdr">
+        <div>
+            <h1 class="title">Compras</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    </div>
+
+    <div class="grid">
+        <!-- Línea/Área: Gasto por mes -->
+        <div class="card">
+            <h6>Gasto por mes (Q)</h6>
+            <canvas id="chGastoMes" height="190"></canvas>
+        </div>
+
+        <!-- Barras horizontales: Top proveedores por MONTO -->
+        <div class="card">
+            <h6>Top 5 proveedores por monto (Q)</h6>
+            <canvas id="chProvMonto" height="190"></canvas>
+        </div>
+    </div>
+
+    <div class="grid" style="margin-top:14px">
+        <!-- Barras horizontales: Top proveedores por CANTIDAD -->
+        <div class="card">
+            <h6>Top 5 proveedores por cantidad</h6>
+            <canvas id="chProvCant" height="190"></canvas>
+        </div>
+
+        <!-- KPI: Lead time promedio -->
+        <div class="kpi">
+            <div class="lbl">Lead Time promedio (días)</div>
+            <div class="val">@Model.LeadTimePromedioDias</div>
+            <div class="sub">Desde la fecha de compra hasta la fecha de entrega registrada.</div>
+        </div>
+    </div>
+
+    <div class="foot">Generado con Rotativa | Chart.js</div>
+
+    <script>
+        const CRE_MAGENTA="#BF265E", CRE_GOLD="#F2B90F", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        /* 1) Gasto por mes (línea/área) */
+        const lblMes = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+        const gasto = @Html.Raw(JsonSerializer.Serialize(Model.GastoPorMes));
+
+        new Chart(document.getElementById('chGastoMes'), {
+          type: 'line',
+          data: {
+            labels: lblMes,
+            datasets: [{
+              label: 'Q',
+              data: gasto,
+              borderColor: CRE_NAVY,
+              backgroundColor: CRE_NAVY+'22',
+              borderWidth: 3,
+              tension: .35,
+              fill: true
+            }]
+          },
+          options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
+        });
+
+        /* 2) Top proveedores por Monto */
+        const pMontoLbl = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorMonto.Select(x => x.Categoria)));
+        const pMontoVal = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorMonto.Select(x => x.Valor)));
+
+        new Chart(document.getElementById('chProvMonto'), {
+          type: 'bar',
+          data: {
+            labels: pMontoLbl,
+            datasets: [{ data: pMontoVal, backgroundColor:[CRE_NAVY, CRE_GOLD, CRE_MAGENTA, CRE_LIME, CRE_MAGENTA2] }]
+          },
+          options: { indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true } } }
+        });
+
+        /* 3) Top proveedores por Cantidad */
+        const pCantLbl = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorCantidad.Select(x => x.Categoria)));
+        const pCantVal = @Html.Raw(JsonSerializer.Serialize(Model.TopProveedoresPorCantidad.Select(x => x.Valor)));
+
+        new Chart(document.getElementById('chProvCant'), {
+          type: 'bar',
+          data: {
+            labels: pCantLbl,
+            datasets: [{ data: pCantVal, backgroundColor:[CRE_GOLD, CRE_NAVY, CRE_MAGENTA, CRE_LIME, CRE_MAGENTA2] }]
+          },
+          options: { indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true } } }
+        });
+    </script>
+</body>
+</html>

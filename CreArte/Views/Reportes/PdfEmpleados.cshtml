@@ -1,0 +1,128 @@
+﻿@model CreArte.ModelsPartial.EmpleadosReportVM
+@using System.Text.Json
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Empleados</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #BF265E;
+            padding-bottom: 6px;
+            margin-bottom: 10px
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #242259;
+            margin: 0
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #111
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px
+        }
+
+        .kpi {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px
+        }
+    </style>
+</head>
+<body>
+    <div class="hdr">
+        <div>
+            <h1 class="title">Empleados</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now:dd/MM/yyyy HH:mm</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h6>Empleados por área</h6>
+            <canvas id="chArea" height="180"></canvas>
+        </div>
+        <div class="card">
+            <h6>Empleados por puesto (Top 8)</h6>
+            <canvas id="chPuesto" height="180"></canvas>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+        <h6>Ingresos de empleados (últimos 6 meses)</h6>
+        <canvas id="chIngresos" height="180"></canvas>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi"><div class="sub">Altas (período)</div><div style="font-size:22px;font-weight:800;color:#242259">@Model.AltasPeriodo</div></div>
+        <div class="kpi"><div class="sub">Bajas (período)</div><div style="font-size:22px;font-weight:800;color:#BF265E">@Model.BajasPeriodo</div></div>
+    </div>
+
+    <script>
+        const CRE_MAGENTA="#BF265E", CRE_GOLD="#F2B90F", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        const aLabels = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorArea.Select(x => x.Categoria)));
+        const aVals = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorArea.Select(x => x.Valor)));
+        new Chart(document.getElementById('chArea'),{
+          type:'bar',
+          data:{labels:aLabels,datasets:[{data:aVals,backgroundColor:[CRE_NAVY,CRE_GOLD,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+          options:{plugins:{legend:{display:false}},indexAxis:'y',scales:{x:{beginAtZero:true}}}
+        });
+
+        const pLabels = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorPuesto.Select(x => x.Categoria)));
+        const pVals = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorPuesto.Select(x => x.Valor)));
+        new Chart(document.getElementById('chPuesto'),{
+          type:'bar',
+          data:{labels:pLabels,datasets:[{data:pVals,backgroundColor:[CRE_GOLD,CRE_NAVY,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+          options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+        });
+
+        const mLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+        const mVals = @Html.Raw(JsonSerializer.Serialize(Model.AsistenciasPorMes));
+        new Chart(document.getElementById('chIngresos'),{
+          type:'line',
+          data:{labels:mLabels,datasets:[{data:mVals,borderColor:CRE_NAVY,backgroundColor:CRE_NAVY+'22',borderWidth:3,tension:.35,fill:true}]},
+          options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+        });
+    </script>
+</body>
+</html>

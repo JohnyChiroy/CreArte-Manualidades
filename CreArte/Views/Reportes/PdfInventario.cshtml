@@ -1,0 +1,199 @@
+﻿@model CreArte.ModelsPartial.InventarioReportVM
+@using System.Text.Json
+@{
+    /* -----------------------------------------------------------
+       Vista PDF de Inventario (Rotativa/wkhtmltopdf)
+       - Usa tu InventarioReportVM:
+         LabelsProductos, StockActual, StockMinimo
+         LabelsMes, SeriesRotacion (List<Serie {Label, Color, Data}>)
+         ProductosBajoMinimo, ProductosEnQuiebre, TotalProductos
+       ----------------------------------------------------------- */
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Inventario</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* Paleta CreArte */
+        :root {
+            --cre-magenta: #BF265E;
+            --cre-mag2: #BF419E;
+            --cre-navy: #242259;
+            --cre-lime: #C5D930;
+            --cre-gold: #F2B90F;
+        }
+        /* Estilo PDF */
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px;
+            color: #222;
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--cre-magenta);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--cre-navy)
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #222
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px
+        }
+
+        .kpi {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px
+        }
+
+            .kpi .lbl {
+                font-size: 12px;
+                color: #777
+            }
+
+            .kpi .val {
+                font-size: 22px;
+                font-weight: 800;
+                color: var(--cre-navy)
+            }
+
+        .foot {
+            margin-top: 10px;
+            text-align: right;
+            color: #888;
+            font-size: 11px
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="hdr">
+        <div>
+            <h1 class="title">Inventario</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="grid">
+        <!-- Barras agrupadas: Stock Actual vs Stock Mínimo (Top 12 riesgo) -->
+        <div class="card">
+            <h6>Top 12 productos en riesgo (Stock vs Mínimo)</h6>
+            <canvas id="chStock" height="210"></canvas>
+        </div>
+
+        <!-- Líneas/área: Rotación (Entradas vs Salidas, últimos 6 meses) -->
+        <div class="card">
+            <h6>Rotación (Entradas vs Salidas) – últimos 6 meses</h6>
+            <canvas id="chRotacion" height="210"></canvas>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpis">
+        <div class="kpi">
+            <div class="lbl">Productos bajo mínimo</div>
+            <div class="val" style="color:var(--cre-magenta)">@Model.ProductosBajoMinimo</div>
+        </div>
+        <div class="kpi">
+            <div class="lbl">Productos en quiebre</div>
+            <div class="val" style="color:#b32d2e">@Model.ProductosEnQuiebre</div>
+        </div>
+        <div class="kpi">
+            <div class="lbl">Total de productos</div>
+            <div class="val">@Model.TotalProductos</div>
+        </div>
+    </div>
+
+    <div class="foot">Generado con Rotativa | Chart.js</div>
+
+    <script>
+        /* ========= Datos del ViewModel ========= */
+        const CRE_MAGENTA="#BF265E", CRE_NAVY="#242259", CRE_GOLD="#F2B90F", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        /* 1) Barras agrupadas: Stock vs Mínimo */
+        const prodLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsProductos));
+        const stockAct   = @Html.Raw(JsonSerializer.Serialize(Model.StockActual));
+        const stockMin   = @Html.Raw(JsonSerializer.Serialize(Model.StockMinimo));
+
+        new Chart(document.getElementById('chStock'), {
+          type: 'bar',
+          data: {
+            labels: prodLabels,
+            datasets: [
+              { label: 'Stock actual',  data: stockAct, backgroundColor: CRE_NAVY },
+              { label: 'Stock mínimo',  data: stockMin, backgroundColor: CRE_GOLD }
+            ]
+          },
+          options: {
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+
+        /* 2) Rotación: Entradas vs Salidas (líneas con fill) */
+        const labelsMes = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+        const series    = @Html.Raw(JsonSerializer.Serialize(Model.SeriesRotacion)); // [{Label,Color,Data[]}]
+
+        new Chart(document.getElementById('chRotacion'), {
+          type: 'line',
+          data: {
+            labels: labelsMes,
+            datasets: series.map(s => ({
+              label: s.Label,
+              data: s.Data,
+              borderColor: s.Color ?? CRE_MAGENTA,
+              backgroundColor: (s.Color ?? CRE_MAGENTA) + '22',
+              borderWidth: 3,
+              tension: .35,
+              fill: true
+            }))
+          },
+          options: {
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+    </script>
+</body>
+</html>

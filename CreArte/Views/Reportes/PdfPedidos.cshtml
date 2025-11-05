@@ -1,0 +1,189 @@
+﻿@model CreArte.ModelsPartial.PedidosReportVM
+@using System.Text.Json
+@{
+    /* -----------------------------------------------------------
+       PDF Pedidos (Rotativa/wkhtmltopdf + Chart.js)
+       - Model:
+         PedidosPorEstado (List<EtiquetaValor>)
+         LabelsPeriodo (List<string>)
+         Cumplidos (List<decimal>)
+         Atrasados (List<decimal>)
+       - Radar adicional via ViewBag.RadarClientes (List<EtiquetaValor>)
+       ----------------------------------------------------------- */
+    Layout = null;
+    var radar = ViewBag.RadarClientes as List<CreArte.ModelsPartial.EtiquetaValor> ?? new();
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reporte de Pedidos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --cre-magenta: #BF265E;
+            --cre-mag2: #BF419E;
+            --cre-navy: #242259;
+            --cre-lime: #C5D930;
+            --cre-gold: #F2B90F;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 18px;
+            color: #222;
+        }
+
+        .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--cre-magenta);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--cre-navy)
+        }
+
+        .sub {
+            color: #666;
+            font-size: 12px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .card {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px
+        }
+
+        h6 {
+            margin: 0 0 6px 0;
+            color: #222
+        }
+
+        .foot {
+            margin-top: 10px;
+            text-align: right;
+            color: #888;
+            font-size: 11px
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="hdr">
+        <div>
+            <h1 class="title">Pedidos</h1>
+            <div class="sub">CreArte Manualidades</div>
+        </div>
+        <div class="sub">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    </div>
+
+    <div class="grid">
+        <!-- Doughnut: Pedidos por estado -->
+        <div class="card">
+            <h6>Pedidos por estado</h6>
+            <canvas id="chEstados" height="210"></canvas>
+        </div>
+
+        <!-- Barras apiladas: Cumplidos vs Pendientes (6 meses) -->
+        <div class="card">
+            <h6>Cumplidos vs Pendientes (últimos 6 meses)</h6>
+            <canvas id="chCumplidosPend" height="210"></canvas>
+        </div>
+    </div>
+
+    <div class="grid" style="margin-top:14px">
+        <!-- Radar: % finalización por tipo de cliente -->
+        <div class="card">
+            <h6>% finalización por tipo de cliente</h6>
+            <canvas id="chRadar" height="240"></canvas>
+        </div>
+        <!-- espacio libre (o puedes agregar un KPI si lo deseas) -->
+        <div class="card" style="display:flex;align-items:center;justify-content:center;color:#777">
+            <div>
+                <div style="font-size:13px">Este reporte presenta la distribución por estado, la evolución mensual y el nivel de cumplimiento por tipo de cliente.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="foot">Generado con Rotativa | Chart.js</div>
+
+    <script>
+        const CRE_MAGENTA="#BF265E", CRE_NAVY="#242259", CRE_GOLD="#F2B90F", CRE_LIME="#C5D930", CRE_MAGENTA2="#BF419E";
+
+        /* 1) Estados (doughnut) */
+        const estLabels = @Html.Raw(JsonSerializer.Serialize(Model.PedidosPorEstado.Select(x => x.Etiqueta)));
+        const estVals   = @Html.Raw(JsonSerializer.Serialize(Model.PedidosPorEstado.Select(x => x.Valor)));
+
+        new Chart(document.getElementById('chEstados'), {
+          type: 'doughnut',
+          data: {
+            labels: estLabels,
+            datasets: [{ data: estVals, backgroundColor:[CRE_GOLD, CRE_NAVY, CRE_MAGENTA, CRE_LIME, CRE_MAGENTA2] }]
+          },
+          options: { plugins:{ legend:{ position:'bottom' } } }
+        });
+
+        /* 2) Cumplidos vs Pendientes (barras apiladas) */
+        const lblMes = @Html.Raw(JsonSerializer.Serialize(Model.LabelsPeriodo));
+        const cumpl  = @Html.Raw(JsonSerializer.Serialize(Model.Cumplidos));
+        const pend   = @Html.Raw(JsonSerializer.Serialize(Model.Atrasados));
+
+        new Chart(document.getElementById('chCumplidosPend'), {
+          type: 'bar',
+          data: {
+            labels: lblMes,
+            datasets: [
+              { label:'Cumplidos',  data:cumpl, backgroundColor: CRE_NAVY },
+              { label:'Pendientes', data:pend,  backgroundColor: CRE_MAGENTA }
+            ]
+          },
+          options: {
+            plugins: { legend: { position: 'bottom' } },
+            responsive: true,
+            scales: {
+              x: { stacked: true },
+              y: { stacked: true, beginAtZero:true }
+            }
+          }
+        });
+
+        /* 3) Radar: % finalización por tipo de cliente (ViewBag) */
+        const radarData = @Html.Raw(JsonSerializer.Serialize(radar));
+        const radarLbl  = radarData.map(x => x.Etiqueta);
+        const radarVal  = radarData.map(x => x.Valor);
+
+        new Chart(document.getElementById('chRadar'), {
+          type: 'radar',
+          data: {
+            labels: radarLbl,
+            datasets: [{
+              label: '% Finalización',
+              data: radarVal,
+              borderColor: CRE_MAGENTA,
+              backgroundColor: CRE_MAGENTA + '22',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              r: { suggestedMin: 0, suggestedMax: 100, ticks: { stepSize: 20 } }
+            }
+          }
+        });
+    </script>
+</body>
+</html>

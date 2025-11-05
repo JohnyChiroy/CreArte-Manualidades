@@ -1,0 +1,69 @@
+﻿@model CreArte.ModelsPartial.ClientesReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+
+        <!-- Doughnut: Segmentación por tipo -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Segmentación de clientes</h6>
+                    <canvas id="chCliSeg" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Línea: Clientes recurrentes -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Clientes recurrentes (últimos 6 meses)</h6>
+                    <canvas id="chCliRec" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barras horizontales: Top 5 clientes -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Top 5 clientes por monto (Q)</h6>
+                    <canvas id="chCliTop" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const CRE_MAGENTA="#BF265E", CRE_MAGENTA2="#BF419E", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_GOLD="#F2B90F";
+
+    // Doughnut segmentación
+    const segLabels = @Html.Raw(JsonSerializer.Serialize(Model.Segmentacion.Select(x => x.Etiqueta)));
+    const segVals = @Html.Raw(JsonSerializer.Serialize(Model.Segmentacion.Select(x => x.Valor)));
+    new Chart(document.getElementById('chCliSeg'),{
+      type:'doughnut',
+      data:{labels:segLabels,datasets:[{data:segVals,backgroundColor:[CRE_GOLD,CRE_NAVY,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+    });
+
+    // Línea recurrentes
+    const recLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+    const recVals = @Html.Raw(JsonSerializer.Serialize(Model.ClientesRecurrentesPorMes));
+    new Chart(document.getElementById('chCliRec'),{
+      type:'line',
+      data:{labels:recLabels,datasets:[{label:'Clientes',data:recVals,borderColor:CRE_MAGENTA,backgroundColor:CRE_MAGENTA+'22',borderWidth:3,tension:.35,fill:true}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+
+    // Barras horizontales Top clientes
+    const topLabels = @Html.Raw(JsonSerializer.Serialize(Model.TopClientesPorMonto.Select(x => x.Categoria)));
+    const topVals = @Html.Raw(JsonSerializer.Serialize(Model.TopClientesPorMonto.Select(x => x.Valor)));
+    new Chart(document.getElementById('chCliTop'),{
+      type:'bar',
+      data:{labels:topLabels,datasets:[{label:'Total Q',data:topVals,backgroundColor:[CRE_NAVY,CRE_GOLD,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}
+    });
+</script>

@@ -1,0 +1,87 @@
+﻿@model CreArte.ModelsPartial.EmpleadosReportVM
+@using System.Text.Json
+
+<div class="container-fluid">
+    <div class="row g-4">
+
+        <!-- Barras: Empleados por área -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Empleados por área</h6>
+                    <canvas id="chEmpArea" height="230"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barras: Empleados por puesto -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Empleados por puesto (Top 8)</h6>
+                    <canvas id="chEmpPuesto" height="230"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Línea: Asistencias (ingresos por mes) -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3 text-uppercase">Ingresos de empleados (últimos 6 meses)</h6>
+                    <canvas id="chEmpAsist" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="col-12">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:#F4FBEA;border:1px solid #D7F0B0">
+                        <div class="text-muted small">Altas (período)</div>
+                        <div class="fs-4 fw-bold" style="color:#C5D930">@Model.AltasPeriodo</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:#FFF7E0;border:1px solid #F2D269">
+                        <div class="text-muted small">Bajas (período)</div>
+                        <div class="fs-4 fw-bold" style="color:#242259">@Model.BajasPeriodo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const CRE_MAGENTA="#BF265E", CRE_MAGENTA2="#BF419E", CRE_NAVY="#242259", CRE_LIME="#C5D930", CRE_GOLD="#F2B90F";
+
+    // Barras (Área)
+    const areaLabels = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorArea.Select(x => x.Categoria)));
+    const areaVals = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorArea.Select(x => x.Valor)));
+    new Chart(document.getElementById('chEmpArea'),{
+      type:'bar',
+      data:{labels:areaLabels,datasets:[{label:'Empleados',data:areaVals,backgroundColor:[CRE_NAVY,CRE_GOLD,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}
+    });
+
+    // Barras (Puesto)
+    const puestoLabels = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorPuesto.Select(x => x.Categoria)));
+    const puestoVals = @Html.Raw(JsonSerializer.Serialize(Model.EmpleadosPorPuesto.Select(x => x.Valor)));
+    new Chart(document.getElementById('chEmpPuesto'),{
+      type:'bar',
+      data:{labels:puestoLabels,datasets:[{label:'Empleados',data:puestoVals,backgroundColor:[CRE_GOLD,CRE_NAVY,CRE_MAGENTA,CRE_LIME,CRE_MAGENTA2]}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+
+    // Línea (Asistencias/Incorporaciones)
+    const asistLabels = @Html.Raw(JsonSerializer.Serialize(Model.LabelsMes));
+    const asistVals = @Html.Raw(JsonSerializer.Serialize(Model.AsistenciasPorMes));
+    new Chart(document.getElementById('chEmpAsist'),{
+      type:'line',
+      data:{labels:asistLabels,datasets:[{label:'Registros',data:asistVals,borderColor:CRE_NAVY,backgroundColor:CRE_NAVY+'22',borderWidth:3,tension:.35,fill:true}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+</script>

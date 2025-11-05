@@ -187,6 +187,7 @@ namespace CreArte.ModelsPartial
         // --- KPIs de seguridad ---
         public int IntentosFallidosPeriodo { get; set; }
         public int UsuariosBloqueadosPeriodo { get; set; }
+        public List<CategoriaValor> UsuariosPorArea { get; set; } = new();
     }
 
     // =========================================================================
