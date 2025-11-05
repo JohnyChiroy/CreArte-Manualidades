@@ -279,12 +279,12 @@
                             <input type="checkbox" class="form-check-input ua-rowchk" value="@v.VentaId" />
                         </td>
                         <td>@v.VentaId</td>
-                        <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@v.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</td>
                         <td>@v.ClienteNombre</td>
                         <td>@v.UsuarioNombre</td>
                         <td class="text-end">Q @v.Total.ToString("N2")</td>
                         <td>
-                            <span class="badge @(v.Estado ? "bg-success" : "bg-danger")">
+                            <span class="badge @(v.Estado ? "bg-Entrada" : "bg-Salida")">
                                 @(v.Estado ? "ACTIVA" : "ANULADA")
                             </span>
                         </td>

@@ -76,7 +76,7 @@
         <div class="ua-field">
             <div class="ua-kv-mini">
                 <div class="lbl">Fecha Venta</div>
-                <div class="val">@Model.Fecha.ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="val">@Model.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</div>
             </div>
         </div>
 
@@ -84,7 +84,7 @@
             <div class="ua-kv-mini">
                 <div class="lbl">Estado</div>
                 <div class="val">
-                    <span class="badge @(Model.Estado ? "bg-success" : "bg-danger")">
+                    <span class="badge @(Model.Estado ? "bg-Entrada" : "bg-Salida")">
                         @(Model.Estado ? "ACTIVA" : "ANULADA")
                     </span>
                 </div>
@@ -92,22 +92,12 @@
         </div>
     </div>
 
-@*     <!-- Observaciones -->
-    <div class="ua-row" style="margin-top:8px;">
-        <div class="ua-field" style="flex:1 1 100%;">
-            <div class="ua-kv-mini">
-                <div class="lbl">Observaciones</div>
-                <div class="val">@(Model.Observaciones ?? "-")</div>
-            </div>
-        </div>
-    </div> *@
-
     <!-- Total -->
     <div class="ua-row" style="margin-top:8px;">
         <div class="ua-field">
             <div class="ua-kv-mini">
                 <div class="lbl">Total Venta</div>
-                <div class="val text-primary">Q @Model.Total.ToString("N2")</div>
+                <div class="val">Q @Model.Total.ToString("N2")</div>
             </div>
         </div>
     </div>
@@ -149,8 +139,8 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="5" class="text-end fw-bold">Total:</td>
-                    <td class="text-end text-primary fw-bold">
+                    <td colspan="5" class="text-end fw-bold">Total Venta:</td>
+                    <td class="text-end fw-bold">
                         Q @Model.Total.ToString("N2")
                     </td>
                 </tr>

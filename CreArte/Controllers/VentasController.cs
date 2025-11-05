@@ -27,61 +27,51 @@ namespace CreArte.Controllers
         // Helpers comunes (mismo patrón que Pedidos)
         // ===============================
         private string UserName() => User?.Identity?.Name ?? "sistema";
+        private static int RoundToInt(decimal value) => (int)Math.Round(value, 0, MidpointRounding.AwayFromZero);
 
-        // Redondeo explícito a INT (AwayFromZero) — igual que Pedidos
-        private static int RoundToInt(decimal value)
-            => (int)Math.Round(value, 0, MidpointRounding.AwayFromZero);
-
-        // Genera IDs para VENTA: VE00000000
+        // VE00000001 secuencial (ajusta ancho según tu columna en VENTA)
         private async Task<string> SiguienteVentaIdAsync()
         {
             const string prefijo = "VE";
             const int ancho = 8;
 
-            var ids = await _db.VENTA
-                .Select(v => v.VENTA_ID)
-                .Where(id => id.StartsWith(prefijo))
-                .ToListAsync();
-
+            var ids = await _db.VENTA.Select(v => v.VENTA_ID).Where(id => id.StartsWith(prefijo)).ToListAsync();
             int maxNum = 0;
-            var rx = new Regex(@"^" + prefijo + @"(?<n>\d+)$");
+            var rx = new System.Text.RegularExpressions.Regex(@"^" + prefijo + @"(?<n>\d+)$");
             foreach (var id in ids)
             {
                 var m = rx.Match(id ?? "");
-                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n))
-                    if (n > maxNum) maxNum = n;
+                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum) maxNum = n;
             }
-
-            var siguiente = maxNum + 1;
-            return prefijo + siguiente.ToString(new string('0', ancho));
+            return prefijo + (maxNum + 1).ToString(new string('0', ancho));
         }
 
-        // --- Genera IDs para DETALLE_VENTA ---
-        private static string NewDetalleVentaId()
-            => Guid.NewGuid().ToString("N").Substring(0, 10);
+        private static string NewDetalleVentaId() => Guid.NewGuid().ToString("N").Substring(0, 10);
+        private static string NewKardexId() => Guid.NewGuid().ToString("N").Substring(0, 10);
 
-        // --- Genera IDs para MOVIMIENTO_CAJA ---
+        private async Task<string?> GetSesionCajaActivaAsync(string usuarioId)
+        {
+            return await _db.CAJA_SESION
+                .Where(c => c.USUARIO_APERTURA_ID == usuarioId && c.ESTADO == true)
+                .OrderByDescending(c => c.FECHA_APERTURA)
+                .Select(c => c.SESION_ID)
+                .FirstOrDefaultAsync();
+        }
+
+        // MC00000001 secuencial (ajusta ancho/longitud a tu columna en MOVIMIENTO_CAJA)
         private async Task<string> SiguienteMovimientoCajaIdAsync()
         {
             const string prefijo = "MC";
             const int ancho = 8;
-
-            var ids = await _db.MOVIMIENTO_CAJA
-                .Select(m => m.MOVIMIENTO_ID)
-                .Where(id => id.StartsWith(prefijo))
-                .ToListAsync();
-
+            var ids = await _db.MOVIMIENTO_CAJA.Select(x => x.MOVIMIENTO_ID).Where(id => id.StartsWith(prefijo)).ToListAsync();
             int maxNum = 0;
-            var rx = new Regex(@"^" + prefijo + @"(?<n>\d+)$");
+            var rx = new System.Text.RegularExpressions.Regex(@"^" + prefijo + @"(?<n>\d+)$");
             foreach (var id in ids)
             {
                 var m = rx.Match(id ?? "");
-                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n))
-                    if (n > maxNum) maxNum = n;
+                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum) maxNum = n;
             }
-
-            var siguiente = maxNum + 1;
-            return prefijo + siguiente.ToString(new string('0', ancho));
+            return prefijo + (maxNum + 1).ToString(new string('0', ancho));
         }
 
         // ===========================================================
@@ -285,37 +275,46 @@ namespace CreArte.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(VentaCreateEditVM vm, CancellationToken ct)
         {
-            // Validación: al menos 1 detalle
-            if (!ModelState.IsValid || vm.Detalles == null || vm.Detalles.Count == 0)
-            {
-                TempData["error"] = "Complete todos los campos obligatorios y agregue al menos un producto.";
-                ViewBag.UsuariosCombo = await _db.USUARIO
-    .Where(u => u.ESTADO == true)
-    .Select(u => new SelectListItem { Value = u.USUARIO_ID, Text = u.USUARIO_NOMBRE })
-    .ToListAsync(ct);
+            // -------- Validaciones explícitas (además de [Required]) --------
+            if (string.IsNullOrWhiteSpace(vm.ClienteId))
+                ModelState.AddModelError(nameof(vm.ClienteId), "Seleccione un cliente.");
 
-                vm.ClientesCombo = await (from c in _db.CLIENTE
-                                          join per in _db.PERSONA on c.CLIENTE_ID equals per.PERSONA_ID
-                                          orderby per.PERSONA_PRIMERNOMBRE, per.PERSONA_PRIMERAPELLIDO
-                                          select new SelectListItem { Value = c.CLIENTE_ID, Text = per.PERSONA_PRIMERNOMBRE + " " + per.PERSONA_PRIMERAPELLIDO })
-                                          .ToListAsync(ct);
-                return RedirectToAction(nameof(Create));
+            if (string.IsNullOrWhiteSpace(vm.UsuarioId))
+                ModelState.AddModelError(nameof(vm.UsuarioId), "Seleccione el usuario (vendedor).");
+
+            if (vm.Detalles == null || vm.Detalles.Count == 0)
+                ModelState.AddModelError("", "Agregue al menos un producto a la venta.");
+
+            if (vm.Detalles != null)
+            {
+                for (int i = 0; i < vm.Detalles.Count; i++)
+                {
+                    var d = vm.Detalles[i];
+                    if (string.IsNullOrWhiteSpace(d.InventarioId))
+                        ModelState.AddModelError($"Detalles[{i}].InventarioId", "Falta InventarioId.");
+                    if (string.IsNullOrWhiteSpace(d.ProductoId))
+                        ModelState.AddModelError($"Detalles[{i}].ProductoId", "Falta ProductoId.");
+                    if (d.Cantidad <= 0)
+                        ModelState.AddModelError($"Detalles[{i}].Cantidad", "Cantidad debe ser mayor a cero.");
+                    if (d.PrecioUnitario < 0)
+                        ModelState.AddModelError($"Detalles[{i}].PrecioUnitario", "Precio inválido.");
+                }
             }
 
-            await using var trx = await _db.Database.BeginTransactionAsync(ct);
+            if (!ModelState.IsValid)
+                return await ReturnCreateViewAsync(vm, ct);  // ← sin redirect
 
+            await using var trx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
-                // 1) Cabecera de venta
+                // -------- Cabecera VENTA --------
                 var venta = new VENTA
                 {
-                    VENTA_ID = await SiguienteVentaIdAsync(),
-                    CLIENTE_ID = vm.ClienteId,        // PERSONA_ID
-                    USUARIO_ID = vm.UsuarioId,        // si lo usas como FK
+                    VENTA_ID = await SiguienteVentaIdAsync(),   // p.ej. "VE00000001"
+                    CLIENTE_ID = vm.ClienteId!,
+                    USUARIO_ID = vm.UsuarioId!,                 // asumiendo NOT NULL en BD
                     FECHA = DateTime.Now,
-                    TOTAL = vm.Total,
-
-                    // Auditoría consistente
+                    TOTAL = vm.Total,                           // puedes recalcular desde detalles si prefieres
                     USUARIO_CREACION = UserName(),
                     FECHA_CREACION = DateTime.Now,
                     ESTADO = true
@@ -323,66 +322,57 @@ namespace CreArte.Controllers
                 _db.VENTA.Add(venta);
                 await _db.SaveChangesAsync(ct);
 
-                // 2) Detalles + Inventario + Kardex
-                foreach (var d in vm.Detalles)
+                // -------- Detalles + Inventario + Kardex --------
+                foreach (var d in vm.Detalles!)
                 {
-                    if (string.IsNullOrWhiteSpace(d.InventarioId))
-                    {
-                        await trx.RollbackAsync(ct);
-                        TempData["error"] = "Falta el InventarioId en un renglón.";
-                        return RedirectToAction(nameof(Create));
-                    }
-
-                    var det = new DETALLE_VENTA
-                    {
-                        DETALLE_VENTA_ID = NewDetalleVentaId(),
-                        VENTA_ID = venta.VENTA_ID,
-                        INVENTARIO_ID = d.InventarioId,
-                        PRODUCTO_ID = d.ProductoId,
-                        CANTIDAD = RoundToInt(d.Cantidad),               // redondeo explícito (igual que Pedidos)
-                        PRECIO_UNITARIO = d.PrecioUnitario,
-                        SUBTOTAL = Math.Round(d.Cantidad * d.PrecioUnitario, 2),
-
-                        USUARIO_CREACION = UserName(),
-                        FECHA_CREACION = DateTime.Now,
-                        ESTADO = true
-                    };
-                    _db.DETALLE_VENTA.Add(det);
-
-                    // Inventario
+                    // Inventario existente
                     var inv = await _db.INVENTARIO
                         .FirstOrDefaultAsync(i => i.INVENTARIO_ID == d.InventarioId && i.PRODUCTO_ID == d.ProductoId, ct);
 
                     if (inv == null)
                     {
                         await trx.RollbackAsync(ct);
-                        TempData["error"] = $"No se encontró el inventario para el producto {d.NombreProducto}.";
-                        return RedirectToAction(nameof(Create));
+                        ModelState.AddModelError("", $"No se encontró inventario para {d.NombreProducto}.");
+                        return await ReturnCreateViewAsync(vm, ct);
                     }
 
-                    if (inv.STOCK_ACTUAL < d.Cantidad)
+                    var cant = RoundToInt(d.Cantidad);
+                    if (inv.STOCK_ACTUAL < cant)
                     {
                         await trx.RollbackAsync(ct);
-                        TempData["error"] = $"Stock insuficiente para el producto {d.NombreProducto} (Stock: {inv.STOCK_ACTUAL}).";
-                        return RedirectToAction(nameof(Create));
+                        ModelState.AddModelError("", $"Stock insuficiente para {d.NombreProducto} (Stock: {inv.STOCK_ACTUAL}).");
+                        return await ReturnCreateViewAsync(vm, ct);
                     }
 
-                    inv.STOCK_ACTUAL -= RoundToInt(d.Cantidad);
+                    var det = new DETALLE_VENTA
+                    {
+                        DETALLE_VENTA_ID = NewDetalleVentaId(),
+                        VENTA_ID = venta.VENTA_ID,
+                        INVENTARIO_ID = d.InventarioId!,
+                        PRODUCTO_ID = d.ProductoId!,
+                        CANTIDAD = cant,
+                        PRECIO_UNITARIO = d.PrecioUnitario,
+                        SUBTOTAL = Math.Round(cant * d.PrecioUnitario, 2), // si SUBTOTAL es computed en BD, quítalo
+                        USUARIO_CREACION = UserName(),
+                        FECHA_CREACION = DateTime.Now,
+                        ESTADO = true
+                    };
+                    _db.DETALLE_VENTA.Add(det);
+
+                    inv.STOCK_ACTUAL -= cant;
                     inv.USUARIO_MODIFICACION = UserName();
                     inv.FECHA_MODIFICACION = DateTime.Now;
-                    _db.INVENTARIO.Update(inv);
 
-                    // KARDEX: SALIDA
+                    // KARDEX (SALIDA)
                     var kardex = new KARDEX
                     {
-                        KARDEX_ID = Guid.NewGuid().ToString("N").Substring(0, 12),
-                        PRODUCTO_ID = d.ProductoId,
+                        KARDEX_ID = NewKardexId(),              
+                        PRODUCTO_ID = d.ProductoId!,
                         FECHA = DateTime.Now,
-                        TIPO_MOVIMIENTO = "SALIDA",
-                        CANTIDAD = RoundToInt(d.Cantidad),
-                        COSTO_UNITARIO = d.PrecioUnitario,     // ajusta si usas costo real
+                        TIPO_MOVIMIENTO = "SALIDA",             // respeta tu CK_KARDEX_TIPO_MOV
+                        CANTIDAD = cant,                        // respeta CK_KARDEX_CANTIDAD_POSITIVA
+                        COSTO_UNITARIO = d.PrecioUnitario,      // ajusta si usas costo promedio/PEPS
                         REFERENCIA = venta.VENTA_ID,
-
                         USUARIO_CREACION = UserName(),
                         FECHA_CREACION = DateTime.Now,
                         ESTADO = true
@@ -392,24 +382,23 @@ namespace CreArte.Controllers
 
                 await _db.SaveChangesAsync(ct);
 
-                // 3) Movimiento de CAJA (INGRESO) — si hay sesión activa
-                var sesionActiva = await GetSesionCajaActivaAsync(vm.UsuarioId);
+                // -------- CAJA (INGRESO si hay sesión activa) --------
+                var sesionActiva = await GetSesionCajaActivaAsync(vm.UsuarioId!);
                 if (!string.IsNullOrWhiteSpace(sesionActiva))
                 {
-                    var movCaja = new MOVIMIENTO_CAJA
+                    var mov = new MOVIMIENTO_CAJA
                     {
-                        MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
+                        MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(), // p.ej. "MC00000001"
                         SESION_ID = sesionActiva,
-                        TIPO = "INGRESO",
+                        TIPO = "INGRESO",                 // usa literal válido según tu tabla (INGRESO/EGRESO/…)
                         MONTO = vm.Total,
                         REFERENCIA = venta.VENTA_ID,
                         FECHA = DateTime.Now,
-
                         USUARIO_CREACION = UserName(),
                         FECHA_CREACION = DateTime.Now,
                         ESTADO = true
                     };
-                    _db.MOVIMIENTO_CAJA.Add(movCaja);
+                    _db.MOVIMIENTO_CAJA.Add(mov);
                     await _db.SaveChangesAsync(ct);
                 }
                 else
@@ -418,20 +407,81 @@ namespace CreArte.Controllers
                         $"Venta {venta.VENTA_ID} registrada sin sesión de caja activa.", ct);
                 }
 
-                // 4) Bitácora
                 await _bitacora.LogAsync("VENTA", "INSERT", UserName(), $"Venta {venta.VENTA_ID} creada.", ct);
-
                 await trx.CommitAsync(ct);
-                TempData["ok"] = $"Venta {venta.VENTA_ID} registrada correctamente (Total Q{venta.TOTAL:N2}).";
+
+                TempData["ok"] = $"Venta {venta.VENTA_ID} registrada (Q{venta.TOTAL:N2}).";
                 return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex)
+            {
+                await trx.RollbackAsync(ct);
+
+                // -------- Diagnóstico útil --------
+                var root = ex.InnerException?.Message ?? ex.Message;
+                TempData["error"] = "Error al guardar la venta: " + root;
+
+                // opcional: ver qué entidad falló
+                // var entries = _db.ChangeTracker.Entries().Where(e => e.State != EntityState.Unchanged).ToList();
+
+                return await ReturnCreateViewAsync(vm, ct);
             }
             catch (Exception ex)
             {
                 await trx.RollbackAsync(ct);
                 TempData["error"] = "Error al guardar la venta: " + ex.Message;
-                return RedirectToAction(nameof(Create));
+                return await ReturnCreateViewAsync(vm, ct);
             }
         }
+
+        private async Task<IActionResult> ReturnCreateViewAsync(VentaCreateEditVM vm, CancellationToken ct)
+        {
+            // clientes
+            vm.ClientesCombo = await (from c in _db.CLIENTE
+                                      join per in _db.PERSONA on c.CLIENTE_ID equals per.PERSONA_ID
+                                      orderby per.PERSONA_PRIMERNOMBRE, per.PERSONA_PRIMERAPELLIDO
+                                      select new SelectListItem
+                                      {
+                                          Value = c.CLIENTE_ID,
+                                          Text = per.PERSONA_PRIMERNOMBRE + " " + per.PERSONA_PRIMERAPELLIDO
+                                      }).ToListAsync(ct);
+
+            // usuarios
+            ViewBag.UsuariosCombo = await _db.USUARIO
+                .Where(u => u.ESTADO == true)
+                .Select(u => new SelectListItem { Value = u.USUARIO_ID, Text = u.USUARIO_NOMBRE })
+                .ToListAsync(ct);
+
+            // JSON productos (igual que en GET)
+            var preciosVigentes = await _db.PRECIO_HISTORICO
+                .GroupBy(ph => ph.PRODUCTO_ID)
+                .Select(g => g.OrderByDescending(x => x.HASTA == null).ThenByDescending(x => x.DESDE)
+                    .Select(x => new { x.PRODUCTO_ID, x.PRECIO })
+                    .FirstOrDefault())
+                .ToListAsync(ct);
+
+            var precioIdx = preciosVigentes.Where(x => x != null)
+                .ToDictionary(x => x.PRODUCTO_ID, x => x.PRECIO);
+
+            var inventarioCatalogo = await (from inv in _db.INVENTARIO
+                                            join p in _db.PRODUCTO on inv.PRODUCTO_ID equals p.PRODUCTO_ID
+                                            where inv.ESTADO == true && p.ESTADO == true
+                                            select new
+                                            {
+                                                inventarioId = inv.INVENTARIO_ID,
+                                                productoId = p.PRODUCTO_ID,
+                                                nombre = p.PRODUCTO_NOMBRE,
+                                                imagen = p.IMAGEN_PRODUCTO ?? "",
+                                                stock = inv.STOCK_ACTUAL,
+                                                precioVenta = precioIdx.ContainsKey(p.PRODUCTO_ID) ? precioIdx[p.PRODUCTO_ID] : 0m
+                                            })
+                                            .ToListAsync(ct);
+
+            ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(inventarioCatalogo);
+
+            return View("Create", vm);
+        }
+
 
         // ===========================================================
         // DELETE: /Ventas/Delete/{id}
@@ -560,7 +610,7 @@ namespace CreArte.Controllers
                     };
                     _db.RECIBO.Add(recibo);
 
-                    // 4️⃣ Movimiento de caja (EGRESO)
+                    // Movimiento de caja (EGRESO)
                     var movCaja = new MOVIMIENTO_CAJA
                     {
                         MOVIMIENTO_ID = "MCJ" + Guid.NewGuid().ToString("N")[..7],
@@ -577,7 +627,7 @@ namespace CreArte.Controllers
 
                 await _db.SaveChangesAsync();
 
-                // 5️⃣ Registrar en Bitácora
+                // Registrar en Bitácora
                 string tipoTxt = vm.TipoReversion == "ANULACION" ? "Anulación" : "Devolución";
                 await _bitacora.LogAsync("VENTA", "REVERT", vm.UsuarioId,
                     $"{tipoTxt} de venta {vm.VentaId}. Monto reembolsado: Q{totalReembolso:F2}. Motivo: {vm.Motivo}");
@@ -592,19 +642,6 @@ namespace CreArte.Controllers
                 TempData["error"] = "Error al revertir la venta: " + ex.Message;
                 return RedirectToAction(nameof(Index));
             }
-        }
-
-        // ===========================================================
-        // Método auxiliar: obtener sesión de caja activa
-        // ===========================================================
-        private async Task<string?> GetSesionCajaActivaAsync(string usuarioId)
-        {
-            var sesion = await _db.CAJA_SESION
-                .Where(c => c.USUARIO_APERTURA_ID == usuarioId && c.ESTADO == true)
-                .OrderByDescending(c => c.FECHA_APERTURA)
-                .FirstOrDefaultAsync();
-
-            return sesion?.CAJA_ID;
         }
     }
 }
