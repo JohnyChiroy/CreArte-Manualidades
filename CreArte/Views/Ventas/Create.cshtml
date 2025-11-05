@@ -5,8 +5,8 @@
     ViewData["Title"] = "Nueva Venta";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    // Catálogo de inventario (ya incluye inventarioId, productoId, nombre, imagen, stock, precioVenta)
     var productosJson = ViewBag.ProductosJson as string ?? "[]";
+    var metodosPago = ViewBag.MetodosPagoCombo as List<SelectListItem> ?? new List<SelectListItem>();
 }
 
 @section Styles {
@@ -20,6 +20,12 @@
             border: 1px solid #e5e7eb;
             border-radius: 6px;
         }
+        /* Solo estética ligera del bloque de vuelto (no cambia tu tema) */
+        .ua-kv {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 }
 
@@ -31,6 +37,10 @@
         @Html.AntiForgeryToken()
 
         <div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+        <!-- 🔒 Campos ocultos llenados desde el modal -->
+        <input type="hidden" asp-for="MetodoPagoId" id="hdMetodoPagoId" />
+        <input type="hidden" asp-for="MontoPago" id="hdMontoPago" />
 
         <!-- ========================= ENCABEZADO ========================= -->
         <div class="ua-row">
@@ -77,7 +87,6 @@
                             {
                                 <tr>
                                     <input type="hidden" name="Detalles.Index" value="@i" />
-                                    <!-- 🔹 Campos ocultos nuevos: InventarioId y ProductoId -->
                                     <input type="hidden" name="Detalles[@i].InventarioId" class="js-inv" data-row="@i" />
                                     <input type="hidden" name="Detalles[@i].ProductoId" class="js-prod-id" data-row="@i" />
 
@@ -145,33 +154,86 @@
     </form>
 </div>
 
+<!-- ========================= MODAL DE PAGO ========================= -->
+<div class="modal fade" id="pagoModal" tabindex="-1" aria-labelledby="pagoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pagoModalLabel">Registrar pago</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label for="mpMetodo"><strong>Método de pago</strong></label>
+                    <select id="mpMetodo" class="form-control" required>
+                        <option value="">Seleccione ↓</option>
+                        @foreach (var m in metodosPago)
+                        {
+                            <option value="@m.Value">@m.Text</option>
+                        }
+                    </select>
+                    <div class="text-danger small d-none" id="mpMetodoErr">Seleccione el método de pago.</div>
+                </div>
+
+                <div class="mb-2">
+                    <label for="mpMonto"><strong>Monto a cobrar</strong></label>
+                    <input id="mpMonto" type="number" min="0.01" step="0.01" class="form-control" readonly />
+                    <div class="text-danger small d-none" id="mpMontoErr">Monto inválido.</div>
+                    <small class="text-muted">Es el total de la venta.</small>
+                </div>
+
+                <!-- Bloque de efectivo -->
+                <div id="mpEfectivoBlock" class="border rounded p-2">
+                    <div class="mb-2">
+                        <label for="mpEfectivo"><strong>Efectivo recibido</strong></label>
+                        <!-- ⇩ editable (sin disabled) -->
+                        <input id="mpEfectivo" type="number" min="0.01" step="0.01" class="form-control" />
+                        <div class="text-danger small d-none" id="mpEfectivoErr">
+                            El efectivo recibido debe ser mayor o igual al monto a cobrar.
+                        </div>
+                    </div>
+
+                    <div class="ua-kv">
+                        <span><strong>Vuelto</strong></span>
+                        <!-- ⇩ label (solo lectura) -->
+                        <span id="mpVuelto" class="fw-bold">Q 0.00</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 mt-2 mb-0">
+                    Total actual: <strong id="mpTotalTexto">Q 0.00</strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+                <button type="button" class="btn-confirmado" id="btnConfirmarPago">
+                    <i class="bi bi-cash-coin"></i> Confirmar pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
-        // =========================
-        // Catálogo [{inventarioId, productoId, nombre, imagen, stock, precioVenta}]
-        // =========================
         const CAT = @Html.Raw(productosJson);
         const IDX = {}; CAT.forEach(p => { IDX[p.inventarioId] = p; });
 
-        // Helpers
         function qs(sel, root=document){ return root.querySelector(sel); }
         function qsAll(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
         function rowEl(el){ return el.closest('tr'); }
         function money(n){ return 'Q ' + (Number(n||0).toFixed(2)); }
 
-        // =========================
-        // Select dinámico de productos
-        // =========================
         function getAllProductSelects(){ return qsAll('#tblBody select[name*=".InventarioId"]'); }
         function selectedIds(){
             const set = new Set();
             getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if(v) set.add(v); });
             return set;
         }
-
         function buildOptionsHtml(exclude, current){
             let html = `<option value="">Seleccione ↓</option>`;
             for (const p of CAT){
@@ -181,7 +243,6 @@
             }
             return html;
         }
-
         function refreshAllSelects(){
             const selects = getAllProductSelects();
             const chosen = selectedIds();
@@ -195,11 +256,7 @@
             evalReady();
         }
 
-        // =========================
-        // Fila dinámica
-        // =========================
         let nextIndex = @Model.Detalles.Count;
-
         function agregarFila(){
             const tbody = document.getElementById("tblBody");
             const i = nextIndex++;
@@ -228,7 +285,6 @@
             evalReady();
             changed = true;
         }
-
         function eliminarFila(btn){
             rowEl(btn).remove();
             refreshAllSelects();
@@ -236,9 +292,6 @@
             changed = true;
         }
 
-        // =========================
-        // Cambio de producto
-        // =========================
         function onProductoChange(noRecalc){
             const row = this.getAttribute('data-row');
             const invId = this.value || '';
@@ -261,7 +314,7 @@
                 }
             }else{
                 if(img) img.src = '';
-                if(name) name.value = '';
+                ifname && (name.value = '');
                 if(inv) inv.value = '';
                 if(prod) prod.value = '';
                 if(precio) precio.title = '';
@@ -270,9 +323,6 @@
             changed = true;
         }
 
-        // =========================
-        // Recalcular totales
-        // =========================
         function recalcFila(){
             const tr = rowEl(this);
             const c = Number(tr.querySelector('.js-cant')?.value || 0);
@@ -282,7 +332,6 @@
             recalcTotales();
             evalReady();
         }
-
         function recalcTotales(){
             let total = 0;
             qsAll('#tblBody tr').forEach(tr => {
@@ -293,9 +342,6 @@
             qs('#lblTotal').textContent = money(total);
         }
 
-        // =========================
-        // Validar botón Guardar
-        // =========================
         function evalReady(){
             const clienteOk = (qs('#ClienteId')?.value || '').trim();
             const usuarioOk = (qs('#UsuarioId')?.value || '').trim();
@@ -310,9 +356,6 @@
             evalReady();
         });
 
-        // =========================
-        // Confirmaciones SweetAlert2
-        // =========================
         let changed = false;
         const frm = qs('#frmVenta');
         frm.addEventListener('input', ()=> changed = true);
@@ -327,20 +370,162 @@
             }).then(r=>{ if(r.isConfirmed) window.location.href=this.href; });
         });
 
+        // ======== INTERCEPTA SUBMIT -> CONFIRM -> MODAL DE PAGO ========
+        let pagoModal;
         frm.addEventListener('submit', function(e){
             e.preventDefault();
             if(qs('#btnGuardar').disabled) return;
+
+            const totalTxt = qs('#lblTotal').textContent || 'Q 0.00';
+            const totalNum = Number(totalTxt.replace(/[^\d.]/g,'') || 0);
+
             Swal.fire({
                 icon:'question', title:'¿Registrar venta?',
-                html:qs('#lblTotal').textContent,
-                showCancelButton:true, confirmButtonText:'Registrar', cancelButtonText:'Revisar'
+                html: totalTxt,
+                showCancelButton:true, confirmButtonText:'Continuar y cobrar', cancelButtonText:'Revisar'
             }).then(r=>{
-                if(r.isConfirmed){
-                    const btn=qs('#btnGuardar');
-                    btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...';
-                    frm.submit();
+                if(!r.isConfirmed) return;
+
+                const el = document.getElementById('pagoModal');
+                pagoModal = pagoModal || new bootstrap.Modal(el, {backdrop:'static', keyboard:false});
+
+                // precarga total en el modal (solo lectura)
+                qs('#mpTotalTexto').textContent = money(totalNum);
+                const mpMonto = qs('#mpMonto');
+                if (mpMonto){
+                    mpMonto.value = totalNum.toFixed(2);
+                    mpMonto.readOnly = true; // monto no editable
                 }
+
+        // Default: Efectivo por valor o por texto
+        const mpSel = qs('#mpMetodo');
+        if (mpSel) {
+            const opts = Array.from(mpSel.options);
+            let idx = opts.findIndex(o => (o.value || '').trim().toUpperCase() === 'EFECTIVO');
+            if (idx < 0) idx = opts.findIndex(o => (o.text || '').trim().toUpperCase().includes('EFECTIVO'));
+            if (idx >= 0) mpSel.selectedIndex = idx;
+        }
+
+                // Inicializa bloque de efectivo y cálculos
+                toggleEfectivoBlock();
+                recalcVuelto();
+                validatePago();
+
+                // limpia errores
+                qs('#mpMetodoErr')?.classList.add('d-none');
+                qs('#mpMontoErr')?.classList.add('d-none');
+                qs('#mpEfectivoErr')?.classList.add('d-none');
+
+                pagoModal.show();
             });
+        });
+
+        // -------- Validación del modal (habilita/deshabilita botón) --------
+        function validatePago(){
+            const metodo = (qs('#mpMetodo')?.value || '').trim();
+            const monto  = Number(qs('#mpMonto')?.value || 0);
+            const total  = Number((qs('#lblTotal').textContent||'').replace(/[^\d.]/g,'') || 0);
+            const btn    = qs('#btnConfirmarPago');
+
+            let ok = true;
+
+            // 🔹 Método de pago obligatorio
+            if(!metodo){
+                qs('#mpMetodoErr')?.classList.remove('d-none'); ok = false;
+            } else {
+                qs('#mpMetodoErr')?.classList.add('d-none');
+            }
+
+            // 🔹 Monto (total) válido
+            if(!(monto > 0) || Math.abs(monto - total) > 0.01){
+                qs('#mpMontoErr')?.classList.remove('d-none'); ok = false;
+            } else {
+                qs('#mpMontoErr')?.classList.add('d-none');
+            }
+
+            // 🔹 Si es EFECTIVO, validar recibido
+            if (isMetodoEfectivo()){
+                const rec = Number(qs('#mpEfectivo')?.value || 0);
+                const err = qs('#mpEfectivoErr');
+                if (!(rec > 0)) {
+                    // campo vacío o 0 no permitido
+                    err.textContent = "Debe ingresar el efectivo recibido.";
+                    err.classList.remove('d-none');
+                    ok = false;
+                }
+                else if (rec < total){
+                    // monto menor al total
+                    err.textContent = "El efectivo recibido no puede ser menor al monto a cobrar.";
+                    err.classList.remove('d-none');
+                    ok = false;
+                }
+                else {
+                    err.classList.add('d-none');
+                }
+            } else {
+                // no efectivo ⇒ ocultar error
+                qs('#mpEfectivoErr')?.classList.add('d-none');
+            }
+
+            if (btn) btn.disabled = !ok;
+            return ok;
+        }
+
+        // -------- Lógica de efectivo / vuelto --------
+        function toggleEfectivoBlock(){
+            const block = qs('#mpEfectivoBlock');
+            const efectivo = qs('#mpEfectivo');
+            const esEfec = isMetodoEfectivo();
+
+            if (block){
+                block.style.opacity = esEfec ? '1' : '0.6';
+            }
+            if (efectivo){
+                efectivo.disabled = !esEfec;
+                if (esEfec){
+                    setTimeout(()=> efectivo.focus(), 50);
+                } else {
+                    efectivo.value = '';
+                    qs('#mpVuelto').textContent = money(0);
+                    qs('#mpEfectivoErr')?.classList.add('d-none');
+                }
+            }
+            validatePago();
+        }
+
+        function recalcVuelto(){
+            const total = Number((qs('#mpMonto')?.value || 0));
+            const rec   = Number((qs('#mpEfectivo')?.value || 0));
+            const vuelto = Math.max(0, rec - total);
+            qs('#mpVuelto').textContent = money(vuelto);
+            validatePago();
+        }
+
+        function isMetodoEfectivo(){
+            const sel = qs('#mpMetodo');
+            const val = (sel?.value || '').trim().toUpperCase();
+            const txt = (sel?.selectedOptions?.[0]?.text || '').trim().toUpperCase();
+            return val === 'EFECTIVO' || txt.includes('EFECTIVO'); // valor o texto
+        }
+
+        document.getElementById('mpMetodo')?.addEventListener('change', toggleEfectivoBlock);
+        document.getElementById('mpEfectivo')?.addEventListener('input', recalcVuelto);
+
+        // Confirmar pago en el modal
+        document.getElementById('btnConfirmarPago').addEventListener('click', function(){
+            if (!validatePago()) return;
+
+            const metodo = (qs('#mpMetodo')?.value || '').trim();
+            const monto  = Number(qs('#mpMonto')?.value || 0);
+
+            // Inyectar hidden y enviar
+            qs('#hdMetodoPagoId').value = metodo;
+            qs('#hdMontoPago').value = monto.toFixed(2);
+
+            pagoModal?.hide();
+            const btn=qs('#btnGuardar');
+            btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...';
+            frm.submit();
         });
 
         (function(){
@@ -349,5 +534,6 @@
             if(ok) Swal.fire({icon:'success',title:ok,timer:2500,showConfirmButton:false});
             if(err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
         })();
+
     </script>
 }

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CreArte.Controllers
@@ -49,6 +50,9 @@ namespace CreArte.Controllers
         private static string NewDetalleVentaId() => Guid.NewGuid().ToString("N").Substring(0, 10);
         private static string NewKardexId() => Guid.NewGuid().ToString("N").Substring(0, 10);
 
+        // NUEVO: ID de recibo (mismo estilo que usas en Revertir: prefijo + Guid recortado)
+        private static string NewReciboId() => "RCB" + Guid.NewGuid().ToString("N").Substring(0, 7);
+
         private async Task<string?> GetSesionCajaActivaAsync(string usuarioId)
         {
             return await _db.CAJA_SESION
@@ -72,6 +76,42 @@ namespace CreArte.Controllers
                 if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum) maxNum = n;
             }
             return prefijo + (maxNum + 1).ToString(new string('0', ancho));
+        }
+
+        // RC00000001 (RECIBO)
+        private async Task<string> SiguienteReciboIdAsync()
+        {
+            const string prefijo = "RC";
+            const int ancho = 8;
+            var ids = await _db.RECIBO
+                .Select(r => r.RECIBO_ID)
+                .Where(id => id.StartsWith(prefijo))
+                .ToListAsync();
+
+            int maxNum = 0;
+            var rx = new Regex(@"^" + prefijo + @"(?<n>\d+)$");
+            foreach (var id in ids)
+            {
+                var m = rx.Match(id ?? "");
+                if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum)
+                    maxNum = n;
+            }
+            return prefijo + (maxNum + 1).ToString(new string('0', ancho));
+        }
+
+        // Suma de recibos aplicados a una venta
+        private async Task<decimal> TotalPagadoAsync(string ventaId, CancellationToken ct = default)
+        {
+            return await _db.RECIBO
+                .Where(r => r.ESTADO == true && r.VENTA_ID == ventaId)
+                .Select(r => (decimal?)r.MONTO)
+                .SumAsync(ct) ?? 0m;
+        }
+        private async Task<List<SelectListItem>> GetMetodosPagoComboAsync(CancellationToken ct = default)
+        {
+            return await _db.METODO_PAGO.Where(m => m.ESTADO == true)
+                .Select(m => new SelectListItem { Value = m.METODO_PAGO_ID, Text = m.METODO_PAGO_NOMBRE })
+                .ToListAsync(ct);
         }
 
         // ===========================================================
@@ -212,7 +252,7 @@ namespace CreArte.Controllers
         // ===========================================================
         // GET: /Ventas/Create
         // ===========================================================
-        [HttpGet]   // ← Importante
+        [HttpGet]   
         public async Task<IActionResult> Create()
         {
             // 1) Precio vigente por producto
@@ -246,6 +286,7 @@ namespace CreArte.Controllers
                                             .ToListAsync();
 
             ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(inventarioCatalogo);
+            ViewBag.MetodosPagoCombo = await GetMetodosPagoComboAsync();
 
             // 3) Combo de clientes
             var clientesCombo = await (from c in _db.CLIENTE
@@ -366,11 +407,11 @@ namespace CreArte.Controllers
                     // KARDEX (SALIDA)
                     var kardex = new KARDEX
                     {
-                        KARDEX_ID = NewKardexId(),              
+                        KARDEX_ID = NewKardexId(),
                         PRODUCTO_ID = d.ProductoId!,
                         FECHA = DateTime.Now,
-                        TIPO_MOVIMIENTO = "SALIDA",             // respeta tu CK_KARDEX_TIPO_MOV
-                        CANTIDAD = cant,                        // respeta CK_KARDEX_CANTIDAD_POSITIVA
+                        TIPO_MOVIMIENTO = "SALIDA",
+                        CANTIDAD = cant,
                         COSTO_UNITARIO = d.PrecioUnitario,      // ajusta si usas costo promedio/PEPS
                         REFERENCIA = venta.VENTA_ID,
                         USUARIO_CREACION = UserName(),
@@ -380,6 +421,23 @@ namespace CreArte.Controllers
                     _db.KARDEX.Add(kardex);
                 }
 
+                await _db.SaveChangesAsync(ct);
+
+                // -------- (NUEVO) RECIBO de pago --------
+                // Si tu VM trae Método de pago, se usa; si no, por defecto "EFECTIVO".
+                var metodoPago = string.IsNullOrWhiteSpace(vm.MetodoPagoId) ? "EFECTIVO" : vm.MetodoPagoId;
+                var recibo = new RECIBO
+                {
+                    RECIBO_ID = NewReciboId(),         // 10 chars, consistente con tu estilo
+                    VENTA_ID = venta.VENTA_ID,
+                    METODO_PAGO_ID = metodoPago,
+                    MONTO = venta.TOTAL,
+                    FECHA = DateTime.Now,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.RECIBO.Add(recibo);
                 await _db.SaveChangesAsync(ct);
 
                 // -------- CAJA (INGRESO si hay sesión activa) --------
@@ -420,9 +478,6 @@ namespace CreArte.Controllers
                 // -------- Diagnóstico útil --------
                 var root = ex.InnerException?.Message ?? ex.Message;
                 TempData["error"] = "Error al guardar la venta: " + root;
-
-                // opcional: ver qué entidad falló
-                // var entries = _db.ChangeTracker.Entries().Where(e => e.State != EntityState.Unchanged).ToList();
 
                 return await ReturnCreateViewAsync(vm, ct);
             }
@@ -478,10 +533,137 @@ namespace CreArte.Controllers
                                             .ToListAsync(ct);
 
             ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(inventarioCatalogo);
+            ViewBag.MetodosPagoCombo = await GetMetodosPagoComboAsync();
 
             return View("Create", vm);
         }
 
+        // ==========================================
+        // GET: PagoModal
+        // ==========================================
+        [HttpGet]
+        public async Task<IActionResult> PagoModal(string ventaId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(ventaId))
+                return BadRequest("VentaId requerido.");
+
+            var venta = await _db.VENTA.AsNoTracking()
+                .FirstOrDefaultAsync(v => v.VENTA_ID == ventaId, ct);
+
+            if (venta == null)
+                return NotFound("Venta no encontrada.");
+
+            var pagado = await TotalPagadoAsync(ventaId, ct);
+            var vm = new ReciboCreateVM
+            {
+                VentaId = ventaId,
+                UsuarioId = UserName(), // puedes sobreescribir con el vendedor si lo prefieres
+                TotalVenta = venta.TOTAL,
+                TotalPagado = pagado,
+                MetodosPagoCombo = await GetMetodosPagoComboAsync(ct)
+            };
+            return PartialView("_PagoModal", vm);
+        }
+
+        // ==========================================
+        // POST: RegistrarPago
+        // ==========================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarPago(ReciboCreateVM vm, CancellationToken ct)
+        {
+            // Validaciones mínimas
+            if (string.IsNullOrWhiteSpace(vm.VentaId))
+                ModelState.AddModelError("", "Venta no especificada.");
+            if (string.IsNullOrWhiteSpace(vm.MetodoPagoId))
+                ModelState.AddModelError(nameof(vm.MetodoPagoId), "Seleccione el método de pago.");
+            if (vm.Monto <= 0)
+                ModelState.AddModelError(nameof(vm.Monto), "El monto debe ser mayor a cero.");
+
+            var venta = await _db.VENTA.FirstOrDefaultAsync(v => v.VENTA_ID == vm.VentaId, ct);
+            if (venta == null)
+                ModelState.AddModelError("", "La venta no existe.");
+
+            var pagado = await TotalPagadoAsync(vm.VentaId, ct);
+            var pendiente = Math.Max(0, (venta?.TOTAL ?? 0) - pagado);
+            if (vm.Monto > pendiente)
+                ModelState.AddModelError(nameof(vm.Monto), $"El monto excede el saldo pendiente (Q{pendiente:N2}).");
+
+            if (!ModelState.IsValid)
+            {
+                vm.TotalVenta = venta?.TOTAL ?? 0;
+                vm.TotalPagado = pagado;
+                vm.MetodosPagoCombo = await GetMetodosPagoComboAsync(ct);
+                // Devolvemos la parcial con errores para que se renderice dentro del modal
+                return PartialView("_PagoModal", vm);
+            }
+
+            await using var trx = await _db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                // 1) RECIBO
+                var recibo = new RECIBO
+                {
+                    RECIBO_ID = await SiguienteReciboIdAsync(),
+                    VENTA_ID = vm.VentaId,
+                    METODO_PAGO_ID = vm.MetodoPagoId,
+                    MONTO = vm.Monto,
+                    FECHA = DateTime.Now,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.RECIBO.Add(recibo);
+                await _db.SaveChangesAsync(ct);
+
+                // 2) CAJA (INGRESO)
+                var sesion = await GetSesionCajaActivaAsync(vm.UsuarioId); // mismo helper que ya tienes
+                if (!string.IsNullOrWhiteSpace(sesion))
+                {
+                    var mc = new MOVIMIENTO_CAJA
+                    {
+                        MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
+                        SESION_ID = sesion,
+                        TIPO = "INGRESO",
+                        MONTO = vm.Monto,
+                        REFERENCIA = $"PAGO:{recibo.RECIBO_ID} VTA:{vm.VentaId}",
+                        FECHA = DateTime.Now,
+                        USUARIO_CREACION = UserName(),
+                        FECHA_CREACION = DateTime.Now,
+                        ESTADO = true
+                    };
+                    _db.MOVIMIENTO_CAJA.Add(mc);
+                    await _db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    await _bitacora.LogAsync("CAJA_SESION", "WARN", UserName(),
+                        $"Pago {vm.Monto:N2} para {vm.VentaId} SIN sesión de caja activa.", ct);
+                }
+
+                await _bitacora.LogAsync("RECIBO", "INSERT", UserName(),
+                    $"Registró pago RC para venta {vm.VentaId} por Q{vm.Monto:N2}.", ct);
+
+                await trx.CommitAsync(ct);
+
+                // Respuesta para AJAX (modal)
+                var nuevoPagado = pagado + vm.Monto;
+                var nuevoPend = Math.Max(0, (venta!.TOTAL) - nuevoPagado);
+
+                return Json(new
+                {
+                    ok = true,
+                    reciboId = recibo.RECIBO_ID,
+                    totalPagado = nuevoPagado.ToString("N2"),
+                    pendiente = nuevoPend.ToString("N2")
+                });
+            }
+            catch (Exception ex)
+            {
+                await trx.RollbackAsync(ct);
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
 
         // ===========================================================
         // DELETE: /Ventas/Delete/{id}

@@ -23,21 +23,23 @@ namespace CreArte.ModelsPartial
         [DataType(DataType.DateTime)]
         public DateTime Fecha { get; set; } = DateTime.Now;
 
-        // NOTA: VENTA no tiene campo de observaciones en tu esquema.
-        // public string? Observaciones { get; set; }  // <-- Eliminado
+        [Required(ErrorMessage = "Seleccione el método de pago.")]
+        public string? MetodoPagoId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "El monto de pago debe ser mayor a 0.")]
+        public decimal MontoPago { get; set; }
 
         // Totales (solo para cálculo en UI; en BD solo se guarda TOTAL)
+        public List<VentaDetalleVM> Detalles { get; set; } = new();
+
         public decimal Subtotal => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
-        public decimal ImpuestoTotal => 0m; // si luego aplicas IVA por producto, ajústalo aquí
+        public decimal ImpuestoTotal => 0m; // ajusta si luego aplicas IVA
         public decimal DescuentoTotal => 0m;
         public decimal Total => Math.Round(Subtotal + ImpuestoTotal - DescuentoTotal, 2);
 
         // Combos
         public List<SelectListItem> ClientesCombo { get; set; } = new();
         public List<SelectListItem> ProductosCombo { get; set; } = new(); // opcional si lo usas para fallback
-
-        // Detalles
-        public List<VentaDetalleVM> Detalles { get; set; } = new();
     }
 
     // ===============================
@@ -152,5 +154,19 @@ namespace CreArte.ModelsPartial
         public List<VentaLineaVM> Lineas { get; set; } = new();
     }
 
+    public class ReciboCreateVM
+    {
+        public string VentaId { get; set; } = null!;
+        public string UsuarioId { get; set; } = null!; // vendedor actual (para auditoría / caja)
+        public string MetodoPagoId { get; set; } = null!;
+        public decimal Monto { get; set; }
 
+        // Info de ayuda para el modal
+        public decimal TotalVenta { get; set; }
+        public decimal TotalPagado { get; set; }
+        public decimal Pendiente => Math.Max(0, TotalVenta - TotalPagado);
+
+        // Combos
+        public List<SelectListItem> MetodosPagoCombo { get; set; } = new();
+    }
 }
