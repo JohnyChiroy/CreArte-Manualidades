@@ -234,6 +234,21 @@
             getAllProductSelects().forEach(s => { const v=(s.value||'').trim(); if(v) set.add(v); });
             return set;
         }
+
+        // helper para activacion de boton registrar venta
+        function num(val){ const n = Number(String(val ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; }
+        function rowIsValid(tr){
+          const prod = (tr.querySelector('.js-prod')?.value
+                     || tr.querySelector('.js-inv')?.value
+                     || tr.querySelector('select[name*=".InventarioId"]')?.value
+                     || '').trim();
+          const c = num(tr.querySelector('.js-cant')?.value);
+          const p = num(tr.querySelector('.js-precio')?.value);
+          const basicOk = !!prod && c > 0 && p >= 0;
+
+          return basicOk 
+        }
+
         function buildOptionsHtml(exclude, current){
             let html = `<option value="">Seleccione ↓</option>`;
             for (const p of CAT){
@@ -342,13 +357,53 @@
             qs('#lblTotal').textContent = money(total);
         }
 
-        function evalReady(){
-            const clienteOk = (qs('#ClienteId')?.value || '').trim();
-            const usuarioOk = (qs('#UsuarioId')?.value || '').trim();
-            const filas = qsAll('#tblBody tr');
-            const ok = clienteOk && usuarioOk && filas.length > 0;
-            qs('#btnGuardar').disabled = !ok;
+              function evalReady(){
+          const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
+          const usuarioOk = (qs('#UsuarioId')?.value || '').trim().length > 0;
+
+          const filas = qsAll('#tblBody tr');
+          const tieneFilas = filas.length > 0;
+
+          // Al menos una fila válida
+          const filasValidas = filas.filter(rowIsValid);
+          const hayFilaValida = filasValidas.length > 0;
+
+          // Total numérico (evita depender del texto formateado)
+          let total = 0;
+          filas.forEach(tr => {
+            const c = num(tr.querySelector('.js-cant')?.value);
+            const p = num(tr.querySelector('.js-precio')?.value);
+            total += c * p;
+          });
+          const totalOk = total > 0.0001;
+
+          const todasValidas = filas.every(rowIsValid);
+          // Reglas finales
+          const ok = clienteOk && usuarioOk && tieneFilas && hayFilaValida && totalOk;
+
+          const btn = qs('#btnGuardar');
+          if (btn){
+            btn.disabled = !ok;
+            btn.classList.toggle('enabled', ok);
+            btn.setAttribute('aria-disabled', String(!ok));
+            btn.title = ok ? 'Registrar venta' : 'Complete cliente y al menos un detalle válido';
+          }
         }
+
+              // === Ganchos: aseguran que evalReady se ejecute en los momentos clave ===
+        document.addEventListener('input', function(e){
+          if (e.target.closest('#tblBody') || e.target.id === 'ClienteId' || e.target.id === 'UsuarioId') {
+            evalReady();
+          }
+        });
+        document.addEventListener('change', function(e){
+          if (e.target.closest('#tblBody') || e.target.id === 'ClienteId' || e.target.id === 'UsuarioId') {
+            evalReady();
+          }
+        });
+
+        // Primera evaluación por si la vista llega con datos precargados
+        document.addEventListener('DOMContentLoaded', evalReady);
 
         document.addEventListener('DOMContentLoaded', function(){
             refreshAllSelects();
@@ -429,21 +484,21 @@
 
             let ok = true;
 
-            // 🔹 Método de pago obligatorio
+            // Método de pago obligatorio
             if(!metodo){
                 qs('#mpMetodoErr')?.classList.remove('d-none'); ok = false;
             } else {
                 qs('#mpMetodoErr')?.classList.add('d-none');
             }
 
-            // 🔹 Monto (total) válido
+            // Monto (total) válido
             if(!(monto > 0) || Math.abs(monto - total) > 0.01){
                 qs('#mpMontoErr')?.classList.remove('d-none'); ok = false;
             } else {
                 qs('#mpMontoErr')?.classList.add('d-none');
             }
 
-            // 🔹 Si es EFECTIVO, validar recibido
+            // Si es EFECTIVO, validar recibido
             if (isMetodoEfectivo()){
                 const rec = Number(qs('#mpEfectivo')?.value || 0);
                 const err = qs('#mpEfectivoErr');
@@ -553,7 +608,7 @@
                             window.open(url, '_blank'); // abre el PDF en nueva pestaña
                         }
                     });
-                }, 850); // pequeño delay tras el toast “ok”
+                }, 850); 
             }
         })();
     </script>

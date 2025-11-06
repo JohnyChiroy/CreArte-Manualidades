@@ -120,5 +120,36 @@
             if (ok)  Swal.fire({icon:'success',title:ok,timer:2600,showConfirmButton:false});
             if (err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
         })();
+        
+        (function () {
+          const toList   = document.querySelector('a.ua-btn.ua-btn-view[href*="Index"]'); // LISTADO (opcional)
+          const toCerrar = document.querySelector('a.ua-btn.ua-btn-edit, a.btn-save[href*="Cerrar"]')
+                          || document.querySelector('a[href*="/Caja/Cerrar"]');
+
+          const sesionId = '@(ViewBag.SesionId as string ?? "")';
+
+          if (toCerrar) {
+            toCerrar.addEventListener('click', function (e) {
+              if (!sesionId) {
+                e.preventDefault();
+                Swal.fire({ icon:'info', title:'Sesión no especificada', text:'No se encontró el id de sesión.' });
+                return;
+              }
+              e.preventDefault();
+              Swal.fire({
+                icon:'question',
+                title:'Ir a cierre',
+                text:'¿Deseas ir a la pantalla de cierre de esta sesión?',
+                showCancelButton:true,
+                confirmButtonText:'Sí, ir a Cerrar',
+                cancelButtonText:'Cancelar'
+              }).then(r => {
+                if (r.isConfirmed) {
+                  window.location.href = '@Url.Action("Cerrar", "Caja")/' + encodeURIComponent(sesionId);
+                }
+              });
+            });
+          }
+        })();
     </script>
 }

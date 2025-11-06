@@ -108,5 +108,59 @@
             if (ok)  Swal.fire({icon:'success',title:ok,timer:2600,showConfirmButton:false});
             if (err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
         })();
+        (function () {
+          const form   = document.getElementById('frmCerrar');
+          const btn    = document.getElementById('btnCerrar');
+          const sesion = document.getElementById('CajaSesionId') || document.querySelector('[name="CajaSesionId"]');
+          const user   = document.getElementById('UsuarioId')    || document.querySelector('[name="UsuarioId"]');
+          // Observaciones es opcional; si quisieras volverlo obligatorio, descomenta la línea marcada.
+
+          function evalReady() {
+            const okSesion = !!(sesion && (sesion.value||'').trim().length > 0);
+            const okUser   = !!(user   && (user.value  ||'').trim().length > 0);
+            // const obs     = document.getElementById('Observaciones') || document.querySelector('[name="Observaciones"]');
+            // const okObs   = !!(obs && (obs.value || '').trim().length > 0);
+            const ready = okSesion && okUser; // && okObs si quieres forzar observaciones
+
+            if (btn) {
+              btn.disabled = !ready;
+              btn.classList.toggle('enabled', ready);
+              btn.setAttribute('aria-disabled', String(!ready));
+              btn.title = ready ? 'Cerrar caja' : 'Complete los datos requeridos';
+            }
+          }
+
+          // Primera evaluación
+          evalReady();
+
+          // Re-evaluaciones por si algo cambia (user/sesion normalmente hidden)
+          [sesion, user].forEach(el => el && el.addEventListener('input', evalReady));
+
+          // Confirmación + envío
+          if (form) {
+            form.addEventListener('submit', function (e) {
+              if (btn && btn.disabled) {
+                e.preventDefault();
+                Swal.fire({ icon:'warning', title:'Campos incompletos', text:'No se puede cerrar aún.' });
+                return;
+              }
+              e.preventDefault();
+              // Trata de obtener el saldo de la pantalla para mostrarlo en el modal
+              const saldoRaw = (document.getElementById('SaldoFinal') || document.querySelector('[name="SaldoFinal"]') || { value: '@Model?.SaldoFinal' }).value ?? '@Model?.SaldoFinal';
+              const saldo = Number(String(saldoRaw).replace(',', '.')) || 0;
+
+              Swal.fire({
+                icon:'question',
+                title:'¿Cerrar caja?',
+                html:`Saldo final: <b>Q ${saldo.toFixed(2)}</b>`,
+                showCancelButton:true,
+                confirmButtonText:'Cerrar',
+                cancelButtonText:'Revisar'
+              }).then(r => {
+                if (r.isConfirmed) form.submit();
+              });
+            });
+          }
+        })();
     </script>
 }

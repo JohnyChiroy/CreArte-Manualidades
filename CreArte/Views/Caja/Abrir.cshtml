@@ -82,7 +82,70 @@
             input.addEventListener('wheel',  e => e.preventDefault(), {passive:false});
           }
         })();
+                (function () {
+          const form    = document.getElementById('frmAbrir');
+          const btn     = document.getElementById('btnAbrir');
+          const usuario = document.getElementById('UsuarioId') || document.querySelector('[name="UsuarioId"]');
+          const monto   = document.getElementById('MontoInicial') || document.querySelector('[name="MontoInicial"]');
 
+          function evalReady() {
+            const okUser  = !!(usuario && (usuario.value || '').trim().length > 0);
+
+            let okMonto = false;
+            if (monto) {
+              const raw = ((monto.value ?? '') + '').replace(',', '.');
+              const num = Number(raw);
+              okMonto = raw.length > 0 && !Number.isNaN(num) && num >= 0;
+            }
+
+            const ready = okUser && okMonto;
+
+            if (btn) {
+              btn.disabled = !ready;
+              btn.classList.toggle('enabled', ready);
+              btn.setAttribute('aria-disabled', String(!ready));
+              btn.title = ready ? 'Abrir caja' : 'Complete los campos obligatorios';
+            }
+          }
+
+          // Eventos
+          if (monto)   monto.addEventListener('input',  evalReady);
+          if (usuario) usuario.addEventListener('input', evalReady);
+
+          // Primera evaluación al cargar
+          evalReady();
+
+          // Reforzar en el submit (no enviar si no está listo)
+          if (form) {
+            form.addEventListener('submit', function (e) {
+              // Si el botón está deshabilitado, no enviamos
+              if (btn && btn.disabled) {
+                e.preventDefault();
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Campos incompletos',
+                  text: 'Verifica el usuario y el monto inicial (debe ser un número mayor o igual a 0).'
+                });
+                return;
+              }
+
+              // Tu confirmación existente
+              e.preventDefault();
+              const val = ((monto?.value ?? '0') + '').replace(',', '.');
+              const num = Number(val);
+              Swal.fire({
+                icon: 'question',
+                title: '¿Abrir caja?',
+                html: `Monto inicial: <b>Q ${Number.isFinite(num) ? num.toFixed(2) : '0.00'}</b>`,
+                showCancelButton: true,
+                confirmButtonText: 'Abrir',
+                cancelButtonText: 'Cancelar'
+              }).then(r => {
+                if (r.isConfirmed) form.submit();
+              });
+            });
+          }
+        })();
         // Confirmación
         document.getElementById('frmAbrir').addEventListener('submit', function(e){
           e.preventDefault();
