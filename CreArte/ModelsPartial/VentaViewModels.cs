@@ -151,6 +151,8 @@ namespace CreArte.ModelsPartial
         //public string? Observaciones { get; set; }
         public decimal Total { get; set; }
         public bool Estado { get; set; }   // true = activa, false = anulada
+        public string? MetodoPago { get; set; }
+
         public List<VentaLineaVM> Lineas { get; set; } = new();
     }
 
@@ -169,4 +171,23 @@ namespace CreArte.ModelsPartial
         // Combos
         public List<SelectListItem> MetodosPagoCombo { get; set; } = new();
     }
+    public class ReciboVentaVM
+    {
+        public string VentaId { get; set; } = null!;
+        public DateTime Fecha { get; set; }
+        public string ClienteNombre { get; set; } = "";
+        public string UsuarioNombre { get; set; } = "";
+        public string MetodoPago { get; set; } = "";
+        public decimal MontoPagado { get; set; }
+        public decimal Total { get; set; }
+        public List<ReciboLineaVM> Lineas { get; set; } = new();
+    }
+    public class ReciboLineaVM
+    {
+        public string Producto { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Subtotal { get; set; }
+    }
+
 }

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Rotativa.AspNetCore;
 
 namespace CreArte.Controllers
 {
@@ -224,7 +225,17 @@ namespace CreArte.Controllers
                                    ).Trim(),
                                    UsuarioNombre = u.USUARIO_NOMBRE ?? u.USUARIO_ID,
                                    Total = v.TOTAL,
-                                   Estado = v.ESTADO
+                                   Estado = v.ESTADO,
+
+                                   MetodoPago = (
+                           from r in _db.RECIBO
+                               // si existe catálogo METODO_PAGO, intenta obtener el nombre:
+                           join mp in _db.METODO_PAGO on r.METODO_PAGO_ID equals mp.METODO_PAGO_ID into mpj
+                           from mp in mpj.DefaultIfEmpty()
+                           where r.VENTA_ID == v.VENTA_ID && r.ESTADO == true
+                           orderby r.FECHA descending
+                           select (mp != null ? mp.METODO_PAGO_NOMBRE : r.METODO_PAGO_ID)
+                       ).FirstOrDefault()
                                }).FirstOrDefaultAsync();
 
             if (venta == null)
@@ -469,6 +480,7 @@ namespace CreArte.Controllers
                 await trx.CommitAsync(ct);
 
                 TempData["ok"] = $"Venta {venta.VENTA_ID} registrada (Q{venta.TOTAL:N2}).";
+                TempData["ventaId"] = venta.VENTA_ID;
                 return RedirectToAction(nameof(Index));
             }
             catch (DbUpdateException ex)
@@ -824,6 +836,60 @@ namespace CreArte.Controllers
                 TempData["error"] = "Error al revertir la venta: " + ex.Message;
                 return RedirectToAction(nameof(Index));
             }
+        }
+        [HttpGet]
+        public async Task<IActionResult> Recibo(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return NotFound();
+
+            // Cabecera + cliente + usuario
+            var venta = await (from v in _db.VENTA
+                               join c in _db.CLIENTE on v.CLIENTE_ID equals c.CLIENTE_ID
+                               join p in _db.PERSONA on c.CLIENTE_ID equals p.PERSONA_ID
+                               join u in _db.USUARIO on v.USUARIO_ID equals u.USUARIO_ID
+                               where v.VENTA_ID == id
+                               select new ReciboVentaVM
+                               {
+                                   VentaId = v.VENTA_ID,
+                                   Fecha = v.FECHA,
+                                   ClienteNombre = ((p.PERSONA_PRIMERNOMBRE ?? "") + " " + (p.PERSONA_PRIMERAPELLIDO ?? "")).Trim(),
+                                   UsuarioNombre = u.USUARIO_NOMBRE ?? v.USUARIO_ID,
+                                   Total = v.TOTAL
+                               }).FirstOrDefaultAsync();
+
+            if (venta == null) return NotFound();
+
+            // Líneas
+            venta.Lineas = await (from d in _db.DETALLE_VENTA
+                                  join prod in _db.PRODUCTO on d.PRODUCTO_ID equals prod.PRODUCTO_ID
+                                  where d.VENTA_ID == id
+                                  select new ReciboLineaVM
+                                  {
+                                      Producto = prod.PRODUCTO_NOMBRE ?? d.PRODUCTO_ID,
+                                      Cantidad = d.CANTIDAD,
+                                      PrecioUnitario = d.PRECIO_UNITARIO,
+                                      Subtotal = d.SUBTOTAL ?? (decimal)(d.CANTIDAD * d.PRECIO_UNITARIO)
+                                  }).ToListAsync();
+
+            // Método de pago (del último recibo asociado)
+            var mp = await _db.RECIBO
+                .Where(r => r.VENTA_ID == id && r.ESTADO == true)
+                .OrderByDescending(r => r.FECHA)
+                .Select(r => new { r.METODO_PAGO_ID, r.MONTO })
+                .FirstOrDefaultAsync();
+
+            venta.MetodoPago = mp?.METODO_PAGO_ID ?? "EFECTIVO";
+            venta.MontoPagado = mp?.MONTO ?? venta.Total;
+
+            // PDF
+            return new Rotativa.AspNetCore.ViewAsPdf("ReciboVenta", venta)
+            {
+                FileName = $"Recibo_{venta.VentaId}.pdf",
+                PageMargins = new Rotativa.AspNetCore.Options.Margins(15, 10, 15, 10),
+                PageSize = Rotativa.AspNetCore.Options.Size.A5,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait
+            };
         }
     }
 }

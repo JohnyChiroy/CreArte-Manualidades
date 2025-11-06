@@ -1,1 +1,355 @@
-﻿
+﻿@using CreArte.ModelsPartial
+@model ReciboVentaVM
+@{
+    Layout = null;
+
+    // ========= Metadatos del recibo =========
+    var titulo = $"Recibo de Venta";
+    var logoUrl = Url.Content("~/Imagenes/logoCreArte.png");
+    var empresaInfo = "CreArte Manualidades";
+
+    // ========= Derivados (cálculos UI) =========
+    // Cambio/Vuelto: si pagado >= total, mostrar; si no, ocultar
+    var cambio = Model.MontoPagado - Model.Total;
+    var mostrarCambio = cambio >= 0m;
+
+    // Conteo de ítems (líneas)
+    var totalItems = Model.Lineas?.Count ?? 0;
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo - @Model.VentaId</title>
+    <style>
+        /* ================= Reset seguro PDF ================= */
+        * {
+            box-sizing: border-box
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            color: black;
+            line-height: 1.35
+        }
+
+        /* ================= Header minimal (copiado/adaptado) ================= */
+        .header {
+            color: black;
+            padding: 10px 10px;
+            border-radius: 5px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse
+        }
+
+            .header-table td {
+                border: 0;
+                vertical-align: middle;
+                background: transparent !important;
+            }
+
+        .h-left {
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: .3px
+        }
+
+        .h-sub {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .h-right {
+            width: 70px;
+            text-align: right
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .logo {
+            width: 110px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            display: inline-block;
+            border-radius: 8px;
+        }
+
+        /* ================= Contenedor (igual que en Áreas) ================= */
+        .container {
+            padding: 12px 18px 14px 18px
+        }
+
+        /* ================= Chips / Etiquetas ================= */
+        .chips {
+            margin: 2px 0 6px 0
+        }
+
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            border-radius: 999px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0
+        }
+
+        .chip--ok {
+            background: #F5FFD1;
+            border-color: #E6F4AA
+        }
+        /* éxito */
+        .chip--no {
+            background: #FFE6EE;
+            border-color: #F5B4C8
+        }
+        /* alerta */
+        .chip--info {
+            background: #E6F7FF;
+            border-color: #BDEBFF
+        }
+        /* informativo */
+
+        /* ================= Rango/placa (reaprovechada para ID y fecha) ================= */
+        .range {
+            display: inline-block;
+            background: #F2B90F;
+            color: black;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid #EAC34B;
+            margin: 0 0 6px 0
+        }
+
+        /* ================= Tabla de líneas (copiada/adaptada) ================= */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 6px
+        }
+
+        th, td {
+            padding: 9px 10px;
+            vertical-align: top;
+            text-align: left;
+            border-bottom: 1px solid #C5D930;
+        }
+
+        thead th {
+            background: #C5D930;
+            color: black;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+            thead th:first-child {
+                border-top-left-radius: 7px
+            }
+
+            thead th:last-child {
+                border-top-right-radius: 7px
+            }
+
+        .right {
+            text-align: right
+        }
+
+        .center {
+            text-align: center
+        }
+
+        .nowrap {
+            white-space: nowrap
+        }
+
+        /* ================= Badges (si los necesitas) ================= */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
+
+        .badge--ok {
+            background: #03C1FF;
+            color: white;
+        }
+        /* acento celeste */
+        .badge--no {
+            background: #FF007D;
+            color: #fff;
+        }
+        /* acento magenta */
+
+        /* ================= Bloque Totales (copiado/adaptado) ================= */
+        .totals {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #C5D930;
+            color: black;
+            font-weight: bold
+        }
+
+            .totals .label {
+                font-weight: 800;
+            }
+
+            .totals .ok {
+                color: #03C1FF
+            }
+            /* resalta monto pagado */
+            .totals .no {
+                color: #FF007D
+            }
+        /* resalta saldo/cambio si aplica */
+        .totline {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+
+        /* ================= Bloques de datos clave ================= */
+        .kv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            /* margin: 8px 0 4px 0; */
+        }
+
+        .kv {
+            /* background: #FBFBFB; */
+            /* border: 1px solid #C5D930; */
+            border-radius: 8px;
+            padding: 6px 8px;
+        }
+
+            .kv b {
+                display: inline-block;
+                min-width: 110px;
+            }
+
+        /* ================= Nota / Footer ================= */
+        .note {
+            margin-top: 8px;
+            font-size: 10px;
+            color: black;
+            text-align: center;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(197,217,48,.0), rgba(197,217,48,1), rgba(197,217,48,.0));
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= Header ================= -->
+    <header class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <div class="h-left">@titulo</div>
+                    <div class="h-sub">
+                        @empresaInfo
+                        · Venta: <b>@Model.VentaId</b>
+                        · @Model.Fecha.ToString("dd/MM/yyyy HH:mm:ss")
+                    </div>
+                </td>
+                <td class="h-right">
+                    <span class="logo"><img src="@logoUrl" alt="Logo" /></span>
+                </td>
+            </tr>
+        </table>
+    </header>
+
+    <main class="container">
+
+        <!-- ================= Datos clave en grilla ================= -->
+        <section class="totals">
+            <div class="kv"><b>Cliente:</b> @Model.ClienteNombre</div>
+            <div class="kv"><b>Atendido por:</b> @Model.UsuarioNombre</div>
+            <div class="kv"><b>Método de pago:</b> @Model.MetodoPago</div>
+            <div class="kv"><b>Monto pagado:</b> Q @Model.MontoPagado.ToString("N2")</div>
+        </section>
+
+        <div class="divider"></div>
+
+        <!-- ================= Tabla de líneas ================= -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-center">Producto</th>
+                    <th class="right nowrap">Cantidad</th>
+                    <th class="right nowrap">Precio</th>
+                    <th class="right nowrap">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Lineas != null && Model.Lineas.Any())
+                {
+                    foreach (var l in Model.Lineas)
+                    {
+                        <tr>
+                            <td>@l.Producto</td>
+                            <td class="right">@l.Cantidad</td>
+                            <td class="right">Q @l.PrecioUnitario.ToString("N2")</td>
+                            <td class="right">Q @l.Subtotal.ToString("N2")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td class="center" colspan="4" style="padding:16px;">No hay líneas para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- ================= Totales ================= -->
+        <section class="totals">
+            <div class="totline">
+                <span class="label">Total de Venta: </span>
+                <span>Q @Model.Total.ToString("N2")</span>
+            </div>
+            <div class="totline">
+                <span class="label">Monto recibido: </span>
+                <span class="ok">Q @Model.MontoPagado.ToString("N2")</span>
+            </div>
+
+            @if (mostrarCambio)
+            {
+                <div class="totline">
+                    <span class="label">Cambio: </span>
+                    <span class="no">Q @cambio.ToString("N2")</span>
+                </div>
+            }
+        </section>
+
+        <!-- ================= Nota / Footer ================= -->
+        <div class="note">
+            CreArte Manualidades · Muchas gracias por su compra · Recibo generado @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+        </div>
+    </main>
+</body>
+</html>

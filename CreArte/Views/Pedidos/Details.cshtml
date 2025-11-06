@@ -8,6 +8,147 @@
 
 @section Styles {
     <style>
+        /* ============================================================
+                   Estilos “heredados” de Ventas/Compras, adaptados a PEDIDOS
+                   ============================================================ */
+
+        /* ======== Grid de resumen (stats) ======== */
+        .ua-summary {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        @@media (max-width: 1200px) {
+            .ua-summary {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .ua-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @@media (max-width: 576px) {
+            .ua-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ua-stat {
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* Paleta por tarjeta, alineada a las otras vistas */
+        .cuadro-Cliente {
+            background: #03C1FF;
+            color: white;
+        }
+
+        .cuadro-Estado {
+            background: #332973;
+            color: white;
+        }
+
+        .cuadro-Fechas {
+            background: #23B6B1;
+            color: white;
+        }
+
+        .cuadro-Antic {
+            background: #FF007D;
+            color: white;
+        }
+
+        .cuadro-Total {
+            background: #F2B90F;
+            color: black;
+        }
+        /* fondo claro → texto oscuro */
+
+        .ua-stat .caption {
+            font-size: .8rem;
+            color: inherit;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        .ua-stat .value {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .ua-stat .sub {
+            font-size: .8rem;
+            color: inherit;
+        }
+
+        /* ======== Tabla con encabezado redondeado ======== */
+        .ua-table-container {
+            margin-top: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .ua-table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+
+            .ua-table thead th {
+                background: #C5D930; /* color de encabezado */
+                color: black;
+                font-weight: 700;
+                text-transform: uppercase;
+                padding: 5px 5px;
+                border: none;
+            }
+
+            .ua-table thead tr:first-child th:first-child {
+                border-top-left-radius: 10px;
+            }
+
+            .ua-table thead tr:first-child th:last-child {
+                border-top-right-radius: 10px;
+            }
+
+            .ua-table tbody td {
+                border-top: 1px solid #e5e7eb;
+                background: #fff;
+                vertical-align: middle;
+                padding: 8px 12px;
+            }
+
+            .ua-table tfoot td {
+                background: #f9fafb;
+                border-top: 2px solid #e5e7eb;
+                font-weight: 600;
+                padding: 10px 12px;
+            }
+
+        /* Miniaturas de imagen */
+        .ua-img-thumb-fila-details {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #f8f9fa;
+        }
+
+        /* k/v mini (usado en Observaciones) */
         .ua-kv-mini .lbl {
             font-size: .8rem;
             color: #6b7280;
@@ -19,28 +160,19 @@
             font-weight: 600
         }
 
+        /* Totales al pie (tabla) */
         tfoot td {
             font-weight: 600
-        }
-
-        .ua-img-thumb-fila-details {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            object-position: center;
-            border-radius: 6px;
-            border: 1px solid #e5e7eb
         }
     </style>
 }
 
 <div class="ua-card">
-    <!-- ========================= TOOLBAR ========================= -->
+    <!-- ========================= TOOLBAR (mantengo tu lógica) ========================= -->
     <div class="ua-toolbar">
-        <h2 class="m-0">Detalle Pedido @Model.PedidoId</h2>
+        <h2 class="m-0">Pedido @Model.PedidoId</h2>
 
         <div class="d-flex align-items-center gap-2">
-
             @* ======== BORRADOR ======== *@
             @if (Model.EstadoId == "BORRADOR")
             {
@@ -53,7 +185,6 @@
                         </button>
                     </form>
                 }
-                @* (Cancelar ya NO aplica en BORRADOR) *@
             }
 
             @* ======== COTIZADO ======== *@
@@ -84,12 +215,11 @@
                     <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
                           onsubmit="return confirm('Confirmar pago de anticipo');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn-pago">
+                        <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
                         </button>
                     </form>
                 }
-                @* (Cancelar ya NO aplica en COTIZADO) *@
             }
 
             @* ======== APROBADO ======== *@
@@ -110,7 +240,7 @@
                     <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
                           onsubmit="return confirm('Confirmar pago de anticipo');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn-pago">
+                        <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
                         </button>
                     </form>
@@ -145,7 +275,7 @@
                     <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
                           onsubmit="return confirm('Confirmar pago de anticipo');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn-pago">
+                        <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
                         </button>
                     </form>
@@ -176,129 +306,118 @@
                     </form>
                 }
             }
-
             @* ENTREGADO / CANCELADO / RECHAZADO: sin acciones *@
         </div>
     </div>
 
-    <!-- ========================= Encabezado ========================= -->
-    <div class="ua-row" style="margin-top:12px;">
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Cliente</div>
-                <div class="val">@Model.ClienteNombre</div>
-            </div>
+    <!-- ========================= RESUMEN (tarjetas) ========================= -->
+    <div class="ua-summary">
+        <!-- Cliente -->
+        <div class="ua-stat">
+            <div class="caption">Cliente</div>
+            <div class="value">@Model.ClienteNombre</div>
         </div>
 
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Estado</div>
-                <div class="val">
-                    <span class="badge bg-@GetEstadoClass(Model.EstadoId)">@Model.EstadoId</span>
-                </div>
-            </div>
+        <!-- Fechas -->
+        <div class="ua-stat">
+            <div class="caption">Fecha Pedido</div>
+            <div class="value">@Model.FechaPedido.ToString("dd/MM/yyyy")</div>
+            <div class="caption">Fecha Entrega</div>
+            <div class="value">@((Model.FechaEntrega?.ToString("dd/MM/yyyy")) ?? "-")</div>
         </div>
 
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Fecha Pedido</div>
-                <div class="val">@Model.FechaPedido.ToString("dd/MM/yyyy")</div>
+        <!-- Estado -->
+        <div class="ua-stat">
+            <div class="caption">Estado</div>
+            <div class="value">
+                <span class="badge bg-@GetEstadoClass(Model.EstadoId)">@Model.EstadoId</span>
             </div>
-        </div>
 
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Fecha Entrega</div>
-                <div class="val">@Model.FechaEntrega?.ToString("dd/MM/yyyy")</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Observaciones -->
-    <div class="ua-row" style="margin-top:8px;">
-        <div class="ua-field" style="flex:1 1 100%;">
-            <div class="ua-kv-mini">
-                <div class="lbl">Observaciones</div>
-                <div class="val">@(Model.Observaciones ?? "-")</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anticipo / Total -->
-    <div class="ua-row" style="margin-top:8px;">
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Anticipo</div>
-                <div class="val">
-                    @if (Model.RequiereAnticipo)
-                    {
-                        <span class="badge @(Model.AnticipoEstado == "PAGADO" ? "bg-success" :
-                                                                           Model.AnticipoEstado == "DEVUELTO" ? "bg-info text-dark" :
-                                                                           "bg-warning text-dark")">
-                        @Model.AnticipoEstado
-                    </span>
-                    <span class="ms-2">Mínimo: Q @Model.AnticipoMinimo.ToString("N2")</span>
-                                        }
-                    else
-                    {
-                        <span class="badge bg-secondary">NO APLICA</span>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Total Pedido</div>
-                <div class="val text-primary">Q @Model.TotalPedido.ToString("N2")</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================= LÍNEAS ========================= -->
-    <div class="table-responsive">
-        <table class="table table-sm align-middle ua-table">
-            <thead class="table-light">
-                <tr>
-                    <th>Código</th>
-                    <th>Producto</th>
-                    <th class="text-center">Imagen</th>
-                    <th class="text-center">Cantidad</th>
-                    <th class="text-center">Precio</th>
-                    <th class="text-end">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var l in Model.Lineas)
+            <div class="caption">Anticipo</div>
+            <div class="value">
+                @if (Model.RequiereAnticipo)
                 {
-                    <tr>
-                        <td>@l.ProductoId</td>
-                        <td>@l.ProductoNombre</td>
-                        <td class="text-center">
-                            @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
-                            {
-                                <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
-                            }
-                            else
-                            {
-                                <span>—</span>
-                            }
-                        </td>
-                        <td class="text-center">@l.Cantidad</td>
-                        <td class="text-center">@l.PrecioPedido.ToString("N2")</td>
-                        <td class="text-end">@l.Subtotal.ToString("N2")</td>
-                    </tr>
+                    <span class="badge @(Model.AnticipoEstado == "PAGADO" ? "bg-cargada" :
+                                                                                            Model.AnticipoEstado == "DEVUELTO" ? "bg-cerra text-dark" :
+                                                                                            "bg-envi text-dark")">
+                    @Model.AnticipoEstado
+                </span>
+                <span class="ms-2">Q @Model.AnticipoMinimo.ToString("N2")</span>
+                                }
+                else
+                {
+                    <span class="badge bg-revi">NO APLICA</span>
                 }
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="4" class="text-end fw-bold">Total:</td>
-                    <td colspan="2" class="text-end fw-bold text-primary">
-                        Q @Model.TotalPedido.ToString("N2")
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
+            </div>
+            @* <div class="sub">Flujo: BORRADOR → COTIZADO → APROBADO → EN_PRODU → TERMINADO → ENTREGADO / CANCELADO / RECHAZADO</div> *@
+        </div>
+
+
+        <!-- Total del Pedido -->
+        <div class="ua-stat">
+            <div class="caption">Total Pedido</div>
+            <div class="value">Q @Model.TotalPedido.ToString("N2")</div>
+            <div class="sub">Suma de líneas solicitadas</div>
+        </div>
+        <!-- ========================= OBSERVACIONES ========================= -->
+        @* <div class="ua-stat"> *@
+            <div style="margin-top:8px;">
+                <div class="ua-field" style="flex:1 1 100%;">
+                    <div class="ua-kv-mini">
+                        <div class="lbl">Observaciones</div>
+                        <div class="val">@(Model.Observaciones ?? "-")</div>
+                    </div>
+                </div>
+            </div>
+        @* </div> *@
+    </div>
+
+    <!-- ========================= DETALLE DE LÍNEAS ========================= -->
+    <div class="ua-table-container">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle ua-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-center">Imagen</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Precio</th>
+                        <th class="text-end">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.Lineas)
+                    {
+                        <tr>
+                            <td>@l.ProductoId</td>
+                            <td>@l.ProductoNombre</td>
+                            <td class="text-center">
+                                @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
+                                {
+                                    <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="text-center">@l.Cantidad</td>
+                            <td class="text-center">@l.PrecioPedido.ToString("N2")</td>
+                            <td class="text-end">@l.Subtotal.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end fw-bold">Total:</td>
+                        <td colspan="2" class="text-end fw-bold text-primary">
+                            Q @Model.TotalPedido.ToString("N2")
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
 
     <!-- ========================= ACCIONES FINALES ========================= -->
@@ -310,16 +429,17 @@
 </div>
 
 @functions {
+    /* Mapeo de estado → clase de badge (se respeta tu convención) */
     private string GetEstadoClass(string estado) => estado switch
     {
         "BORRADOR" => "secondary",
-        "COTIZADO" => "info text-dark",
-        "APROBADO" => "primary",
-        "EN_PRODU" => "warning text-dark",
-        "TERMINADO" => "success",
-        "ENTREGADO" => "success",
-        "CANCELADO" => "danger",
-        "RECHAZADO" => "danger",
+        "COTIZADO" => "revi",
+        "APROBADO" => "apro",
+        "EN_PRODU" => "envi",
+        "TERMINADO" => "confi",
+        "ENTREGADO" => "reci",
+        "CANCELADO" => "anu",
+        "RECHAZADO" => "anu",
         _ => "light text-dark"
     };
 }

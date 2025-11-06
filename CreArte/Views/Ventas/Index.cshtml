@@ -448,10 +448,94 @@
     }
 
     // Toasts
-    const ok = '@(TempData["ok"] ?? "")';
-    const err = '@(TempData["err"] ?? "")';
-    if(ok)  Swal.fire({icon:'success', title: ok, timer: 2800, showConfirmButton:false});
-    if(err) Swal.fire({icon:'error',   title: err, timer: 2800, showConfirmButton:false});
+(function () {
+        const ok  = '@(TempData["ok"] ?? "")';
+        const err = '@(TempData["error"] ?? "")';
+        const vid = '@(TempData["ventaId"] ?? "")';
+
+        if (ok) Swal.fire({ icon:'success', title: ok, timer: 800, showConfirmButton:false });
+        if (err) Swal.fire({ icon:'error', title: err, timer: 2800, showConfirmButton:false });
+
+        if (vid) {
+            // Inyecta estilos de la paleta una sola vez
+            (function injectSwalCreArteStyles(){
+                if (document.getElementById('swal-crearte-styles')) return;
+                const css = `
+                .swal-crearte .swal2-title{
+                    color:#242259; font-weight:800; letter-spacing:.5px;
+                }
+                .swal-crearte .ua-actions{
+                    display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:10px;
+                }
+                .swal-crearte .ua-btn-generar {
+                    background: #C5D930;
+                    color: black;
+                    border: none;
+                    border-radius: 14px;
+                    padding: 10px 16px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+                    margin-right: 30px; /*espacio entre botones*/
+                }
+                .swal-crearte .ua-btn-generar:hover{ background: #D1E632;; transform:translateY(-1px); }
+                .swal-crearte     .ua-btn-vista {
+                    background: #F2B90F;
+                    color: black;
+                    border: none;
+                    border-radius: 14px;
+                    padding: 10px 16px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+                    margin-right: 30px; /*espacio entre botones*/
+                 }
+                .swal-crearte .ua-btn-vista:hover{ background:#FFEA00; transform:translateY(-1px); }
+                .swal-crearte .swal2-icon.swal2-info{
+                    border-color:#C5D930; color:#C5D930; box-shadow:inset 0 0 0 4px #C5D930;
+                }`;
+                const style = document.createElement('style');
+                style.id = 'swal-crearte-styles';
+                style.textContent = css;
+                document.head.appendChild(style);
+            })();
+
+            setTimeout(() => {
+                const urlRecibo = '@Url.Action("Recibo","Ventas")' + '?id=' + encodeURIComponent(vid);
+                const urlDetails = '@Url.Action("Details","Ventas")' + '/' + encodeURIComponent(vid);
+
+                Swal.fire({
+                    title: 'Pago confirmado',
+                    html: `
+                        <p class="mb-2">La venta se registró correctamente.</p>
+                        <div class="ua-actions">
+                            <a href="${urlRecibo}" target="_blank" class="ua-btn-generar">
+                                <i class="bi bi-file-earmark-pdf"></i> Generar Recibo
+                            </a>
+                            <a href="${urlDetails}" class="ua-btn-vista">
+                                <i class="bi bi-eye"></i> Ver venta
+                            </a>
+                        </div>
+                    `,
+                    icon: 'info',
+                    iconColor: '#C5D930',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    allowOutsideClick: false,
+                    width: 470,
+                    customClass: { popup: 'swal-crearte' }
+                });
+            }, 850);
+        }
+    })();
 })();
 </script>
 }

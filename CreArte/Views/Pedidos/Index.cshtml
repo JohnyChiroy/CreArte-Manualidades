@@ -137,8 +137,49 @@
                         </div>
                     </th>
 
-                    <!-- FECHA SOLICITUD (ordenable + popover rango) -->
+                    <!-- CLIENTE (ordenable + popover texto) -->
                     <th style="width:260px;">
+                        <div class="ua-th ua-popover-wrap">
+                            @{
+                                var next_cli = NextDir("cliente", Model.Sort ?? "fecha", Model.Dir ?? "desc");
+                                var href_cli = Url.Action("Index", "Pedidos", new {
+                                    Search = Model.Search,
+                                    Cliente = Context.Request.Query["Cliente"].ToString(),
+                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
+                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
+                                    Estado = Model.Estado,
+                                    RequiereAnticipo = Model.RequiereAnticipo,
+                                    AnticipoEstado = Model.AnticipoEstado,
+                                    TotalMin = Model.TotalMin,
+                                    TotalMax = Model.TotalMax,
+                                    Sort = "cliente",
+                                    Dir  = next_cli,
+                                    Page = 1,
+                                    PageSize = Model.PageSize
+                                });
+                                var isActive_cli = (Model.Sort ?? "fecha").Equals("cliente", StringComparison.OrdinalIgnoreCase);
+                            }
+                            <a class="ua-sort @(isActive_cli ? "" : "inactive")" href="@href_cli">
+                                <span class="ua-title">CLIENTE</span>
+                                <span class="ua-arrow">@Arrow("cliente", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
+                            </a>
+
+                            <button type="button" class="ua-filter-btn" data-pop="popCliente" title="Filtrar cliente">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            </button>
+                            <div id="popCliente" class="ua-popover" aria-hidden="true" tabindex="-1">
+                                <input class="ua-input" type="text" id="fCliente" placeholder="Nombre del cliente…"
+                                       value="@(Context.Request.Query["Cliente"])" />
+                                <div class="ua-pop-actions">
+                                    <button type="button" class="ua-btn-sm" onclick="uaClearCliente()">Limpiar</button>
+                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyCliente()">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+
+                    <!-- FECHA SOLICITUD (ordenable + popover rango) -->
+                    <th style="width:120px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_fecha = NextDir("fecha", Model.Sort ?? "fecha", Model.Dir ?? "desc");
@@ -181,55 +222,14 @@
                     </th>
 
                     <!-- FECHA ENTREGA (solo mostrar) -->
-                    <th style="width:160px;">
+                    <th style="width:130px;">
                         <div class="ua-th">
                             <span class="ua-title">ENTREGA</span>
                         </div>
                     </th>
-
-                    <!-- CLIENTE (ordenable + popover texto) -->
-                    <th>
-                        <div class="ua-th ua-popover-wrap">
-                            @{
-                                var next_cli = NextDir("cliente", Model.Sort ?? "fecha", Model.Dir ?? "desc");
-                                var href_cli = Url.Action("Index", "Pedidos", new {
-                                    Search = Model.Search,
-                                    Cliente = Context.Request.Query["Cliente"].ToString(),
-                                    Desde = Model.Desde?.ToString("yyyy-MM-dd"),
-                                    Hasta = Model.Hasta?.ToString("yyyy-MM-dd"),
-                                    Estado = Model.Estado,
-                                    RequiereAnticipo = Model.RequiereAnticipo,
-                                    AnticipoEstado = Model.AnticipoEstado,
-                                    TotalMin = Model.TotalMin,
-                                    TotalMax = Model.TotalMax,
-                                    Sort = "cliente",
-                                    Dir  = next_cli,
-                                    Page = 1,
-                                    PageSize = Model.PageSize
-                                });
-                                var isActive_cli = (Model.Sort ?? "fecha").Equals("cliente", StringComparison.OrdinalIgnoreCase);
-                            }
-                            <a class="ua-sort @(isActive_cli ? "" : "inactive")" href="@href_cli">
-                                <span class="ua-title">CLIENTE</span>
-                                <span class="ua-arrow">@Arrow("cliente", Model.Sort ?? "fecha", Model.Dir ?? "desc")</span>
-                            </a>
-
-                            <button type="button" class="ua-filter-btn" data-pop="popCliente" title="Filtrar cliente">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
-                            </button>
-                            <div id="popCliente" class="ua-popover" aria-hidden="true" tabindex="-1">
-                                <input class="ua-input" type="text" id="fCliente" placeholder="Nombre del cliente…"
-                                       value="@(Context.Request.Query["Cliente"])" />
-                                <div class="ua-pop-actions">
-                                    <button type="button" class="ua-btn-sm" onclick="uaClearCliente()">Limpiar</button>
-                                    <button type="button" class="ua-btn-sm primary" onclick="uaApplyCliente()">Aplicar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </th>
                                         
                     <!-- TOTAL (ordenable + popover rango) -->
-                    <th class="text-end" style="width:220px;">
+                    <th class="text-end" style="width:120px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_total = NextDir("total", Model.Sort ?? "fecha", Model.Dir ?? "desc");
@@ -272,7 +272,7 @@
                     </th>
 
                     <!-- ANTICIPO (ordenable + popover requiere/estado) -->
-                    <th style="width:220px;">
+                    <th style="width:120px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_anti = NextDir("anticipo", Model.Sort ?? "fecha", Model.Dir ?? "desc");
@@ -329,7 +329,7 @@
                     </th>
 
                     <!-- ESTADO (ordenable + popover select) -->
-                    <th style="width:180px;">
+                    <th style="width:130px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_estado = NextDir("estado", Model.Sort ?? "fecha", Model.Dir ?? "desc");
@@ -386,9 +386,9 @@
                             <input type="checkbox" class="form-check-input ua-rowchk" value="@it.PedidoId" />
                         </td>
                         <td>@it.PedidoId</td>
+                        <td>@it.ClienteNombre</td>
                         <td>@it.FechaPedido.ToString("dd/MM/yyyy")</td>
                         <td>@(it.FechaEntrega.HasValue ? it.FechaEntrega.Value.ToString("dd/MM/yyyy") : "—")</td>
-                        <td>@it.ClienteNombre</td>
                         <td class="text-end">Q @it.TotalPedido.ToString("N2")</td>
                         <td>
                             @if (it.RequiereAnticipo)
@@ -396,17 +396,17 @@
                                 switch (it.AnticipoEstado)
                                 {
                                     case "PAGADO":
-                                        <span class="badge bg-success">PAGADO</span>;
+                                        <span class="badge bg-cargada">PAGADO</span>;
                                         break;
                                     case "DEVUELTO":
-                                        <span class="badge bg-info text-dark">DEVUELTO</span>;
+                                        <span class="badge bg-cerra text-dark">DEVUELTO</span>;
                                         break;
                                     case "NO APLICA":
-                                        <span class="badge bg-secondary">NO APLICA</span>;
+                                        <span class="badge bg-revi">NO APLICA</span>;
                                         break;
                                     case "PENDIENTE":
                                     default:
-                                        <span class="badge bg-warning text-dark">PENDIENTE</span>;
+                                        <span class="badge bg-envi text-dark">PENDIENTE</span>;
                                         break;
                                 }
                             }
@@ -418,15 +418,15 @@
 
                         <td>
                             <span class="badge @(it.EstadoPedidoId switch {
-                                "BORRADOR"   => "bg-secondary",
-                                "COTIZADO"   => "bg-info text-dark",
-                                "APROBADO"   => "bg-primary",
-                                "EN_PRODU"   => "bg-warning text-dark",
-                                "TERMINADO"  => "bg-success",
-                                "ENTREGADO"  => "bg-success",
-                                "CANCELADO"  => "bg-danger",
-                                "RECHAZADO"  => "bg-danger",
-                                _            => "bg-light text-dark"
+                                        "BORRADOR" => "bg-secondary",
+                                        "COTIZADO" => "bg-revi",
+                                        "APROBADO" => "bg-apro",
+                                        "EN_PRODU" => "bg-envi",
+                                        "TERMINADO" => "bg-cerra",
+                                        "ENTREGADO" => "bg-confi",
+                                        "CANCELADO" => "bg-anu",
+                                        "RECHAZADO" => "bg-anu",
+                                        _ => "bg-light text-dark"
                             })">@it.EstadoPedidoId</span>
                         </td>
                     </tr>

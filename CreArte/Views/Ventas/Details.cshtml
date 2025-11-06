@@ -8,20 +8,135 @@
 
 @section Styles {
     <style>
-        .ua-kv-mini .lbl {
-            font-size: .8rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: .4px;
+        /* ======== Resumen ======== */
+        .ua-summary {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        @@media (max-width: 1200px) {
+            .ua-summary
+
+        {
+            grid-template-columns: repeat(3, 1fr);
         }
 
-        .ua-kv-mini .val {
-            font-weight: 600;
+        }
+        @@media (max-width: 768px) {
+            .ua-summary
+
+        {
+            grid-template-columns: repeat(2, 1fr);
         }
 
-        tfoot td {
-            font-weight: 600;
         }
+        @@media (max-width: 576px) {
+            .ua-summary
+
+        {
+            grid-template-columns: 1fr;
+        }
+
+        }
+
+        .ua-stat {
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .cuadro-Cliente {
+            background: #03C1FF;
+            color: white;
+        }
+
+        .cuadro-Vendedor {
+            background: #332973;
+            color: white;
+        }
+
+        .cuadro-Fecha {
+            background: #23B6B1;
+            color: white;
+        }
+
+        .cuadro-MPago {
+            background: #FF007D;
+            color: white;
+        }
+
+        .cuadro-Total {
+            background: #F2B90F;
+            color: white;
+        }
+
+            .ua-stat .caption {
+                font-size: .8rem;
+                color: black;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+            }
+
+            .ua-stat .value {
+                font-weight: 700;
+                font-size: 1.05rem;
+            }
+
+            .ua-stat .sub {
+                font-size: .8rem;
+                color: white;
+            }
+
+        /* ======== Tabla con encabezado redondeado ======== */
+        .ua-table-container {
+            margin-top: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .ua-table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+
+            .ua-table thead th {
+                background: #C5D930;
+                color: black;
+                font-weight: 700;
+                text-transform: uppercase;
+                padding: 5px 5px;
+                border: none;
+            }
+
+            /* Bordes redondeados SOLO en la fila del encabezado */
+            .ua-table thead tr:first-child th:first-child {
+                border-top-left-radius: 10px;
+            }
+
+            .ua-table thead tr:first-child th:last-child {
+                border-top-right-radius: 10px;
+            }
+
+            .ua-table tbody td {
+                border-top: 1px solid #e5e7eb;
+                background: #fff;
+                vertical-align: middle;
+                padding: 8px 12px;
+            }
+
+            .ua-table tfoot td {
+                background: #f9fafb;
+                border-top: 2px solid #e5e7eb;
+                font-weight: 600;
+                padding: 10px 12px;
+            }
 
         .ua-img-thumb-fila-details {
             width: 60px;
@@ -30,16 +145,24 @@
             object-position: center;
             border-radius: 6px;
             border: 1px solid #e5e7eb;
+            background: #f8f9fa;
         }
     </style>
 }
 
+
 <div class="ua-card">
     <!-- ========================= TOOLBAR ========================= -->
     <div class="ua-toolbar">
-        <h2 class="m-0">Detalle Venta @Model.VentaId</h2>
+        <h2 class="m-0">Venta @Model.VentaId</h2>
 
-        <div class="d-flex align-items-center gap-2">
+        <div class="ua-toolbar-actions">
+            <a class="btn-confirmado" target="_blank"
+               href="@Url.Action("Recibo", "Ventas", new { id = Model.VentaId })">
+                <i class="bi bi-file-earmark-pdf"></i> <span>Ver recibo de venta</span>
+            </a>
+
+            <!-- Estado movido aquí -->
             @if (Model.Estado)
             {
                 <form asp-action="Anular" asp-controller="Ventas" asp-route-id="@Model.VentaId" method="post" class="d-inline"
@@ -52,101 +175,94 @@
             }
             else
             {
-                <span class="badge bg-danger">VENTA ANULADA</span>
+                <span class="badge-estado bg-Salida">ANULADA</span>
             }
         </div>
     </div>
 
-    <!-- ========================= ENCABEZADO ========================= -->
-    <div class="ua-row" style="margin-top:12px;">
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Cliente</div>
-                <div class="val">@Model.ClienteNombre</div>
+    <!-- ========================= RESUMEN ========================= -->
+    <div class="ua-summary">
+        <div class="ua-stat">
+            <div class="caption">Cliente</div>
+            <div class="value">@Model.ClienteNombre</div>
+        </div>
+
+        <div class="ua-stat">
+            <div class="caption">Vendedor</div>
+            <div class="value">@Model.UsuarioNombre</div>
+        </div>
+
+        <div class="ua-stat">
+            <div class="caption">Fecha de venta</div>
+            <div class="value">@Model.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</div>
+            <div class="caption">
+                Estado:
+                <span class="badge @(Model.Estado ? "bg-Entrada" : "bg-Salida")">
+                    @(Model.Estado ? "ACTIVA" : "ANULADA")
+                </span>
             </div>
         </div>
 
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Usuario</div>
-                <div class="val">@Model.UsuarioNombre</div>
-            </div>
+        <div class="ua-stat">
+            <div class="caption">Método de pago</div>
+            <div class="value">@(!string.IsNullOrWhiteSpace(Model.MetodoPago) ? Model.MetodoPago : "—")</div>
+            <div class="sub">Según el recibo más reciente</div>
         </div>
 
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Fecha Venta</div>
-                <div class="val">@Model.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</div>
-            </div>
-        </div>
-
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Estado</div>
-                <div class="val">
-                    <span class="badge @(Model.Estado ? "bg-Entrada" : "bg-Salida")">
-                        @(Model.Estado ? "ACTIVA" : "ANULADA")
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Total -->
-    <div class="ua-row" style="margin-top:8px;">
-        <div class="ua-field">
-            <div class="ua-kv-mini">
-                <div class="lbl">Total Venta</div>
-                <div class="val">Q @Model.Total.ToString("N2")</div>
-            </div>
+        <div class="ua-stat">
+            <div class="caption">Total</div>
+            <div class="value">Q @Model.Total.ToString("N2")</div>
+            <div class="sub">Incluye todos los productos</div>
         </div>
     </div>
 
     <!-- ========================= DETALLE PRODUCTOS ========================= -->
-    <div class="table-responsive mt-2">
-        <table class="table table-sm align-middle ua-table">
-            <thead class="table-light">
-                <tr>
-                    <th>Código</th>
-                    <th>Producto</th>
-                    <th class="text-center">Imagen</th>
-                    <th class="text-center">Cantidad</th>
-                    <th class="text-center">Precio</th>
-                    <th class="text-end">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var l in Model.Lineas)
-                {
+    <div class="ua-table-container">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle ua-table">
+                <thead>
                     <tr>
-                        <td>@l.ProductoId</td>
-                        <td>@l.ProductoNombre</td>
-                        <td class="text-center">
-                            @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
-                            {
-                                <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
-                            }
-                            else
-                            {
-                                <span>—</span>
-                            }
-                        </td>
-                        <td class="text-center">@l.Cantidad</td>
-                        <td class="text-center">@l.PrecioUnitario.ToString("N2")</td>
-                        <td class="text-end">@l.Subtotal.ToString("N2")</td>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-center">Imagen</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Precio</th>
+                        <th class="text-end">Subtotal</th>
                     </tr>
-                }
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5" class="text-end fw-bold">Total Venta:</td>
-                    <td class="text-end fw-bold">
-                        Q @Model.Total.ToString("N2")
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.Lineas)
+                    {
+                        <tr>
+                            <td>@l.ProductoId</td>
+                            <td>@l.ProductoNombre</td>
+                            <td class="text-center">
+                                @if (!string.IsNullOrWhiteSpace(l.ImagenProducto))
+                                {
+                                    <img src="@l.ImagenProducto" alt="@l.ProductoNombre" class="ua-img-thumb-fila-details" />
+                                }
+                                else
+                                {
+
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="text-center">@l.Cantidad</td>
+                            <td class="text-center">@l.PrecioUnitario.ToString("N2")</td>
+                            <td class="text-end">@l.Subtotal.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-end fw-bold">Total Venta:</td>
+                        <td class="text-end fw-bold">Q @Model.Total.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
+
 
     <!-- ========================= ACCIONES ========================= -->
     <div class="ua-actions" style="margin-top:12px;">

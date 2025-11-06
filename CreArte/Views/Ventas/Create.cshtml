@@ -528,12 +528,33 @@
             frm.submit();
         });
 
-        (function(){
-            const ok='@(TempData["ok"] ?? "")';
-            const err='@(TempData["error"] ?? "")';
-            if(ok) Swal.fire({icon:'success',title:ok,timer:2500,showConfirmButton:false});
-            if(err) Swal.fire({icon:'error',title:err,timer:2800,showConfirmButton:false});
-        })();
+        (function () {
+            const ok  = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["error"] ?? "")';
+            const vid = '@(TempData["ventaId"] ?? "")'; // ← viene del POST
 
+            if (ok)  Swal.fire({ icon:'success', title: ok, timer: 800, showConfirmButton:false });
+
+            if (err) Swal.fire({ icon:'error', title: err, timer: 2800, showConfirmButton:false });
+
+            // Si hay ventaId => ofrecer Generar Recibo (Rotativa) en modal
+            if (vid) {
+                setTimeout(() => {
+                    Swal.fire({
+                        title: 'Pago confirmado',
+                        html: '¿Desea generar el recibo en PDF?',
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'Generar Recibo',
+                        cancelButtonText: 'Cerrar'
+                    }).then(r => {
+                        if (r.isConfirmed) {
+                            const url = '@Url.Action("Recibo", "Ventas")' + '?id=' + encodeURIComponent(vid);
+                            window.open(url, '_blank'); // abre el PDF en nueva pestaña
+                        }
+                    });
+                }, 850); // pequeño delay tras el toast “ok”
+            }
+        })();
     </script>
 }
