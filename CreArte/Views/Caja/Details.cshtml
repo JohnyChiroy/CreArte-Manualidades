@@ -11,16 +11,8 @@
 <div class="container-fluid py-3">
     <!-- Toolbar -->
     <div class="ua-toolbar">
-        <h2 class="m-0">Movimientos de Caja <span class="text-muted">@sesionId</span></h2>
+        <h2 class="m-0">Movimientos de <span class="m-0">@sesionId</span></h2>
         <div class="d-flex align-items-center gap-2">
-            <a asp-controller="Caja" asp-action="Index" class="ua-btn ua-btn-view" title="Volver a listado">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 19l-7-7 7-7v14zm3-14h8v14h-8V5z" /></svg>
-                LISTADO
-            </a>
-            <a asp-controller="Caja" asp-action="Cerrar" asp-route-id="@sesionId" class="ua-btn ua-btn-edit" title="Ir a cierre">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 10h18v2H3v-2zm0-5h18v2H3v-2z" /></svg>
-                CIERRE
-            </a>
             <!-- Exportar/Reporte placeholders -->
             <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z" /></svg>
@@ -79,7 +71,7 @@
                                 <td>@m.MovimientoId</td>
                                 <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>
-                                    <span class="badge @(m.TipoMovimiento == "INGRESO" ? "bg-success" : "bg-danger")">
+                                    <span class="badge @(m.TipoMovimiento == "INGRESO" ? "bg-reci" : "bg-cerra")">
                                         @m.TipoMovimiento
                                     </span>
                                 </td>

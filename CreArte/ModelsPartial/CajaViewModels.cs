@@ -64,6 +64,9 @@ namespace CreArte.ModelsPartial
 
         [Display(Name = "Observaciones")]
         public string? Observaciones { get; set; }
+        public bool BloquearMonto { get; set; }
+        public string? InfoAnterior { get; set; }
+
     }
 
     // ===========================================================
@@ -73,10 +76,12 @@ namespace CreArte.ModelsPartial
     {
         [Required] public string CajaSesionId { get; set; } = null!;
         public string UsuarioId { get; set; } = null!;
+        public string UsuarioNombre { get; set; } = null!;
         public decimal TotalIngresos { get; set; }
         public decimal TotalEgresos { get; set; }
         public decimal MontoInicial { get; set; }
         public decimal SaldoFinal => Math.Round(MontoInicial + TotalIngresos - TotalEgresos, 2);
+        public DateTime FechaApertura { get; set; }
         public string? Observaciones { get; set; }
     }
 

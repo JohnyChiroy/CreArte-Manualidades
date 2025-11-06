@@ -362,11 +362,11 @@ namespace CreArte.Controllers
                 // -------- Cabecera VENTA --------
                 var venta = new VENTA
                 {
-                    VENTA_ID = await SiguienteVentaIdAsync(),   // p.ej. "VE00000001"
+                    VENTA_ID = await SiguienteVentaIdAsync(),   
                     CLIENTE_ID = vm.ClienteId!,
-                    USUARIO_ID = vm.UsuarioId!,                 // asumiendo NOT NULL en BD
+                    USUARIO_ID = vm.UsuarioId!,                 
                     FECHA = DateTime.Now,
-                    TOTAL = vm.Total,                           // puedes recalcular desde detalles si prefieres
+                    TOTAL = vm.Total,                           
                     USUARIO_CREACION = UserName(),
                     FECHA_CREACION = DateTime.Now,
                     ESTADO = true
@@ -439,7 +439,7 @@ namespace CreArte.Controllers
                 var metodoPago = string.IsNullOrWhiteSpace(vm.MetodoPagoId) ? "EFECTIVO" : vm.MetodoPagoId;
                 var recibo = new RECIBO
                 {
-                    RECIBO_ID = NewReciboId(),         // 10 chars, consistente con tu estilo
+                    RECIBO_ID = NewReciboId(),         
                     VENTA_ID = venta.VENTA_ID,
                     METODO_PAGO_ID = metodoPago,
                     MONTO = venta.TOTAL,
@@ -457,9 +457,9 @@ namespace CreArte.Controllers
                 {
                     var mov = new MOVIMIENTO_CAJA
                     {
-                        MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(), // p.ej. "MC00000001"
+                        MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
                         SESION_ID = sesionActiva,
-                        TIPO = "INGRESO",                 // usa literal válido según tu tabla (INGRESO/EGRESO/…)
+                        TIPO = "INGRESO",                 
                         MONTO = vm.Total,
                         REFERENCIA = venta.VENTA_ID,
                         FECHA = DateTime.Now,
@@ -500,7 +500,6 @@ namespace CreArte.Controllers
                 return await ReturnCreateViewAsync(vm, ct);
             }
         }
-
         private async Task<IActionResult> ReturnCreateViewAsync(VentaCreateEditVM vm, CancellationToken ct)
         {
             // clientes
