@@ -2,7 +2,7 @@
 using CreArte.Models; // Entidades EF
 using CreArte.ModelsPartial; // ViewModels: LoginViewModels, CambiarContrasenaViewModel, RecuperacionContrasenaVM, RestablecerContrasenaVM
 using CreArte.Services.Auditoria; // ICurrentUserService y AuditoriaService (si fuera necesario)
-using CreArte.Services.Mail;  // EnvioCorreoSMTP y PlantillaEnvioCorreo
+using CreArte.Services.Mail;  // IEmailSender, EmailTemplates
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc; // Controller, IActionResult
@@ -13,23 +13,24 @@ using System.Text; // Encoding.UTF8
 using Microsoft.Extensions.Options; // IOptions<AppSettings>
 using System.Threading.Tasks; // Task<IActionResult>
 using System; // DateTime
+using System.ComponentModel.DataAnnotations; // EmailAddressAttribute
+using Microsoft.AspNetCore.WebUtilities; // WebEncoders
+using System.Linq; // Linq
+// using System.Net.Mail; // Si desea capturar SmtpException en específico
 
 namespace CreArte.Controllers
 {
     public class LoginController : Controller
     {
         private readonly CreArteDbContext _context;
-        private readonly EnvioCorreoSMTP _mailer;
-        private readonly PlantillaEnvioCorreo _tpl;
         private readonly AppSettings _app; // Para BaseUrl (links en correos)
 
-        public LoginController(CreArteDbContext context, EnvioCorreoSMTP mailer, PlantillaEnvioCorreo tpl, IOptions<AppSettings> appOptions)
+        public LoginController(CreArteDbContext context, IOptions<AppSettings> appOptions)
         {
             _context = context;
-            _mailer = mailer;
-            _tpl = tpl;
             _app = appOptions.Value;
         }
+
         public IActionResult Login()
         {
             return View(); // Views/Login/Login.cshtml
@@ -108,51 +109,112 @@ namespace CreArte.Controllers
                 }
             }
 
+            //// 6) ¿Debe cambiar contraseña?
+            //if (usuario.USUARIO_CAMBIOINICIAL == true)
+            //{
+            //    // Guardamos ID en sesión para que la vista de cambio lo use
+            //    HttpContext.Session.SetString("UsuarioId", usuario.USUARIO_ID);
+            //    HttpContext.Session.SetString("UsuarioNombre", usuario.USUARIO_NOMBRE);
+            //    return RedirectToAction("CambiarContrasena", "Login");
+            //}
+
+            //// 7) SESIÓN (opcional para mostrar nombre en UI)
+            //HttpContext.Session.SetString("UsuarioId", usuario.USUARIO_ID);
+            //HttpContext.Session.SetString("Nombre", usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID);
+
+
+
+
+            //// 8) AUTENTICACIÓN POR COOKIES (claims)
+            //var claims = new List<Claim>
+            //{
+            //    new Claim(ClaimTypes.NameIdentifier, usuario.USUARIO_ID),
+            //    new Claim(ClaimTypes.Name, usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID),
+            //    new Claim("preferred_username", usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID)
+            //};
+            //if (!string.IsNullOrWhiteSpace(usuario.USUARIO_CORREO))
+            //    claims.Add(new Claim(ClaimTypes.Email, usuario.USUARIO_CORREO));
+
+            //// (Opcional) Agregar rol como claim
+            //// if (!string.IsNullOrWhiteSpace(usuario.ROL_ID))
+            ////     claims.Add(new Claim(ClaimTypes.Role, usuario.ROL_ID));
+
+            //var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            //var principal = new ClaimsPrincipal(identity);
+
+            //var authProps = new AuthenticationProperties
+            //{
+            //    // IsPersistent = model.Recordarme, // si agregas "Recordarme"
+            //    // ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
+            //    // AllowRefresh = true
+            //};
+
+            //// Emite el cookie de autenticación
+            //await HttpContext.SignInAsync(
+            //    CookieAuthenticationDefaults.AuthenticationScheme,
+            //    principal,
+            //    authProps
+            //);
+
+            //// 9) OK → redirigimos a Home (o donde quieras)
+            //return RedirectToAction("Index", "Home");
             // 6) ¿Debe cambiar contraseña?
             if (usuario.USUARIO_CAMBIOINICIAL == true)
             {
-                // Guardamos ID en sesión para que la vista de cambio lo use
                 HttpContext.Session.SetString("UsuarioId", usuario.USUARIO_ID);
                 HttpContext.Session.SetString("UsuarioNombre", usuario.USUARIO_NOMBRE);
                 return RedirectToAction("CambiarContrasena", "Login");
             }
 
-            // 7) SESIÓN (opcional para mostrar nombre en UI)
+            // 7) SESIÓN opcional
             HttpContext.Session.SetString("UsuarioId", usuario.USUARIO_ID);
             HttpContext.Session.SetString("Nombre", usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID);
 
+            // ====== OBTENER ROL (USUARIO.ROL_ID) ======
+            string? rolId = await _context.USUARIO
+                .Where(u => u.USUARIO_ID == usuario.USUARIO_ID)
+                .Select(u => u.ROL_ID) // <-- ajuste si su columna se llama distinto
+                .FirstOrDefaultAsync();
+
             // 8) AUTENTICACIÓN POR COOKIES (claims)
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, usuario.USUARIO_ID),
-                new Claim(ClaimTypes.Name, usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID),
-                new Claim("preferred_username", usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID)
-            };
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.USUARIO_ID),
+                    new Claim(ClaimTypes.Name, usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID),
+                    new Claim("preferred_username", usuario.USUARIO_NOMBRE ?? usuario.USUARIO_ID)
+                };
             if (!string.IsNullOrWhiteSpace(usuario.USUARIO_CORREO))
                 claims.Add(new Claim(ClaimTypes.Email, usuario.USUARIO_CORREO));
 
-            // (Opcional) Agregar rol como claim
-            // if (!string.IsNullOrWhiteSpace(usuario.ROL_ID))
-            //     claims.Add(new Claim(ClaimTypes.Role, usuario.ROL_ID));
+            if (!string.IsNullOrWhiteSpace(rolId))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, rolId)); // estándar
+                claims.Add(new Claim("rol_id", rolId));        // custom minúsculas
+                claims.Add(new Claim("ROL_ID", rolId));        // ⬅️ ADICIONAL: lo pide su filtro
+                HttpContext.Session.SetString("RolId", rolId);
+            }
 
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+            var identity = new ClaimsIdentity(
+                claims,
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                ClaimTypes.Name,
+                ClaimTypes.Role // mapea este tipo como "role"
+            );
             var principal = new ClaimsPrincipal(identity);
 
             var authProps = new AuthenticationProperties
             {
-                // IsPersistent = model.Recordarme, // si agregas "Recordarme"
+                // IsPersistent = model.Recordarme,
                 // ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
-                // AllowRefresh = true
             };
 
-            // Emite el cookie de autenticación
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 principal,
                 authProps
             );
 
-            // 9) OK → redirigimos a Home (o donde quieras)
             return RedirectToAction("Index", "Home");
         }
 
@@ -217,181 +279,311 @@ namespace CreArte.Controllers
             return RedirectToAction("Login", "Login");
         }
 
-        // ================================
-        // GET: /Login/RecuperarContrasena
-        // ================================
+        // =====================================================================
+        // ====================== AQUÍ EMPIEZA LO DEL CORREO ====================
+        // =====================================================================
+
+        // GET: /Login/EnvioDeCorreo
         [HttpGet]
-        public IActionResult RecuperarContrasena()
+        public IActionResult EnvioDeCorreo()
         {
-            return View(new RecuperacionContrasenaVM());
+            return View(new RecuperacionContrasenaVM()); // Views/Login/EnvioDeCorreo.cshtml
         }
 
-        // =================================
-        // POST: /Login/RecuperarContrasena
-        // - Genera token y envía correo
-        // =================================
+        // POST: /Login/EnvioDeCorreo (envía correo con enlace)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RecuperarContrasena(RecuperacionContrasenaVM model)
+        public async Task<IActionResult> EnvioDeCorreo(
+            RecuperacionContrasenaVM vm,
+            [FromServices] IEmailSender mail,
+            CancellationToken ct)
         {
             if (!ModelState.IsValid)
-                return View(model);
-
-            // 1) Buscar usuario por nombre o correo
-            var usuario = await _context.USUARIO
-                .FirstOrDefaultAsync(u =>
-                        u.ELIMINADO == false &&
-                        (u.USUARIO_NOMBRE == model.UsuarioONCorreo
-                         || (u.USUARIO_CORREO != null && u.USUARIO_CORREO == model.UsuarioONCorreo)));
-
-            if (usuario == null)
             {
-                // No reveles si existe o no por seguridad
-                TempData["ResetInfo"] = "Si el usuario existe, enviaremos instrucciones al correo registrado.";
-                return RedirectToAction(nameof(RecuperarContrasena));
+                TempData["ResetError"] = "Ingrese su usuario o correo.";
+                return View(vm);
             }
 
-            // 2) Obtener correo destino (validación simple)
-            string correoDestino = usuario.USUARIO_CORREO;
-            try { _ = new System.Net.Mail.MailAddress(correoDestino); }
-            catch
+            var input = (vm.UsuarioONCorreo ?? "").Trim().ToLowerInvariant();
+            bool esEmail = new EmailAddressAttribute().IsValid(input);
+
+            PERSONA? persona = null;
+            EMPLEADO? empleado = null;
+            USUARIO? usuario = null;
+
+            if (esEmail)
             {
-                TempData["ResetError"] = "El correo registrado es inválido. Contacta al administrador.";
-                return RedirectToAction(nameof(RecuperarContrasena));
+                persona = await _context.PERSONA
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => !p.ELIMINADO && p.PERSONA_CORREO.ToLower() == input, ct);
+
+                if (persona == null)
+                {
+                    TempData["ResetError"] = "El correo no está registrado.";
+                    return View(vm);
+                }
+                if (!persona.ESTADO) // bool
+                {
+                    TempData["ResetError"] = "La persona asociada está INACTIVA.";
+                    return View(vm);
+                }
+
+                empleado = await _context.EMPLEADO
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => !e.ELIMINADO && e.EMPLEADO_ID == persona.PERSONA_ID, ct);
+
+                if (empleado == null)
+                {
+                    TempData["ResetError"] = "No hay empleado asociado al correo.";
+                    return View(vm);
+                }
+                if (!empleado.ESTADO) // bool
+                {
+                    TempData["ResetError"] = "El empleado está INACTIVO.";
+                    return View(vm);
+                }
+
+                usuario = await _context.USUARIO
+                    .FirstOrDefaultAsync(u => !u.ELIMINADO && u.EMPLEADO_ID == empleado.EMPLEADO_ID, ct);
             }
-
-            // 3) Generar token seguro + caducidad
-            var token = GenerarTokenSeguro();
-            var expira = DateTime.UtcNow.AddHours(1); // 1 hora
-
-            // 3.1) Guardar fila en TOKEN_RECUPERACION
-            var tokenId = GenerarTokenIdCorto(); // PK corto legible
-            var fila = new TOKEN_RECUPERACION
-            {
-                TOKEN_ID = tokenId,
-                USUARIO_ID = usuario.USUARIO_ID,
-                TOKEN_VALOR = token,
-                TOKEN_EXPIRA = expira,
-                TOKEN_USADO = false,
-                USUARIO_CREACION = "sistema",
-                FECHA_CREACION = DateTime.Now,
-                ESTADO = true,
-                ELIMINADO = false
-            };
-            _context.TOKEN_RECUPERACION.Add(fila);
-            await _context.SaveChangesAsync();
-
-            // 4) URL de restablecimiento (usa App.BaseUrl)
-            var url = $"{_app.BaseUrl}/Login/RestablecerContrasena?token={Uri.EscapeDataString(token)}&user={Uri.EscapeDataString(usuario.USUARIO_NOMBRE)}";
-
-            // 5) Enviar correo
-            var asunto = "Recuperación de contraseña - CreArte Manualidades";
-            var html = _tpl.GenerarHtmlRecuperacion(usuario.USUARIO_NOMBRE, url, expira);
-
-            var (ok, error) = await _mailer.EnviarAsync(correoDestino, asunto, html);
-            if (ok)
-                TempData["ResetInfo"] = "Si el usuario existe, hemos enviado un enlace de recuperación a su correo.";
             else
             {
-#if DEBUG
-                TempData["ResetError"] = $"No se pudo enviar el correo: {error}";
-#else
-                TempData["ResetError"] = "Ocurrió un problema al enviar el correo. Inténtalo nuevamente.";
-#endif
+                usuario = await _context.USUARIO
+                    .FirstOrDefaultAsync(u => !u.ELIMINADO && u.USUARIO_NOMBRE.ToLower() == input, ct);
+
+                if (usuario == null)
+                {
+                    TempData["ResetError"] = "Usuario no encontrado.";
+                    return View(vm);
+                }
+                if (!usuario.ESTADO) // bool
+                {
+                    TempData["ResetError"] = "El usuario está INACTIVO.";
+                    return View(vm);
+                }
+
+                empleado = await _context.EMPLEADO
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => !e.ELIMINADO && e.EMPLEADO_ID == usuario.EMPLEADO_ID, ct);
+
+                if (empleado == null)
+                {
+                    TempData["ResetError"] = "Usuario sin empleado asociado.";
+                    return View(vm);
+                }
+
+                persona = await _context.PERSONA
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => !p.ELIMINADO && p.PERSONA_ID == empleado.EMPLEADO_ID, ct);
+
+                if (persona == null || string.IsNullOrWhiteSpace(persona.PERSONA_CORREO))
+                {
+                    TempData["ResetError"] = "No se encontró correo para el usuario.";
+                    return View(vm);
+                }
             }
 
-            return RedirectToAction(nameof(RecuperarContrasena));
-        }
-
-        // =========================================
-        // GET: /Login/RestablecerContrasena
-        // - Muestra formulario para nueva contraseña
-        // =========================================
-        [HttpGet]
-        public async Task<IActionResult> RestablecerContrasena(string token, string user)
-        {
-            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(user))
-                return BadRequest("Token o usuario inválido.");
-
-            // 1) Traer usuario por nombre
-            var usuario = await _context.USUARIO
-                .FirstOrDefaultAsync(u => u.USUARIO_NOMBRE == user && u.ELIMINADO == false);
-
             if (usuario == null)
-                return Content("El enlace de restablecimiento es inválido o ya expiró.");
-
-            // 2) Validar token activo para ese usuario
-            var tokenRow = await _context.TOKEN_RECUPERACION
-                .FirstOrDefaultAsync(t => t.USUARIO_ID == usuario.USUARIO_ID
-                                       && t.TOKEN_VALOR == token
-                                       && !t.ELIMINADO
-                                       && t.ESTADO
-                                       && !t.TOKEN_USADO);
-
-            if (tokenRow == null || tokenRow.TOKEN_EXPIRA < DateTime.UtcNow)
-                return Content("El enlace de restablecimiento es inválido o ya expiró.");
-
-            // 3) Renderizar VM
-            var vm = new RestablecerContrasenaVM
             {
-                UsuarioNombre = user,
-                Token = token
+                TempData["ResetError"] = "No se encontró el usuario ligado.";
+                return View(vm);
+            }
+            if (!usuario.ESTADO) // bool
+            {
+                TempData["ResetError"] = "El usuario está INACTIVO.";
+                return View(vm);
+            }
+
+            // 2) Invalidar tokens anteriores activos (marcar como eliminados)
+            var ahora = DateTime.Now;
+            var creadoPor = usuario.USUARIO_NOMBRE ?? "SYSTEM";
+
+            var prevTokens = await _context.TOKEN_RECUPERACION
+                .Where(t => t.USUARIO_ID == usuario.USUARIO_ID
+                            && !t.ELIMINADO
+                            && !t.TOKEN_USADO
+                            && t.TOKEN_EXPIRA > ahora)
+                .ToListAsync(ct);
+
+            foreach (var t in prevTokens)
+            {
+                t.ELIMINADO = true;
+                t.USUARIO_ELIMINACION = creadoPor;
+                t.FECHA_ELIMINACION = ahora;
+                t.USUARIO_MODIFICACION = creadoPor;
+                t.FECHA_MODIFICACION = ahora;
+            }
+            if (prevTokens.Count > 0) await _context.SaveChangesAsync(ct);
+
+            // 3) Generar token crudo URL-safe y guardar solo HASH en BD
+            var rawBytes = RandomNumberGenerator.GetBytes(32);
+            var rawToken = WebEncoders.Base64UrlEncode(rawBytes);
+            var tokenHashHex = Sha256Hex(rawToken);
+
+            var expira = ahora.AddHours(1);
+
+            var tk = new TOKEN_RECUPERACION
+            {
+                TOKEN_ID = GenerarTokenIdCorto(),
+                USUARIO_ID = usuario.USUARIO_ID,
+                TOKEN_VALOR = tokenHashHex,   // HASH HEX
+                TOKEN_EXPIRA = expira,
+                TOKEN_USADO = false,
+                USADO_EN = null,
+
+                // Auditoría
+                USUARIO_CREACION = creadoPor,
+                FECHA_CREACION = ahora,
+                USUARIO_MODIFICACION = null,
+                FECHA_MODIFICACION = null,
+                ELIMINADO = false,
+                USUARIO_ELIMINACION = null,
+                FECHA_ELIMINACION = null,
+                ESTADO = true // si su campo es bool; si es string, cámbielo por "ACTIVO"
             };
-            return View(vm);
+
+            _context.TOKEN_RECUPERACION.Add(tk);
+            await _context.SaveChangesAsync(ct);
+
+            // 4) URL absoluta al endpoint de restablecimiento (LOCAL: usa el host+puerto actuales)
+            //    Incluimos PathBase por si su app corre bajo subruta.
+            var relative = Url.Action(nameof(RestablecerContrasena), "Login", new { token = rawToken })!;
+            var url = $"{Request.Scheme}://{Request.Host}{Request.PathBase}{relative}";
+
+            // 5) Armar y enviar correo
+            var nombre = $"{persona?.PERSONA_PRIMERNOMBRE} {persona?.PERSONA_PRIMERAPELLIDO}".Trim();
+            var logoUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/Imagenes/logoCreArte.png";
+
+            var html = EmailTemplates.BuildRecoveryEmailHtml(nombre, url, expira, logoUrl);
+            try
+            {
+                await mail.SendAsync(persona!.PERSONA_CORREO, "Recupera tu contraseña — CreArte", html);
+            }
+            catch (Exception) // Si desea, capture SmtpException en específico
+            {
+                TempData["ResetError"] = "No se pudo enviar el correo en este momento. Intente nuevamente.";
+                return View(vm);
+            }
+
+            TempData["ResetInfo"] = "Te enviamos un enlace de recuperación a tu correo.";
+            return RedirectToAction(nameof(EnvioDeCorreo));
         }
 
-        // =========================================
-        // POST: /Login/RestablecerContrasena
-        // - Aplica nueva contraseña (PBKDF2), invalida token
-        // =========================================
+
+        // GET: /Login/RestablecerContrasena?token=...
+        [HttpGet]
+        public async Task<IActionResult> RestablecerContrasena(string token, CancellationToken ct)
+        {
+            const string err = "Tu enlace de recuperación ha expirado o no es válido. Solicita uno nuevo.";
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                TempData["LoginError"] = err;
+                return RedirectToAction("Login");
+            }
+
+            var tokenHashHex = Sha256Hex(token);
+            var ahora = DateTime.Now;
+
+            var tk = await _context.TOKEN_RECUPERACION
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t =>
+                    t.TOKEN_VALOR == tokenHashHex &&
+                    !t.ELIMINADO &&
+                    !t.TOKEN_USADO &&
+                    t.TOKEN_EXPIRA >= ahora, ct);
+
+            if (tk == null)
+            {
+                TempData["LoginError"] = err;
+                return RedirectToAction("Login");
+            }
+
+            ViewBag.RecoveryToken = token; // token crudo para el POST
+            return View(new RestablecerContrasenaVM()); // Views/Login/RestablecerContrasena.cshtml
+        }
+
+        // POST: /Login/RestablecerContrasenaPorToken
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RestablecerContrasena(RestablecerContrasenaVM model)
+        public async Task<IActionResult> RestablecerContrasenaPorToken(
+            RestablecerContrasenaVM model, string token, CancellationToken ct)
         {
             if (!ModelState.IsValid)
-                return View(model);
+            {
+                ViewBag.RecoveryToken = token;
+                return View("RestablecerContrasena", model);
+            }
 
-            // 1) Traer usuario por nombre
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                TempData["Mensaje"] = "El enlace de recuperación no es válido o ha expirado.";
+                return RedirectToAction("Login");
+            }
+
+            var tokenHashHex = Sha256Hex(token);
+            var ahora = DateTime.Now;
+
+            var tk = await _context.TOKEN_RECUPERACION
+                .FirstOrDefaultAsync(t =>
+                    t.TOKEN_VALOR == tokenHashHex &&
+                    !t.ELIMINADO &&
+                    !t.TOKEN_USADO &&
+                    t.TOKEN_EXPIRA >= ahora, ct);
+
+            if (tk == null)
+            {
+                TempData["Mensaje"] = "El enlace de recuperación no es válido o ha expirado.";
+                return RedirectToAction("Login");
+            }
+
             var usuario = await _context.USUARIO
-                .FirstOrDefaultAsync(u => u.USUARIO_NOMBRE == model.UsuarioNombre && !u.ELIMINADO);
+                .FirstOrDefaultAsync(u => !u.ELIMINADO && u.USUARIO_ID == tk.USUARIO_ID, ct);
 
             if (usuario == null)
             {
-                ModelState.AddModelError("", "El enlace es inválido o ya expiró.");
-                return View(model);
+                TempData["Mensaje"] = "No se pudo completar la recuperación.";
+                return RedirectToAction("Login");
             }
 
-            // 2) Revalidar token para ese usuario
-            var tokenRow = await _context.TOKEN_RECUPERACION
-                .FirstOrDefaultAsync(t => t.USUARIO_ID == usuario.USUARIO_ID
-                                       && t.TOKEN_VALOR == model.Token
-                                       && !t.ELIMINADO
-                                       && t.ESTADO
-                                       && !t.TOKEN_USADO);
-
-            if (tokenRow == null || tokenRow.TOKEN_EXPIRA < DateTime.UtcNow)
-            {
-                ModelState.AddModelError("", "El enlace es inválido o ya expiró.");
-                return View(model);
-            }
-
-            // 3) Regenerar SALT + HASH (PBKDF2)
+            // PBKDF2 coherente con login
             var newSalt = GenerateSalt(64);
-            var newHash = ComputePBKDF2(model.NuevaContrasena, newSalt);
+            var newHash = ComputePBKDF2(model.NuevaContrasena!, newSalt);
 
             usuario.USUARIO_SALT = newSalt;
             usuario.USUARIO_CONTRASENA = newHash;
+            usuario.USUARIO_CAMBIOINICIAL = false;
+            //usuario.MODIFICADO_POR = usuario.USUARIO_NOMBRE;
+            usuario.FECHA_MODIFICACION = ahora;
 
-            // 4) Marcar token como usado
-            tokenRow.TOKEN_USADO = true;
-            tokenRow.USADO_EN = DateTime.UtcNow;
-            tokenRow.USUARIO_MODIFICACION = "sistema";
-            tokenRow.FECHA_MODIFICACION = DateTime.Now;
+            // (Opcional) historial si su tabla existe
+            try
+            {
+                var historial = new HISTORIAL_CONTRASENA
+                {
+                    HISTORIAL_ID = GenerarTokenIdCorto(),
+                    USUARIO_ID = usuario.USUARIO_ID,
+                    HASH = newHash,
+                    SALT = newSalt,
+                    FECHA_CREACION = ahora,
+                    USUARIO_CREACION = usuario.USUARIO_NOMBRE,
+                    ESTADO = true, // si es bool; si es string, use "ACTIVO"
+                    ELIMINADO = false
+                };
+                _context.HISTORIAL_CONTRASENA.Add(historial);
+            }
+            catch { /* ignorar si no existe la tabla */ }
 
-            await _context.SaveChangesAsync();
+            // Consumir token
+            tk.TOKEN_USADO = true;
+            tk.USADO_EN = ahora;
+            //tk.MODIFICADO_POR = usuario.USUARIO_NOMBRE;
+            tk.FECHA_MODIFICACION = ahora;
 
-            TempData["ResetOk"] = "Tu contraseña fue cambiada correctamente. Ahora puedes iniciar sesión.";
-            return RedirectToAction("Login", "Login");
+            await _context.SaveChangesAsync(ct);
+
+            TempData["Mensaje"] = "Tu contraseña fue actualizada correctamente.";
+            return RedirectToAction("Login");
         }
 
         // =========================
@@ -435,7 +627,16 @@ namespace CreArte.Controllers
             return salt;
         }
 
-        // ► Token URL-safe (GUID + 16 bytes aleatorios Base64Url)
+        // ► SHA256 → HEX (para token)
+        private static string Sha256Hex(string input)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input ?? ""));
+            var sb = new StringBuilder(bytes.Length * 2);
+            foreach (var b in bytes) sb.Append(b.ToString("x2"));
+            return sb.ToString();
+        }
+
+        // ► Token URL-safe (GUID + 16 bytes aleatorios Base64Url) — (no usado aquí, pero disponible)
         private static string GenerarTokenSeguro()
         {
             var guid = Guid.NewGuid().ToString("N");

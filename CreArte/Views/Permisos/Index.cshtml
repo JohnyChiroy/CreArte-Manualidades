@@ -1,0 +1,206 @@
+﻿@using CreArte.ModelsPartial
+@model PermisosIndexVM
+
+@{
+    ViewData["Title"] = "Permisos por Rol";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    string q      = Context.Request.Query["q"];
+    string estado = Context.Request.Query["estado"]; // "", "true", "false"
+    string sort   = Context.Request.Query["sort"];
+    string dir    = Context.Request.Query["dir"];
+    int pageSize  = Model?.PageSize ?? 10;
+}
+
+@functions{
+    string NextDir(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "asc";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+    }
+    string Arrow(string col, string currentSort, string currentDir)
+    {
+        if (!string.Equals(col, currentSort, StringComparison.OrdinalIgnoreCase)) return "";
+        return string.Equals(currentDir, "asc", StringComparison.OrdinalIgnoreCase) ? "▲" : "▼";
+    }
+}
+
+<div class="container-fluid py-3">
+    <div class="ua-toolbar">
+        <h2 class="m-0">Permisos</h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <a class="ua-btn ua-btn-new" id="btnNuevo" href="@Url.Action("Create","Permisos")">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+                NUEVO
+            </a>
+            <a href="#" class="ua-btn ua-btn-view is-disabled" id="btnVer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/></svg>
+                VER
+            </a>
+            <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnEditar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
+                MODIFICAR
+            </a>
+            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/></svg>
+                EXPORTAR
+            </a>
+            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
+                REPORTE
+            </a>
+        </div>
+
+        <form method="get" asp-controller="Permisos" asp-action="Index" class="ua-search d-flex align-items-center">
+            <input type="hidden" name="sort" value="@(string.IsNullOrWhiteSpace(Model.Sort) ? "rol" : Model.Sort)" />
+            <input type="hidden" name="dir"  value="@(string.IsNullOrWhiteSpace(Model.Dir)  ? "asc" : Model.Dir)" />
+            <input type="hidden" name="estado" value="@estado" />
+            <input name="q" value="@q" placeholder="Buscar Rol o PermisosId" />
+            <button title="Buscar" type="submit">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <form id="uaFilterForm" method="get" asp-controller="Permisos" asp-action="Index">
+        <input type="hidden" name="q" value="@q" />
+        <input type="hidden" name="page" value="1" />
+        <input type="hidden" name="pageSize" value="@pageSize" />
+        <input type="hidden" name="sort" value="@(string.IsNullOrWhiteSpace(Model.Sort) ? "rol" : Model.Sort)" />
+        <input type="hidden" name="dir"  value="@(string.IsNullOrWhiteSpace(Model.Dir)  ? "asc" : Model.Dir)" />
+        <input type="hidden" name="estado" value="@estado" />
+    </form>
+
+    <div class="table-responsive mt-3">
+        <table class="table ua-table align-middle">
+            <thead>
+            <tr>
+                <th class="ua-col-check text-center align-middle">
+                    <input type="checkbox" class="form-check-input" id="chkAll"
+                           onclick="document.querySelectorAll('.ua-rowchk').forEach(c=>c.checked=this.checked);" />
+                </th>
+
+                <th class="ua-col-no">
+                    <div class="ua-th">
+                        @{
+                            var curSort = string.IsNullOrWhiteSpace(Model.Sort) ? "rol" : Model.Sort;
+                            var curDir  = string.IsNullOrWhiteSpace(Model.Dir)  ? "asc" : Model.Dir;
+                            var next_id = NextDir("rol", curSort, curDir);
+                            var href_id = Url.Action("Index", "Permisos", new {
+                                q = q, estado = estado, sort = "rol", dir = next_id, page = 1, pageSize = pageSize
+                            });
+                            var isActive_id = curSort.Equals("rol", StringComparison.OrdinalIgnoreCase);
+                        }
+                        <a class="ua-sort @(isActive_id ? "" : "inactive")" href="@href_id">
+                            <span class="ua-title">ROL</span>
+                            <span class="ua-arrow">@Arrow("rol", curSort, curDir)</span>
+                        </a>
+                    </div>
+                </th>
+
+                <th>
+                    <div class="ua-th">
+                        @{
+                            var next_nom = NextDir("nombre", curSort, curDir);
+                            var href_nom = Url.Action("Index", "Permisos", new {
+                                q = q, estado = estado, sort = "nombre", dir = next_nom, page = 1, pageSize = pageSize
+                            });
+                            var isActive_nom = curSort.Equals("nombre", StringComparison.OrdinalIgnoreCase);
+                        }
+                        <a class="ua-sort @(isActive_nom ? "" : "inactive")" href="@href_nom">
+                            <span class="ua-title">NOMBRE DEL ROL</span>
+                            <span class="ua-arrow">@Arrow("nombre", curSort, curDir)</span>
+                        </a>
+                    </div>
+                </th>
+
+                <th><div class="ua-th"><span class="ua-title">PERMISOS ID</span></div></th>
+
+                <th style="width: 240px;">
+                    <div class="ua-th ua-popover-wrap">
+                        @{
+                            var next_fec = NextDir("fecha", curSort, curDir);
+                            var href_fec = Url.Action("Index", "Permisos", new {
+                                q = q, estado = estado, sort = "fecha", dir = next_fec, page = 1, pageSize = pageSize
+                            });
+                            var isActive_fec = curSort.Equals("fecha", StringComparison.OrdinalIgnoreCase);
+                        }
+                        <a class="ua-sort @(isActive_fec ? "" : "inactive")" href="@href_fec">
+                            <span class="ua-title">FECHA CREACIÓN</span>
+                            <span class="ua-arrow">@Arrow("fecha", curSort, curDir)</span>
+                        </a>
+
+                        <!-- Filtro ESTADO (bool) -->
+                        <button type="button" class="ua-filter-btn" data-pop="popEstado" title="Filtrar estado">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                        </button>
+                        <div id="popEstado" class="ua-popover" aria-hidden="true" tabindex="-1">
+                            <select id="fEstado" class="ua-input">
+                                <option value=""       selected="@(string.IsNullOrWhiteSpace(estado) ? "selected" : null)">(Todos)</option>
+                                <option value="true"   selected="@(string.Equals(estado,"true",  StringComparison.OrdinalIgnoreCase) ? "selected" : null)">Activo</option>
+                                <option value="false"  selected="@(string.Equals(estado,"false", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">Inactivo</option>
+                            </select>
+                            <div class="ua-pop-actions">
+                                <button type="button" class="ua-btn-sm" id="btnEstadoClear">Limpiar</button>
+                                <button type="button" class="ua-btn-sm primary" id="btnEstadoApply">Aplicar</button>
+                            </div>
+                        </div>
+                    </div>
+                </th>
+            </tr>
+            </thead>
+
+            <tbody>
+            @if (Model?.Items != null && Model.Items.Any())
+            {
+                foreach (var r in Model.Items)
+                {
+                    <tr class="ua-rowitem" data-rol="@r.RolId">
+                        <td><input type="checkbox" class="form-check-input ua-rowchk" value="@r.RolId" /></td>
+                        <td>@r.RolId</td>
+                        <td>@r.RolNombre</td>
+                        <td>@r.PermisosId</td>
+                        <td>@(r.FechaCreacion.HasValue ? r.FechaCreacion.Value.ToString("yyyy-MM-dd HH:mm") : "-")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td colspan="5" class="text-center py-4">No hay registros de permisos.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model != null && Model.TotalPages > 1)
+    {
+        <nav class="mt-2" aria-label="Paginación de permisos">
+            <ul class="pagination ua-pagination justify-content-center">
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Permisos", new {
+                               q = q, estado = estado, sort = sort, dir = dir, page = p, pageSize = pageSize
+                           })">@p</a>
+                    </li>
+                }
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="@Url.Action("Index","Permisos", new {
+                               q = q, estado = estado, sort = sort, dir = dir, page = Model.Page + 1, pageSize = pageSize
+                           })">Siguiente →</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts{
+    <script src="~/js/ua-common.js"></script>
+    <script src="~/js/permisos-index.js"></script>
+}

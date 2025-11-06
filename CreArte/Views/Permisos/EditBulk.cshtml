@@ -1,0 +1,146 @@
+﻿@using Microsoft.AspNetCore.Mvc.Rendering
+@model CreArte.ModelsPartial.PermisosModuloBulkVM
+
+@{
+    ViewData["Title"] = "Permisos – Edición masiva";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-3">
+    <div class="ua-toolbar">
+        <h2 class="m-0">Editar permisos por rol</h2>
+
+        <div class="d-flex align-items-center gap-2">
+            <button form="frmBulk" type="submit" class="ua-btn ua-btn-new" id="btnGuardar">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14l4-4h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" /></svg>
+                GUARDAR
+            </button>
+            <a asp-controller="Permisos" asp-action="Index" class="ua-btn">VOLVER</a>
+        </div>
+
+        <!-- Selector de Rol (GET) -->
+        <form method="get" asp-controller="Permisos" asp-action="EditBulk" class="ua-search d-flex align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <label class="me-1">Rol:</label>
+                <select asp-for="RolId"
+                        asp-items="Model.Roles"
+                        name="rolId"
+                        class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="">(Seleccione un rol)</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.RolId))
+    {
+        <form id="frmBulk" method="post" asp-action="SaveBulk" asp-controller="Permisos" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="RolId" value="@Model.RolId" />
+
+            <div class="table-responsive mt-3">
+                <table class="table ua-table align-middle">
+                    <thead>
+                        <tr>
+                            <th style="min-width:260px;">MÓDULO</th>
+                            <th class="text-center">
+                                Ver<br />
+                                <input type="checkbox" id="colAllVer" />
+                            </th>
+                            <th class="text-center">
+                                Crear<br />
+                                <input type="checkbox" id="colAllCrear" />
+                            </th>
+                            <th class="text-center">
+                                Editar<br />
+                                <input type="checkbox" id="colAllEditar" />
+                            </th>
+                            <th class="text-center">
+                                Eliminar<br />
+                                <input type="checkbox" id="colAllEliminar" />
+                            </th>
+                            <th class="text-center" style="width:130px;">Asignado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Modulos != null && Model.Modulos.Any())
+                        {
+                            for (int i = 0; i < Model.Modulos.Count; i++)
+                            {
+                                var m = Model.Modulos[i];
+                                <tr class="ua-rowitem">
+                                    <td>
+                                        <strong>@m.ModuloNombre</strong>
+
+                                        <!-- Índice explícito para binder -->
+                                        <input type="hidden" name="Modulos.Index" value="@i" />
+
+                                        <!-- Campos base -->
+                                        <input type="hidden" name="Modulos[@i].ModuloId" value="@m.ModuloId" />
+                                        <input type="hidden" name="Modulos[@i].ModuloNombre" value="@m.ModuloNombre" />
+                                        <input type="hidden" name="Modulos[@i].YaAsignado" value="@(m.YaAsignado ? "true" : "false")" />
+                                        <input type="hidden" name="Modulos[@i].Touched" value="false" />
+                                    </td>
+
+                                    <!-- ✅ Checkbox primero, hidden false después -->
+                                    <td class="text-center">
+                                        <input class="form-check-input chk-ver" type="checkbox"
+                                               name="Modulos[@i].Ver" value="true" @(m.Ver ? "checked" : "") />
+                                        <input type="hidden" name="Modulos[@i].Ver" value="false" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input class="form-check-input chk-crear" type="checkbox"
+                                               name="Modulos[@i].Crear" value="true" @(m.Crear ? "checked" : "") />
+                                        <input type="hidden" name="Modulos[@i].Crear" value="false" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input class="form-check-input chk-editar" type="checkbox"
+                                               name="Modulos[@i].Editar" value="true" @(m.Editar ? "checked" : "") />
+                                        <input type="hidden" name="Modulos[@i].Editar" value="false" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input class="form-check-input chk-eliminar" type="checkbox"
+                                               name="Modulos[@i].Eliminar" value="true" @(m.Eliminar ? "checked" : "") />
+                                        <input type="hidden" name="Modulos[@i].Eliminar" value="false" />
+                                    </td>
+
+                                    <td class="text-center">
+                                        @if (m.YaAsignado)
+                                        {
+                                            <span class="ua-badge-inactivo">Sí</span>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="ua-badge-activo">No</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" class="text-center py-4">No hay módulos activos.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    }
+    else
+    {
+        <div class="alert alert-info mt-3">
+            Seleccione un <strong>Rol</strong> para editar permisos.
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/ua-common.js"></script>
+    <script src="~/js/permisos-bulk-ui.js"></script>
+    <script>
+        // En modo 'edit' el JS marca Touched cuando cambia cualquier checkbox.
+        window.PermisosBulk.init({ mode: 'edit' });
+    </script>
+}
