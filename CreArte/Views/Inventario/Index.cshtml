@@ -46,38 +46,24 @@
             VER
         </a>
 
-<a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-@*    target="_blank"
-   href="@Url.Action("ReportePDF", "Areas", new {
-        Search = Model.Search,
-        Area = Context.Request.Query["Area"].ToString(),
-        FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-        FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-        Estado = Model.Estado,
-        Sort = Model.Sort,
-        Dir  = Model.Dir
-   })"> *@
-<svg viewBox="0 0 24 24" fill="currentColor">
-  <path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/>
-</svg>
-    EXPORTAR
-</a>
-<a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
-@*    target="_blank"
-   href="@Url.Action("ReportePreview", "Areas", new {
-        Search = Model.Search,
-        Area = Context.Request.Query["Area"].ToString(),
-        FechaInicio = Model.FechaInicio?.ToString("yyyy-MM-dd"),
-        FechaFin    = Model.FechaFin?.ToString("yyyy-MM-dd"),
-        Estado = Model.Estado,
-        Sort = Model.Sort,
-        Dir  = Model.Dir
-   })"> *@
-<svg viewBox="0 0 24 24" fill="currentColor">
-  <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
-</svg>
-    REPORTE
-</a>
+        <a  id="btnExportar"
+    class="ua-btn ua-btn-exportar"
+    title="Exportar"
+    target="_blank"
+    href="@Url.Action("ReportePDF", "Inventario", new {
+        Search        = Model.Search,
+        SoloActivos   = Model.SoloActivos,
+        SoloStockBajo = Model.SoloStockBajo,
+        VenceAntesDe  = Model.VenceAntesDe?.ToString("yyyy-MM-dd"),
+        Sort          = Model.Sort,
+        Dir           = Model.Dir
+    })">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+        </svg>
+            REPORTE
+        </a>
+
 
 </div>
         <!-- Buscador global – mantiene Sort/Dir -->
@@ -153,7 +139,7 @@
                     var isActive_prod = (Model.Sort ?? "producto").Equals("producto", StringComparison.OrdinalIgnoreCase);
                 }
                 <a class="ua-sort @(isActive_prod ? "" : "inactive")" href="@href_prod">
-                    <span class="ua-title">NOMBRE</span>
+                    <span class="ua-title">PRODUCTO</span>
                     <span class="ua-arrow">@Arrow("producto", Model.Sort, Model.Dir)</span>
                 </a>
             </div>
@@ -216,7 +202,7 @@
                     var isActive_cost = (Model.Sort ?? "producto").Equals("costo", StringComparison.OrdinalIgnoreCase);
                 }
                 <a class="ua-sort @(isActive_cost ? "" : "inactive")" href="@href_cost">
-                    <span class="ua-title">COSTO Q</span>
+                    <span class="ua-title">PRECIO Q</span>
                     <span class="ua-arrow">@Arrow("costo", Model.Sort, Model.Dir)</span>
                 </a>
             </div>

@@ -5,7 +5,10 @@ using CreArte.Services.Auditoria; // IAuditoriaService
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Rotativa.AspNetCore;
 using System.Text.RegularExpressions;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
 
 namespace CreArte.Controllers
 {
@@ -22,9 +25,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // LISTADO – /Clientes?...
-        // Filtros: Search (global), TipoCliente, Estado
-        // Orden: id | nombre | tipo | estado | fecha
-        // Paginación: Page/PageSize
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Index(
@@ -165,7 +165,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // DETAILS para modal (PartialView) – /Clientes/DetailsCard?id=...
-        // Nombres = Nombre COMPLETO (6 partes)
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> DetailsCard(string id)
@@ -579,6 +578,174 @@ namespace CreArte.Controllers
                     Value = t.TIPO_CLIENTE_ID
                 })
                 .ToListAsync();
+        }
+
+        // ============================================================
+        // GET: /Clientes/ReportePDF
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+            string? Search,
+            string? TipoCliente,
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc")
+        {
+            // ========== 1) Base: solo clientes no eliminados ==========
+            IQueryable<CLIENTE> q = _context.CLIENTE
+                .Where(c => !c.ELIMINADO);
+
+            
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+
+                q = q.Where(c =>
+                    EF.Functions.Like(c.CLIENTE_ID, $"%{s}%") ||
+                    EF.Functions.Like(c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE, $"%{s}%") ||
+
+                    // Nombre completo 
+                    EF.Functions.Like(
+                        (c.CLIENTENavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    ) ||
+
+                    EF.Functions.Like(c.CLIENTENavigation.PERSONA_NIT ?? "", $"%{s}%") ||
+                    EF.Functions.Like(c.CLIENTENavigation.PERSONA_CUI ?? "", $"%{s}%") ||
+                    EF.Functions.Like(c.CLIENTENavigation.PERSONA_TELEFONOMOVIL ?? "", $"%{s}%") ||
+                    EF.Functions.Like(c.CLIENTENavigation.PERSONA_CORREO ?? "", $"%{s}%")
+                );
+            }
+
+            // ==========Filtro por Tipo de Cliente ==========
+            if (!string.IsNullOrWhiteSpace(TipoCliente))
+            {
+                if (TipoCliente == "__BLANKS__")
+                {
+                    // Sin tipo de cliente / nombre vacío
+                    q = q.Where(c =>
+                        c.TIPO_CLIENTE == null ||
+                        string.IsNullOrEmpty(c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE));
+                }
+                else if (TipoCliente == "__NONBLANKS__")
+                {
+                    // Con tipo de cliente
+                    q = q.Where(c =>
+                        c.TIPO_CLIENTE != null &&
+                        !string.IsNullOrEmpty(c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE));
+                }
+                else
+                {
+                    string s = TipoCliente.Trim();
+                    q = q.Where(c =>
+                        EF.Functions.Like(c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE, $"%{s}%"));
+                }
+            }
+
+            // ==========  Filtro por Estado ==========
+            if (Estado.HasValue)
+                q = q.Where(c => c.ESTADO == Estado.Value);
+
+            // ========== Orden 
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc
+                    ? q.OrderBy(c => c.CLIENTE_ID)
+                    : q.OrderByDescending(c => c.CLIENTE_ID),
+
+                "nombre" => asc
+                    ? q.OrderBy(c =>
+                        (c.CLIENTENavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_APELLIDOCASADA ?? ""))
+                    : q.OrderByDescending(c =>
+                        (c.CLIENTENavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (c.CLIENTENavigation.PERSONA_APELLIDOCASADA ?? "")),
+
+                "tipo" => asc
+                    ? q.OrderBy(c => c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE)
+                    : q.OrderByDescending(c => c.TIPO_CLIENTE.TIPO_CLIENTE_NOMBRE),
+
+                "estado" => asc
+                    ? q.OrderBy(c => c.ESTADO)
+                    : q.OrderByDescending(c => c.ESTADO),
+
+                _ => asc
+                    ? q.OrderBy(c => c.FECHA_CREACION)
+                    : q.OrderByDescending(c => c.FECHA_CREACION),
+            };
+
+            var qWithNavs = q
+                .Include(c => c.CLIENTENavigation)
+                .Include(c => c.TIPO_CLIENTE);
+
+            var items = await qWithNavs.ToListAsync();
+
+            // ========== Totales (activos / inactivos) ==========
+            int totActivos = items.Count(c => c.ESTADO && !c.ELIMINADO);
+            int totInactivos = items.Count(c => !c.ESTADO && !c.ELIMINADO);
+
+            
+            var vm = new ReporteViewModel<CLIENTE>
+            {
+                Items = items,
+
+                // Filtros usados (aunque el VM tenga más campos, dejamos sólo los que aplican)
+                Search = Search,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+
+                // Reporte SIN paginación
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+
+                // Metadatos para el header
+                ReportTitle = "Reporte de Clientes",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            // Extra filter visible como chip (Tipo de cliente)
+            if (!string.IsNullOrWhiteSpace(TipoCliente))
+                vm.ExtraFilters["Tipo de cliente"] = TipoCliente;
+
+            // Totales
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+
+            // ========== 9) Generar PDF con Rotativa (inline → nueva pestaña) ==========
+            var pdf = new ViewAsPdf("ReporteClientes", vm)
+            {
+                FileName = $"ReporteClientes.pdf",
+                ContentDisposition = ContentDisposition.Inline,   // 🔹 se abre en otra pestaña
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\" " +
+                    $"--footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\" " +
+                    $"--footer-font-size 8 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

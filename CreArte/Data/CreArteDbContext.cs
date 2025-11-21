@@ -100,7 +100,8 @@ public partial class CreArteDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("workstation id=CreArteDB_P.mssql.somee.com;packet size=4096;user id=johnychiroy_SQLLogin_1;pwd=w2wlzijw6v;data source=CreArteDB_P.mssql.somee.com;persist security info=False;initial catalog=CreArteDB_P;TrustServerCertificate=True;");
+    => optionsBuilder.UseSqlServer("workstation id=CreArteDB_P.mssql.somee.com;packet size=4096;user id=johnychiroy_SQLLogin_1;pwd=w2wlzijw6v;data source=CreArteDB_P.mssql.somee.com;persist security info=False;initial catalog=CreArteDB_P;TrustServerCertificate=True;");
+    //=> optionsBuilder.UseSqlServer("Server=EC2AMAZ-S6EEQC3\\SQLEXPRESS;Database=CreArteDB_P;User Id=sa;Password=Atriox.117;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

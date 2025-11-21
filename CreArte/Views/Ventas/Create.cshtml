@@ -11,15 +11,6 @@
 
 @section Styles {
     <style>
-        .ua-img-thumb-fila {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            object-position: center;
-            background: #f8f9fa;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-        }
         /* Solo estética ligera del bloque de vuelto (no cambia tu tema) */
         .ua-kv {
             display: flex;
@@ -54,16 +45,11 @@
                     }
                 </select>
                 <span asp-validation-for="ClienteId" class="text-danger"></span>
-
-                <label asp-for="UsuarioId"><strong>Vendedor:*</strong></label>
-                <select asp-for="UsuarioId" class="form-control" id="UsuarioId" required>
-                    <option value="">Seleccione ↓</option>
-                    @foreach (var u in ViewBag.UsuariosCombo as List<SelectListItem>)
-                    {
-                        <option value="@u.Value">@u.Text</option>
-                    }
-                </select>
-                <span asp-validation-for="UsuarioId" class="text-danger"></span>
+            </div>
+            <input asp-for="UsuarioId" type="hidden" />
+            <div class="mb-2">
+                <label class="form-label"><strong>Usuario:</strong></label>
+                <input type="text" class="form-control" value="@(Model.UsuarioNombre ?? Model.UsuarioId)" readonly />
             </div>
         </div>
 
@@ -186,7 +172,7 @@
                 <div id="mpEfectivoBlock" class="border rounded p-2">
                     <div class="mb-2">
                         <label for="mpEfectivo"><strong>Efectivo recibido</strong></label>
-                        <!-- ⇩ editable (sin disabled) -->
+                        <!--editable (sin disabled) -->
                         <input id="mpEfectivo" type="number" min="0.01" step="0.01" class="form-control" />
                         <div class="text-danger small d-none" id="mpEfectivoErr">
                             El efectivo recibido debe ser mayor o igual al monto a cobrar.
@@ -195,7 +181,7 @@
 
                     <div class="ua-kv">
                         <span><strong>Vuelto</strong></span>
-                        <!-- ⇩ label (solo lectura) -->
+                        <!--label (solo lectura) -->
                         <span id="mpVuelto" class="fw-bold">Q 0.00</span>
                     </div>
                 </div>
@@ -258,18 +244,24 @@
             }
             return html;
         }
-        function refreshAllSelects(){
-            const selects = getAllProductSelects();
-            const chosen = selectedIds();
-            selects.forEach(sel => {
-                const current = (sel.value||'').trim();
-                const exclude = new Set(chosen); exclude.delete(current);
-                sel.innerHTML = buildOptionsHtml(exclude, current);
-            });
-            selects.forEach(sel => onProductoChange.call(sel, true));
-            recalcTotales();
-            evalReady();
+                function refreshAllSelects(){
+          const selects = getAllProductSelects();
+          const chosen  = selectedIds();
+
+          selects.forEach(sel => {
+            const current = (sel.value||'').trim();
+            const exclude = new Set(chosen); exclude.delete(current);
+            if (sel.tomselect) sel.tomselect.destroy();
+            sel.innerHTML = buildOptionsHtml(exclude, current);
+            tsInitOne(sel);
+          });
+
+          // Recalcular previews
+          selects.forEach(sel => onProductoChange.call(sel));
+
+          evalReadyCreate();
         }
+
 
         let nextIndex = @Model.Detalles.Count;
         function agregarFila(){
@@ -291,8 +283,15 @@
             const sel = tr.querySelector('.js-prod');
             const exclude = selectedIds();
             sel.innerHTML = buildOptionsHtml(exclude, "");
+            sel.value = "";                            // asegurar placeholder
+            tsInitOne(sel);
+        sel.addEventListener('change', function () {
+            const prev = this.dataset.prevInv || '';
+            onProductoChange.call(this, false, prev);
+            this.dataset.prevInv = (this.value || '').trim(); // guardamos el último invId seleccionado
+            refreshAllSelects();
+        });
 
-            sel.addEventListener('change', function(){ onProductoChange.call(this); refreshAllSelects(); });
             tr.querySelector('.js-cant').addEventListener('input', recalcFila);
             tr.querySelector('.js-precio').addEventListener('input', recalcFila);
 
@@ -300,41 +299,59 @@
             evalReady();
             changed = true;
         }
-        function eliminarFila(btn){
-            rowEl(btn).remove();
-            refreshAllSelects();
-            evalReady();
-            changed = true;
+        // function eliminarFila(btn){
+        //     rowEl(btn).remove();
+        //     refreshAllSelects();
+        //     evalReady();
+        //     changed = true;
+        // }
+                function eliminarFila(btn){
+          const fila = btn.closest("tr");
+          fila.remove();
+          refreshAllSelects();   // ya reconstruye TS por dentro
+          evalReadyCreate();
         }
 
-        function onProductoChange(noRecalc){
-            const row = this.getAttribute('data-row');
-            const invId = this.value || '';
-            const info = IDX[invId];
-            const img = qs(`.js-prod-img[data-row="${row}"]`);
-            const name = qs(`input.js-prod-name[data-row="${row}"]`);
-            const inv = qs(`input.js-inv[data-row="${row}"]`);
-            const prod = qs(`input.js-prod-id[data-row="${row}"]`);
+
+        function onProductoChange(noRecalc, prevInvId){
+            const row   = this.getAttribute('data-row');
+            const invId = (this.value || '').trim();
+            const info  = IDX[invId];
+
+            const img    = qs(`.js-prod-img[data-row="${row}"]`);
+            const name   = qs(`input.js-prod-name[data-row="${row}"]`);
+            const inv    = qs(`input.js-inv[data-row="${row}"]`);
+            const prod   = qs(`input.js-prod-id[data-row="${row}"]`);
             const precio = rowEl(this).querySelector('.js-precio');
 
-            if(info){
-                if(img) img.src = info.imagen || '';
-                if(name) name.value = info.nombre || '';
-                if(inv) inv.value = info.inventarioId || '';
-                if(prod) prod.value = info.productoId || '';
-                if(precio){
+            if (info){
+                if (img)  img.src   = info.imagen || '';
+                if (name) name.value = info.nombre || '';
+                if (inv)  inv.value  = info.inventarioId || '';
+                if (prod) prod.value = info.productoId   || '';
+
+                if (precio){
                     const pv = Number(info.precioVenta || 0);
-                    if(!Number(precio.value)) precio.value = pv.toFixed(2);
+
+                    // Si realmente cambió el producto respecto al anterior, pisa el precio SIEMPRE
+                    const cambioProducto = prevInvId && prevInvId !== invId;
+                    if (cambioProducto || !Number(precio.value)){
+                        precio.value = pv.toFixed(2);
+                    }
                     precio.title = `Precio: Q ${pv.toFixed(2)} | Stock: ${info.stock}`;
                 }
-            }else{
-                if(img) img.src = '';
-                ifname && (name.value = '');
-                if(inv) inv.value = '';
-                if(prod) prod.value = '';
-                if(precio) precio.title = '';
+            } else {
+                if (img)  img.src = '';
+                if (name) name.value = '';
+                if (inv)  inv.value = '';
+                if (prod) prod.value = '';
+                if (precio){
+                    precio.value = '';
+                    precio.title = '';
+                }
             }
-            if(!noRecalc) recalcFila.call(this);
+
+            if (!noRecalc) recalcFila.call(this);
             changed = true;
         }
 
@@ -611,5 +628,50 @@
                 }, 850); 
             }
         })();
+
+               /* ========= Mejora de selects con búsqueda (Tom Select) ========= */
+        function tsInitOne(el){
+            if (!el || el.tomselect) return;
+            new TomSelect(el, {
+                create: false,
+                allowEmptyOption: true,
+                closeAfterSelect: true,
+                maxOptions: 5000,
+                sortField: { field: 'text', direction: 'asc' },
+                dropdownParent: 'body',
+                placeholder: (el.getAttribute('placeholder') || 'Seleccione ↓')
+            });
+        }
+
+        function tsInitAll(){
+            // Proveedor (id estándar asp-for="ProveedorId")
+            var prov = document.getElementById('ClienteId');
+            tsInitOne(prov);
+
+            // Todos los selects de producto de las líneas
+            document.querySelectorAll('#tblBody select[name*=".ProductoId"], #tbBody select[name*=".ProductoId"]').forEach(tsInitOne);
+        }
+
+        // Si tu código anti-duplicados rehace innerHTML, hay que re-inicializar Tom Select
+        function tsRebuild(el){
+            if (!el) return;
+            if (el.tomselect) {
+                el.tomselect.destroy();
+            }
+            tsInitOne(el);
+        }
+
+        // Llama esto DESPUÉS de cualquier cambio que altere las <option> (por ejemplo, refreshAllSelects)
+        function tsRefreshAll(){
+            // Proveedor
+            var prov = document.getElementById('ClienteId');
+            if (prov) tsRebuild(prov);
+
+            // Productos
+            document.querySelectorAll('#tblBody select[name*=".ProductoId"], #tbBody select[name*=".ProductoId"]').forEach(tsRebuild);
+        }
+
+        // Inicializar al cargar
+        document.addEventListener('DOMContentLoaded', tsInitAll);
     </script>
 }

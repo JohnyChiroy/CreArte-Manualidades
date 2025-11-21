@@ -143,8 +143,6 @@
 
                 // ============================================================
                 // 2) Anti-duplicados
-                //    - Ocultar en cada <select> los productos ya elegidos
-                //    - Mantener visible el valor actual de la propia fila
                 // ============================================================
                 function getSelectedIds() {
                     const ids = new Set();
@@ -399,5 +397,50 @@
                             .then(r => { if (r.isConfirmed) goIndex(); });
                     }
                 })();
+
+                       /* ========= Mejora de selects con búsqueda (Tom Select) ========= */
+        function tsInitOne(el){
+            if (!el || el.tomselect) return;
+            new TomSelect(el, {
+                create: false,
+                allowEmptyOption: true,
+                closeAfterSelect: true,
+                maxOptions: 5000,
+                sortField: { field: 'text', direction: 'asc' },
+                dropdownParent: 'body',
+                placeholder: (el.getAttribute('placeholder') || 'Seleccione ↓')
+            });
+        }
+
+        function tsInitAll(){
+            // Proveedor (id estándar asp-for="ProveedorId")
+            var prov = document.getElementById('ProveedorId');
+            tsInitOne(prov);
+
+            // Todos los selects de producto de las líneas
+            document.querySelectorAll('#tblBody select[name*=".ProductoId"], #tbBody select[name*=".ProductoId"]').forEach(tsInitOne);
+        }
+
+        // Si tu código anti-duplicados rehace innerHTML, hay que re-inicializar Tom Select
+        function tsRebuild(el){
+            if (!el) return;
+            if (el.tomselect) {
+                el.tomselect.destroy();
+            }
+            tsInitOne(el);
+        }
+
+        // Llama esto DESPUÉS de cualquier cambio que altere las <option> (por ejemplo, refreshAllSelects)
+        function tsRefreshAll(){
+            // Proveedor
+            var prov = document.getElementById('ProveedorId');
+            if (prov) tsRebuild(prov);
+
+            // Productos
+            document.querySelectorAll('#tblBody select[name*=".ProductoId"], #tbBody select[name*=".ProductoId"]').forEach(tsRebuild);
+        }
+
+        // Inicializar al cargar
+        document.addEventListener('DOMContentLoaded', tsInitAll);
     </script>
 }

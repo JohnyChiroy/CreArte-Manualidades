@@ -6,7 +6,6 @@ namespace CreArte.ModelsPartial
 {
     // ------------------------------------------------------
     // ViewModel de LISTADO con filtros/orden/paginación
-    // (Se usa en GET /Productos/Index)
     // ------------------------------------------------------
     public class ProductoViewModels
     {
@@ -41,9 +40,6 @@ namespace CreArte.ModelsPartial
 
     // ------------------------------------------------------
     // ViewModel de CREATE/EDIT
-    // (Rutas: GET/POST /Productos/Create y GET/POST /Productos/Edit/{id})
-    // Incluye el archivo de imagen por fuera (IFormFile en Controller),
-    // aquí solo guardamos la URL relativa en DB si se sube.
     // ------------------------------------------------------
     public class ProductoCreateVM
     {

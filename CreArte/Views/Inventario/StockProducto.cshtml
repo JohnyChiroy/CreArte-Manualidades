@@ -1,0 +1,30 @@
+﻿@model CreArte.ModelsPartial.InventarioStockMinVM
+@{
+    Layout = null;
+}
+<form id="form-stock-minimo" asp-action="StockProducto" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="PRODUCTO_ID" />
+
+    <div class="mb-2 text-center fw-semibold">Producto</div>
+    <input class="form-control mb-2" value="@Model.PRODUCTO_ID" readonly />
+
+    <div class="mb-2">
+        <label asp-for="StockMinimo" class="form-label"></label>
+        <input asp-for="StockMinimo" class="form-control" />
+        <span asp-validation-for="StockMinimo" class="text-danger"></span>
+    </div>
+
+    @* Campo opcional para trazabilidad *@
+    <div class="mb-2">
+        <label asp-for="Razon" class="form-label"></label>
+        <textarea asp-for="Razon" rows="3" class="form-control"
+                  placeholder="Ej.: Política de reabastecimiento, estacionalidad, histórico de demanda, etc. (opcional)"></textarea>
+        <span asp-validation-for="Razon" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn-cancel" onclick="Swal.close()">Cancelar</button>
+        <button type="submit" class="btn-confirmado">Guardar</button>
+    </div>
+</form>

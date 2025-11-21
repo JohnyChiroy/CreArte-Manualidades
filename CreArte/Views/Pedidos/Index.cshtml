@@ -46,16 +46,26 @@
                 MODIFICAR
             </a>
 
-            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/>
-                </svg>
-                EXPORTAR
-            </a>
-            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
-                </svg>
+            <a  id="btnExportar"
+                class="ua-btn ua-btn-exportar"
+                title="Exportar"
+                target="_blank"
+                href="@Url.Action("ReportePDF", "Pedidos", new {
+                    Search          = Model.Search,
+                    Estado          = Model.Estado,
+                    Cliente         = Model.Cliente,
+                    RequiereAnticipo = Model.RequiereAnticipo,
+                    AnticipoEstado  = Model.AnticipoEstado,
+                    Desde           = Model.Desde?.ToString("yyyy-MM-dd"),
+                    Hasta           = Model.Hasta?.ToString("yyyy-MM-dd"),
+                    TotalMin        = Model.TotalMin,
+                    TotalMax        = Model.TotalMax,
+                    Sort            = Model.Sort,
+                    Dir             = Model.Dir
+                })">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+            </svg>
                 REPORTE
             </a>
         </div>

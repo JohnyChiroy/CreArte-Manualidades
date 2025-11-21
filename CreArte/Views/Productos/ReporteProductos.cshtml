@@ -1,0 +1,464 @@
+﻿@model CreArte.ModelsPartial.ReporteViewModel<CreArte.Models.PRODUCTO>
+
+@{
+    Layout = null;
+
+    // Título que viene del VM (si no, usamos el por defecto)
+    var titulo = string.IsNullOrWhiteSpace(Model.ReportTitle)
+        ? "Reporte de Productos"
+        : Model.ReportTitle;
+
+    var logoUrl = string.IsNullOrWhiteSpace(Model.LogoUrl)
+        ? Url.Content("~/Imagenes/logoCreArte.png")
+        : Model.LogoUrl;
+
+    // Información de la empresa 
+    var empresaInfo = string.IsNullOrWhiteSpace(Model.CompanyInfo)
+        ? "CreArte Manualidades"
+        : Model.CompanyInfo;
+
+    // Usuario que generó el reporte
+    var generadoPor = string.IsNullOrWhiteSpace(Model.GeneratedBy)
+        ? ""
+        : Model.GeneratedBy;
+
+    var totalActivos = Model.GetTotal("Activos");     
+    var totalInactivos = Model.GetTotal("Inactivos"); 
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo</title>
+    <style>
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            color: black;
+            line-height: 1.35;
+        }
+
+        /* =========================================================
+           HEADER MINIMAL 
+           ========================================================= */
+        .header {
+            color: black;
+            padding: 10px 10px;
+            border-radius: 5px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            border: 0;
+            vertical-align: middle;
+            background: transparent !important;
+        }
+
+        .h-left {
+            font-size: 30px;
+            font-weight: bold;
+            letter-spacing: .3px;
+        }
+
+        .h-sub {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .h-right {
+            width: 100px;
+            text-align: right;
+        }
+
+        /* Logo en el header */
+        .logo {
+            width: 110px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            display: inline-block;
+            border-radius: 8px;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* =========================================================
+           CONTENEDOR, CHIPS Y RANGO
+           ========================================================= */
+        .container {
+            padding: 12px 18px 14px 18px;
+        }
+
+        .chips {
+            margin: 2px 0 6px 0;
+        }
+
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            border-radius: 999px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0;
+        }
+
+        .chip--ok {
+            background: #F5FFD1;
+            border-color: #E6F4AA;
+        }
+
+        .chip--no {
+            background: #FFE6EE;
+            border-color: #F5B4C8;
+        }
+
+        .range {
+            display: inline-block;
+            background: #F2B90F;
+            color: black;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid #EAC34B;
+            margin: 0 0 6px 0;
+        }
+
+        /* =========================================================
+           TABLAS 
+           ========================================================= */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 6px;
+        }
+
+        th, td {
+            padding: 9px 10px;
+            vertical-align: top;
+            text-align: center;
+            border-bottom: 1px solid #C5D930; /* borde lima suave */
+        }
+
+        thead th {
+            background: #C5D930; /* lima */
+            color: black;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        thead th:first-child {
+            border-top-left-radius: 7px;
+        }
+
+        thead th:last-child {
+            border-top-right-radius: 7px;
+        }
+
+        tbody tr:nth-child(odd) { /* dejamos fondo blanco, limpio */ }
+        tbody tr:nth-child(even) { /* idem (sin cebra fuerte para no recargar) */ }
+
+        .nowrap { white-space: nowrap; }
+
+        /* Mini título para separar secciones de tablas */
+        .table-title {
+            margin-top: 12px;
+            font-weight: bold;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        /* =========================================================
+           IMÁGENES DE PRODUCTO 
+           ========================================================= */
+        .img-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            object-fit: cover;
+        }
+
+        /* =========================================================
+           BADGES DE ESTADO / ELIMINADO
+           ========================================================= */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
+
+        .badge--ok {
+            background: #03C1FF; /* celeste (como en los listados) */
+            color: white;
+        }
+
+        .badge--no {
+            background: #FF007D; /* magenta fuerte */
+            color: #fff;
+        }
+
+        .badge--soft {
+            background: #F2F2F2;
+            color: #444;
+        }
+
+        /* =========================================================
+           TOTALES Y NOTA FINAL
+           ========================================================= */
+        .totals {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #DDEB8B;
+            color: #242259;
+            font-weight: bold;
+        }
+
+        .totals .ok  { color: #03C1FF; }
+        .totals .no  { color: #FF007D; }
+
+        .note {
+            margin-top: 8px;
+            font-size: 10px;
+            color: black;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- =========================================================
+         HEADER (TÍTULO + EMPRESA + USUARIO + FECHA)
+         ========================================================= -->
+    <header class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <div class="h-left">@titulo</div>
+                    <div class="h-sub">
+                        @empresaInfo
+                        @if (!string.IsNullOrWhiteSpace(generadoPor))
+                        {
+                            <text> | Generado por: @generadoPor</text>
+                        }
+                        | @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+                    </div>
+                </td>
+                <td class="h-right">
+                    <span class="logo"><img src="@logoUrl" alt="Logo" /></span>
+                </td>
+            </tr>
+        </table>
+    </header>
+
+    <!-- =========================================================
+         CONTENIDO
+         ========================================================= -->
+    <main class="container">
+
+        <!-- Rango de fechas aplicado (si hay filtros de fecha) -->
+        @if (Model.FechaInicio.HasValue || Model.FechaFin.HasValue)
+        {
+            <div class="range">
+                Rango: @(Model.FechaInicio?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")
+                a @(Model.FechaFin?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")
+            </div>
+        }
+
+        <!-- Chips de filtros (Estado / Búsqueda / Filtros extra) -->
+        <div class="chips">
+            @* Estado general del filtro *@
+            @if (Model.Estado.HasValue)
+            {
+                if (Model.Estado.Value)
+                {
+                    <span class="chip chip--ok">Estado: Activo</span>
+                    ;
+                }
+                else
+                {
+                    <span class="chip chip--no">Estado: Inactivo</span>
+                    ;
+                }
+            }
+
+            @* Búsqueda global *@
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="chip">Buscar: @Model.Search</span>
+                ;
+            }
+
+            @* Filtros adicionales (ej. Subcategoría, Marca, etc.) *@
+            @foreach (var kv in Model.ExtraFilters)
+            {
+                <span class="chip">@kv.Key: @kv.Value</span>
+            }
+        </div>
+
+        <!-- =====================================================
+             TABLA 1: DATOS GENERALES DEL PRODUCTO
+             ===================================================== -->
+        <div class="table-title">1. Datos generales del producto</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap" style="width:10%;">Código</th>
+                    <th style="width:16%;">Nombre</th>
+                    <th>Descripción</th>
+                    <th style="width:12%;">Subcategoría</th>
+                    <th style="width:12%;">Tipo producto</th>
+                    <th style="width:10%;">Unidad</th>
+                    <th style="width:10%;">Empaque</th>
+                    <th style="width:10%;">Marca</th>
+                    <th style="width:8%;">Imagen</th>
+                    <th style="width:8%;">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var p in Model.Items)
+                    {
+                        <tr>
+                            <td class="nowrap">@p.PRODUCTO_ID</td>
+                            <td>@p.PRODUCTO_NOMBRE</td>
+                            <td>@p.PRODUCTO_DESCRIPCION</td>
+                            <td>@p.SUBCATEGORIA?.SUBCATEGORIA_NOMBRE</td>
+                            <td>@p.TIPO_PRODUCTO?.TIPO_PRODUCTO_NOMBRE</td>
+                            <td>@p.UNIDAD_MEDIDA?.UNIDAD_MEDIDA_NOMBRE</td>
+                            <td>@p.TIPO_EMPAQUE?.TIPO_EMPAQUE_NOMBRE</td>
+                            <td>@p.MARCA?.MARCA_NOMBRE</td>
+                            <td>
+                                @* Si hay ruta de imagen, mostramos miniatura; de lo contrario un texto *@
+                                @if (!string.IsNullOrWhiteSpace(p.IMAGEN_PRODUCTO))
+                                {
+                                    <img src="@p.IMAGEN_PRODUCTO" alt="Img" class="img-thumb" />
+                                }
+                                else
+                                {
+                                    <span class="badge badge--soft">Sin imagen</span>
+                                }
+                            </td>
+                            <td>
+                                @if (p.ESTADO)
+                                {
+                                    <span class="badge badge--ok">Activo</span>
+                                    ;
+                                }
+                                else
+                                {
+                                    <span class="badge badge--no">Inactivo</span>
+                                    ;
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="10" style="text-align:center;padding:16px;">
+                            No hay datos para mostrar.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- =====================================================
+             TABLA 2: DATOS DE AUDITORÍA
+             ===================================================== -->
+        <div class="table-title">2. Auditoría de productos</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:10%;">Código</th>
+                    <th style="width:14%;">Usuario creación</th>
+                    <th style="width:16%;">Fecha creación</th>
+                    <th style="width:14%;">Usuario modif.</th>
+                    <th style="width:16%;">Fecha modif.</th>
+                    <th style="width:8%;">Eliminado</th>
+                    <th style="width:14%;">Usuario elim.</th>
+                    <th style="width:16%;">Fecha elim.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var p in Model.Items)
+                    {
+                        <tr>
+                            <td class="nowrap">@p.PRODUCTO_ID</td>
+                            <td>@p.USUARIO_CREACION</td>
+                            <td class="nowrap">@p.FECHA_CREACION.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td>@p.USUARIO_MODIFICACION</td>
+                            <td class="nowrap">@p.FECHA_MODIFICACION?.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td>
+                                @if (p.ELIMINADO)
+                                {
+                                    <span class="badge badge--no">Sí</span>
+                                    ;
+                                }
+                                else
+                                {
+                                    <span class="badge badge--ok">No</span>
+                                    ;
+                                }
+                            </td>
+                            <td>@p.USUARIO_ELIMINACION</td>
+                            <td class="nowrap">@p.FECHA_ELIMINACION?.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:16px;">
+                            No hay datos para mostrar.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- =====================================================
+             TOTALES (ACTIVOS / INACTIVOS)
+             ===================================================== -->
+        <div class="totals">
+            Total de productos: @Model.Items?.Count
+            · <span class="ok">Activos: @totalActivos</span>
+            · <span class="no">Inactivos: @totalInactivos</span>
+        </div>
+
+        <div class="note">
+            CreArte Manualidades | Reporte de Productos generado automáticamente.
+        </div>
+
+    </main>
+</body>
+</html>

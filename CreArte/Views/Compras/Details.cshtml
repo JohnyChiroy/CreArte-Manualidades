@@ -4,6 +4,13 @@
 @{
     ViewData["Title"] = "Detalle de compra";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var metodosPago = ViewBag.MetodosPagoCombo as List<SelectListItem> ?? new List<SelectListItem>();
+
+    //     var OK_MSG   = TempData.Peek("ok") as string ?? "";
+    // var ERR_MSG  = TempData.Peek("err") as string ?? "";
+
+    // var OC_FLAG  = TempData.Peek("SwalOC_Flag") as string ?? "";
+    // var OC_URL   = TempData.Peek("SwalOC_Url")  as string ?? "";
 }
 
 @section Styles {
@@ -224,6 +231,11 @@
             @* 4) Confirmar: disponible en ENV / CON *@
             @if (Model.EstadoId is "ENV" or "CON")
             {
+                <a class="btn-enviado" target="_blank"
+                   href="@Url.Action("OrdenCompra", "Compras", new { id = Model.CompraId })">
+                    <i class="bi bi-file-earmark-pdf"></i> <span>Ver orden de compra</span>
+                </a>
+
                 <a asp-action="Confirm" asp-controller="Compras" asp-route-id="@Model.CompraId" class="btn-confirmado" title="Confirmar (fecha y precios)">
                     <i class="bi bi-clipboard-check"></i> <span>Confirmar</span>
                 </a>
@@ -404,7 +416,7 @@
             </a>
         </div>
 
-        @* Recibir (solo si procede) *@
+        
         @if (Model.PuedeEditarPrecio || Model.PuedeMarcarRecibida)
         {
             <a asp-action="Recibir" asp-controller="Compras" asp-route-id="@Model.CompraId" class="btn-recibir">
@@ -412,7 +424,7 @@
             </a>
         }
 
-        @* Cargar a inventario (según bandera de tu VM) *@
+        
         @if (Model.PuedeCargarInventario)
         {
             <form asp-action="CargarInventario" asp-controller="Compras" asp-route-id="@Model.CompraId"
@@ -442,4 +454,337 @@
         "ANU" => "anu",
         _ => "light text-dark"
     };
+}
+
+<!-- ===== Modal: Generar Orden de Compra ===== -->
+<div class="modal fade" id="ocModal" tabindex="-1" aria-labelledby="ocModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ocModalLabel">Orden de compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                ¿Deseas descargar la Orden de Compra en PDF ahora?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cerrar</button>
+                <a id="ocBtnDescargar" class="btn-confirmado" target="_blank">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Modal: Pagar Compra (EGRESO) ===== -->
+<div class="modal fade" id="pcModal" tabindex="-1" aria-labelledby="pcModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="pcModalLabel">Registrar pago de compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <form id="pcForm" method="post" asp-action="PagarCompra" asp-controller="Compras" asp-route-id="@Model.CompraId">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label"><strong>Método de pago</strong></label>
+                        <select id="pcMetodo" name="MetodoPagoId" class="form-control" required>
+                            <option value="">Seleccione ↓</option>
+                            @foreach (var m in metodosPago)
+                            {
+                                <option value="@m.Value" data-nombre="@m.Text">@m.Text</option>
+                            }
+                        </select>
+                        <div class="text-danger small d-none" id="pcMetodoErr">Seleccione el método de pago.</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label"><strong>Monto a pagar</strong></label>
+                        <input id="pcMonto" name="MontoPago" type="number" min="0.01" step="0.01" class="form-control" />
+                        <div class="text-danger small d-none" id="pcMontoErr">Monto inválido.</div>
+                        <small class="text-muted">Sugerencia: total recibido × precio compra (puede ser 0 si solo generaste la orden).</small>
+                    </div>
+
+                    <div id="pcEfectivoBlock" class="border rounded p-2">
+                        <div class="mb-2">
+                            <label class="form-label"><strong>Efectivo entregado</strong></label>
+                            <input id="pcEfectivo" type="number" min="0.01" step="0.01" class="form-control" />
+                            <div class="text-danger small d-none" id="pcEfectivoErr"></div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span><strong>Diferencia (vuelto)</strong></span>
+                            <span id="pcVuelto" class="fw-bold">Q 0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 mt-2 mb-0">
+                        Compra: <strong>@Model.CompraId</strong>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cancelar</button>
+                    <button type="submit" class="btn-confirmado" id="pcBtnConfirmar"><i class="bi bi-cash-coin"></i> Registrar pago</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        /* =========================
+           POPovers abrir/cerrar (igual Empleados)
+           ========================= */
+        (function() {
+            document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-pop');
+                    const pop = document.getElementById(id);
+                    const openNow = pop.classList.contains('open');
+                    document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+                    if (!openNow) { pop.classList.add('open'); }
+                });
+            });
+            document.addEventListener('click', function(e){
+                if(!e.target.closest('.ua-popover-wrap') && !e.target.closest('.ua-popover')){
+                    document.querySelectorAll('.ua-popover').forEach(p => p.classList.remove('open'));
+                }
+            });
+        })();
+
+        /* =========================
+           Acciones por selección de fila (VER/MODIFICAR)
+           ========================= */
+        (function () {
+            const btnVer    = document.getElementById('btnVer');
+            const btnEditar = document.getElementById('btnEditar');
+            let selectedId = null;
+
+            function toggleButtons(enable){
+                if (btnVer)    btnVer.classList.toggle('is-disabled', !enable);
+                if (btnEditar) btnEditar.classList.toggle('is-disabled', !enable);
+            }
+            function applySelection(row) {
+                document.querySelectorAll('.ua-rowitem').forEach(r => r.classList.remove('row-selected'));
+                row.classList.add('row-selected');
+                document.querySelectorAll('.ua-rowchk').forEach(c => { if (c.closest('.ua-rowitem') !== row) c.checked = false; });
+                selectedId = row.getAttribute('data-id') || row.querySelector('.ua-rowchk')?.value || null;
+                toggleButtons(!!selectedId);
+            }
+            document.addEventListener('click', function (e) {
+                const row = e.target.closest('.ua-rowitem');
+                if (!row) return;
+                if (e.target.closest('a,button,select,textarea,label,input')) return;
+                const chk = row.querySelector('.ua-rowchk');
+                if (chk) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+            });
+            document.addEventListener('change', function (e) {
+                const chk = e.target.closest('.ua-rowchk');
+                if (!chk) return;
+                const row = chk.closest('.ua-rowitem'); if (!row) return;
+                if (chk.checked) applySelection(row); else { selectedId = null; toggleButtons(false); row.classList.remove('row-selected'); }
+            });
+
+            if (btnVer) {
+                btnVer.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (!selectedId) { alert("Seleccione un registro para ver."); return; }
+                    window.location.href = '@Url.Action("Details", "Compras")/' + encodeURIComponent(selectedId);
+                });
+            }
+            if (btnEditar) {
+                btnEditar.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (!selectedId) { alert("Seleccione un registro para editar."); return; }
+                    window.location.href = '@Url.Action("Edit", "Compras")/' + encodeURIComponent(selectedId);
+                });
+            }
+        })();
+
+        function uaApplyEstado() {
+            const val = document.getElementById('fEstado')?.value || '';
+            const url = new URL(window.location.href);
+            const q = url.searchParams;
+
+            if (val) q.set('Estado', val); else q.delete('Estado');
+            q.set('Page', '1'); // reinicia paginación
+
+            window.location.href = url.pathname + '?' + q.toString();
+        }
+
+        function uaClearEstado() {
+            const sel = document.getElementById('fEstado');
+            if (sel) sel.value = '';
+            uaApplyEstado();
+        }
+
+        (function () {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+            const ok = '@(TempData["ok"] ?? "")';
+            const err = '@(TempData["err"] ?? "")';
+            if (ok)  Swal.fire({ icon: 'success', title: ok,  timer: 2800, showConfirmButton: false });
+            if (err) Swal.fire({ icon: 'error',   title: err, timer: 2800, showConfirmButton: false });
+
+            document.querySelectorAll('.ua-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-pop');
+                    document.querySelectorAll('.ua-popover').forEach(p => p.setAttribute('aria-hidden','true'));
+                    const pop = document.getElementById(id);
+                    if (pop) pop.setAttribute('aria-hidden', pop.getAttribute('aria-hidden') === 'true' ? 'false' : 'true');
+                });
+            });
+            document.addEventListener('click', e => {
+                if (!e.target.closest('.ua-popover-wrap')) {
+                    document.querySelectorAll('.ua-popover').forEach(p => p.setAttribute('aria-hidden','true'));
+                }
+            });
+
+            const form = document.getElementById('uaFilterForm');
+            function set(name, val) {
+                let input = form.querySelector(`[name="${name}"]`);
+                if (!input) { input = document.createElement('input'); input.type='hidden'; input.name=name; form.appendChild(input); }
+                input.value = val ?? '';
+            }
+            function submit() { form.submit(); }
+
+            // Fecha solicitud
+            window.uaApplyFecha = function(){
+                set('Desde', document.getElementById('fDesde').value);
+                set('Hasta', document.getElementById('fHasta').value);
+                submit();
+            };
+            window.uaClearFecha = function(){
+                set('Desde',''); set('Hasta',''); submit();
+            };
+
+            // Cliente
+            window.uaApplyCliente = function(){
+                set('Cliente', document.getElementById('fCliente').value);
+                submit();
+            };
+            window.uaClearCliente = function(){
+                set('Cliente',''); submit();
+            };
+
+            // Estado
+            window.uaApplyEstado = function(){
+                set('Estado', document.getElementById('fEstado').value);
+                submit();
+            };
+            window.uaClearEstado = function(){
+                set('Estado',''); submit();
+            };
+
+            // Total
+            window.uaApplyTotal = function(){
+                set('TotalMin', document.getElementById('fTMin').value);
+                set('TotalMax', document.getElementById('fTMax').value);
+                submit();
+            };
+            window.uaClearTotal = function(){
+                set('TotalMin',''); set('TotalMax',''); submit();
+            };
+            
+        })();
+
+        // script para modal de pago de compra
+                (function(){
+          function qs(s,r=document){return r.querySelector(s);}
+          function money(n){return 'Q ' + Number(n||0).toFixed(2);}
+
+          // ===== Orden de Compra: abrir modal si viene la bandera desde Send =====
+          const ocFlag = '@(TempData["SwalOC_Flag"] ?? "")';
+          const ocUrl  = '@(TempData["SwalOC_Url"] ?? "")';
+
+            const pcFlag = '@(TempData["SwalPC_Flag"] ?? "")';
+            const pcMonto= '@(TempData["SwalPC_Monto"] ?? "")';
+        if (ocFlag === 'oc_ready' && ocUrl) {
+          const el = document.getElementById('ocModal');
+          const a  = document.getElementById('ocBtnDescargar');
+          if (a) a.href = ocUrl;
+          new bootstrap.Modal(el, { backdrop: 'static', keyboard: false }).show();
+        }
+
+        // / ===== Pago de Compra: abrir cuando vuelva de Recibir =====
+        if (pcFlag === 'pc_ready') {
+          const el = document.getElementById('pcModal');
+          const monto = document.getElementById('pcMonto');
+          if (monto) monto.value = Number(pcMonto || 0).toFixed(2);
+
+          // Preseleccionar EFECTIVO si existe y refrescar validaciones/vuelto
+          (function preselectEf(){
+            const sel = document.getElementById('pcMetodo');
+            if (!sel) return;
+            const opts = Array.from(sel.options || []);
+            const idx = opts.findIndex(o => ((o.getAttribute('data-nombre') || o.text || '').toUpperCase()).includes('EFECTIVO'));
+            if (idx >= 0) sel.selectedIndex = idx;
+          })();
+
+          // Llama tus helpers existentes (del mismo bloque)
+          // toggleEf, recalcVuelto, validatePago deben estar definidos arriba
+          if (typeof toggleEf === 'function') toggleEf();
+          if (typeof recalcVuelto === 'function') recalcVuelto();
+          if (typeof validatePago === 'function') validatePago();
+
+          new bootstrap.Modal(el, { backdrop: 'static', keyboard: false }).show();
+        }
+
+          // ===== Pago Compra: helpers (EFECTIVO vs otros)
+          function isEf(){
+            const opt = qs('#pcMetodo')?.selectedOptions?.[0];
+            const nombre = (opt?.getAttribute('data-nombre') || opt?.text || '').toUpperCase();
+            return nombre.includes('EFECTIVO');
+          }
+          function toggleEf(){
+            const block = qs('#pcEfectivoBlock');
+            const inp   = qs('#pcEfectivo');
+            const esEf  = isEf();
+            block.style.opacity = esEf ? '1' : '.6';
+            inp.disabled = !esEf;
+            if (!esEf){ inp.value=''; qs('#pcVuelto').textContent = money(0); qs('#pcEfectivoErr').classList.add('d-none'); }
+          }
+          function recalcVuelto(){
+            const total = Number(qs('#pcMonto')?.value || 0);
+            const rec   = Number(qs('#pcEfectivo')?.value || 0);
+            qs('#pcVuelto').textContent = money(Math.max(0, rec - total));
+          }
+          function validatePago(){
+            let ok = true;
+            const metodo = (qs('#pcMetodo')?.value || '').trim();
+            const monto  = Number(qs('#pcMonto')?.value || 0);
+
+            if (!metodo){ qs('#pcMetodoErr').classList.remove('d-none'); ok=false; } else qs('#pcMetodoErr').classList.add('d-none');
+            if (!(monto>0)){ qs('#pcMontoErr').classList.remove('d-none'); ok=false; } else qs('#pcMontoErr').classList.add('d-none');
+
+            if (isEf()){
+              const rec = Number(qs('#pcEfectivo')?.value || 0);
+              const err = qs('#pcEfectivoErr');
+              if (!(rec>0)){ err.textContent = 'Ingrese efectivo entregado.'; err.classList.remove('d-none'); ok=false; }
+              else if (rec < monto){ err.textContent='El efectivo no puede ser menor al monto.'; err.classList.remove('d-none'); ok=false; }
+              else { err.classList.add('d-none'); }
+            } else {
+              qs('#pcEfectivoErr').classList.add('d-none');
+            }
+            qs('#pcBtnConfirmar').disabled = !ok;
+            return ok;
+          }
+
+          // Wire-up
+          document.getElementById('pcMetodo')?.addEventListener('change', ()=>{toggleEf(); validatePago();});
+          document.getElementById('pcEfectivo')?.addEventListener('input', ()=>{recalcVuelto(); validatePago();});
+          document.getElementById('pcMonto')?.addEventListener('input', ()=>{recalcVuelto(); validatePago();});
+          document.getElementById('pcForm')?.addEventListener('submit', function(e){
+            if (!validatePago()) { e.preventDefault(); }
+          });
+        })();
+    </script>
 }

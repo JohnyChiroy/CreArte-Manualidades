@@ -1,0 +1,406 @@
+﻿@model CreArte.ModelsPartial.ReporteViewModel<CreArte.Models.CLIENTE>
+
+@{
+    Layout = null; // PDF limpio, sin _Layout
+
+    // ==========================
+    // Metadatos del reporte
+    // ==========================
+    var titulo = string.IsNullOrWhiteSpace(Model.ReportTitle)
+        ? "Reporte de Clientes"
+        : Model.ReportTitle;
+
+    var logoUrl = string.IsNullOrWhiteSpace(Model.LogoUrl)
+        ? Url.Content("~/Imagenes/logoCreArte.png")
+        : Model.LogoUrl;
+
+    var empresaInfo = string.IsNullOrWhiteSpace(Model.CompanyInfo)
+        ? "CreArte Manualidades"
+        : Model.CompanyInfo;
+
+    var generadoPor = string.IsNullOrWhiteSpace(Model.GeneratedBy)
+        ? ""
+        : Model.GeneratedBy;
+
+    // Totales (llenados en el controlador con AddTotal)
+    var totalActivos = Model.GetTotal("Activos");
+    var totalInactivos = Model.GetTotal("Inactivos");
+
+    // Función local para componer el nombre completo del cliente
+    string NombreCompleto(CreArte.Models.CLIENTE c)
+    {
+        var p = c.CLIENTENavigation;
+        if (p == null) return "";
+
+        var partes = new[]
+        {
+            p.PERSONA_PRIMERNOMBRE,
+            p.PERSONA_SEGUNDONOMBRE,
+            p.PERSONA_TERCERNOMBRE,
+            p.PERSONA_PRIMERAPELLIDO,
+            p.PERSONA_SEGUNDOAPELLIDO,
+            p.PERSONA_APELLIDOCASADA
+        };
+
+        return string.Join(" ",
+            partes
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim()));
+    }
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo</title>
+
+    <style>
+        /* ============================================
+                   Paleta CreArte (para referencia)
+                   - #242259 Azul noche (primario)
+                   - #C5D930 Lima
+                   - #03C1FF Aqua
+                   - #BF265E Magenta
+                   - #BF419E Fucsia
+                   - #F2B90F Dorado
+                   ============================================ */
+
+        /* ====== Reset básico para PDF ====== */
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            color: #111;
+            line-height: 1.35;
+        }
+
+        /* ====== Header minimal y ordenado ====== */
+        .header {
+            padding: 10px 14px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .header-table td {
+                border: 0;
+                vertical-align: middle;
+                background: transparent !important;
+            }
+
+        .h-left {
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: .3px;
+            color: #242259; /* azul noche */
+        }
+
+        .h-sub {
+            font-size: 11px;
+            margin-top: 3px;
+            color: #444;
+        }
+
+        .h-right {
+            width: 90px;
+            text-align: right;
+        }
+
+        .logo {
+            width: 110px;
+            height: 60px;
+            display: inline-block;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+            .logo img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+        /* Línea bajo el header con tu paleta */
+        .header-line {
+            height: 4px;
+            margin: 0 14px;
+            border-radius: 999px;
+            background: linear-gradient( 90deg, #C5D930 0%, /* lima */
+            #03C1FF 40%, /* aqua */
+            #BF265E 75%, /* magenta */
+            #F2B90F 100% /* dorado */
+            );
+        }
+
+        /* ====== Contenedor principal ====== */
+        .container {
+            padding: 10px 18px 14px 18px;
+        }
+
+        /* Info corporativa + usuario */
+        .info {
+            font-size: 10px;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        /* ====== Chips / filtros ====== */
+        .chips {
+            margin: 4px 0 8px 0;
+        }
+
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 9px;
+            margin: 0 6px 6px 0;
+            border-radius: 999px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0; /* dorado muy suave */
+        }
+
+        .chip--ok {
+            background: #E3FFF7; /* aqua muy claro */
+            border-color: #BCEFE4;
+        }
+
+        .chip--no {
+            background: #FFE6EE; /* magenta muy claro */
+            border-color: #F5B4C8;
+        }
+
+        .chip--accent {
+            background: #FFF4C6; /* dorado suave */
+            border-color: #F2B90F;
+        }
+
+        /* ====== Tabla de datos ====== */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 4px;
+        }
+
+        th, td {
+            padding: 7px 8px;
+            vertical-align: top;
+            text-align: left;
+            border-bottom: 1px solid #C5D930; /* línea lima */
+        }
+
+        thead th {
+            background: #C5D930; /* encabezado lima */
+            color: #000;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            text-align: left;
+        }
+
+            thead th:first-child {
+                border-top-left-radius: 7px;
+            }
+
+            thead th:last-child {
+                border-top-right-radius: 7px;
+            }
+
+        /* Cebra ligera (si quieres activarla, descomenta) */
+        /*tbody tr:nth-child(odd) { background: #FBFBFF; }
+                tbody tr:nth-child(even){ background: #F6F7FF; }*/
+
+        .nowrap {
+            white-space: nowrap;
+        }
+
+        /* Badges de estado */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
+
+        .badge--ok {
+            background: #03C1FF; /* aqua de tu paleta */
+            color: #ffffff;
+        }
+
+        .badge--no {
+            background: #BF265E; /* magenta de tu paleta */
+            color: #ffffff;
+        }
+
+        /* ====== Totales ====== */
+        .totals {
+            margin-top: 10px;
+            padding: 7px 10px;
+            border-radius: 10px;
+            border: 1px solid #DDEB8B; /* borde suave lima */
+            color: #242259;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+            .totals .ok {
+                color: #03C1FF; /* aqua */
+            }
+
+            .totals .no {
+                color: #BF265E; /* magenta */
+            }
+
+        /* ====== Footer simple ====== */
+        .note {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== HEADER ========== -->
+    <header class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <!-- Título y subtítulo -->
+                    <div class="h-left">@titulo</div>
+                    <div class="h-sub">
+                        @empresaInfo
+                        @if (!string.IsNullOrWhiteSpace(generadoPor))
+                        {
+                            <text> | Generado por: @generadoPor</text>
+                        }
+                        | @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+                    </div>
+                </td>
+                <td class="h-right">
+                    <!-- Logo -->
+                    <span class="logo">
+                        <img src="@logoUrl" alt="Logo CreArte" />
+                    </span>
+                </td>
+            </tr>
+        </table>
+    </header>
+
+    <!-- Línea decorativa bajo el header -->
+    <div class="header-line"></div>
+
+    <!-- ========== CUERPO ========== -->
+    <main class="container">
+
+        <!-- Info corporativa / usuario -->
+        <div class="info">
+            @* Aquí podrías agregar más contexto si lo necesitas *@
+        </div>
+
+        <!-- Chips de filtros -->
+        <div class="chips">
+            @* Estado *@
+            @if (Model.Estado.HasValue)
+            {
+                if (Model.Estado.Value)
+                {
+                    <span class="chip chip--ok">Estado: Activo</span>
+                }
+                else
+                {
+                    <span class="chip chip--no">Estado: Inactivo</span>
+                }
+            }
+
+            @* Búsqueda global *@
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="chip chip--accent">Buscar: @Model.Search</span>
+            }
+
+            @* Filtros adicionales (ej. Tipo de cliente) *@
+            @foreach (var kv in Model.ExtraFilters)
+            {
+                <span class="chip chip--accent">@kv.Key: @kv.Value</span>
+            }
+        </div>
+
+        <!-- Tabla de CLIENTES -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap" style="width:10%;">Código</th>
+                    <th style="width:22%;">Nombre completo</th>
+                    <th style="width:15%;">Tipo cliente</th>
+                    <th style="width:11%;">NIT</th>
+                    <th style="width:11%;">DPI/CUI</th>
+                    <th style="width:11%;">Teléfono</th>
+                    <th style="width:15%;">Correo</th>
+                    <th class="nowrap" style="width:8%;">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var c in Model.Items)
+                    {
+                        var persona = c.CLIENTENavigation;
+                        <tr>
+                            <td class="nowrap">@c.CLIENTE_ID</td>
+                            <td>@NombreCompleto(c)</td>
+                            <td>@c.TIPO_CLIENTE?.TIPO_CLIENTE_NOMBRE</td>
+                            <td class="nowrap">@persona?.PERSONA_NIT</td>
+                            <td class="nowrap">@persona?.PERSONA_CUI</td>
+                            <td class="nowrap">@persona?.PERSONA_TELEFONOMOVIL</td>
+                            <td>@persona?.PERSONA_CORREO</td>
+                            <td>
+                                @if (c.ESTADO)
+                                {
+                                    <span class="badge badge--ok">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--no">Inactivo</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center; padding:16px;">
+                            No hay datos para mostrar.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Totales -->
+        <div class="totals">
+            Total de registros: @Model.Items?.Count
+            · <span class="ok">Activos: @totalActivos</span>
+            · <span class="no">Inactivos: @totalInactivos</span>
+        </div>
+
+        <!-- Nota / footer -->
+        <div class="note">
+            CreArte Manualidades · Reporte de Clientes generado automáticamente por el sistema.
+        </div>
+    </main>
+</body>
+</html>

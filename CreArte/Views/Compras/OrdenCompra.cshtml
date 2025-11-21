@@ -1,0 +1,265 @@
+﻿@model dynamic
+@{
+    Layout = null;
+
+    // ====== Metadatos ======
+    string titulo = "Orden de Compra";
+    string logoUrl = Url.Content("~/Imagenes/logoCreArte.png");
+    string empresaInfo = "CreArte Manualidades";
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo - @Model.CompraId</title>
+    <style>
+        /* ===== Reset seguro PDF ===== */
+        * {
+            box-sizing: border-box
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            color: black;
+            line-height: 1.35
+        }
+
+        /* ===== Header minimal (mismo estilo del recibo) ===== */
+        .header {
+            color: black;
+            padding: 10px 10px;
+            border-radius: 5px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse
+        }
+
+            .header-table td {
+                border: 0;
+                vertical-align: middle;
+                background: transparent !important;
+            }
+
+        .h-left {
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: .3px
+        }
+
+        .h-sub {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .h-right {
+            width: 70px;
+            text-align: right
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        .logo {
+            width: 110px;
+            height: 60px;
+            display: inline-block;
+            border-radius: 8px;
+        }
+
+        /* ===== Contenedor ===== */
+        .container {
+            padding: 12px 18px 14px 18px
+        }
+
+        /* ===== Chips / etiquetas (opcional) ===== */
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            border-radius: 999px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0
+        }
+
+        /* ===== Badge “placa” ===== */
+        .range {
+            display: inline-block;
+            background: #F2B90F;
+            color: black;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid #EAC34B;
+            margin: 0 0 6px 0
+        }
+
+        /* ===== Tabla (idéntico esquema de colores del recibo) ===== */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 6px
+        }
+
+        th, td {
+            padding: 9px 10px;
+            vertical-align: top;
+            text-align: left;
+            border-bottom: 1px solid #C5D930;
+        }
+
+        thead th {
+            background: #C5D930;
+            color: black;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+            thead th:first-child {
+                border-top-left-radius: 7px
+            }
+
+            thead th:last-child {
+                border-top-right-radius: 7px
+            }
+
+        .right {
+            text-align: right
+        }
+
+        .center {
+            text-align: center
+        }
+
+        .nowrap {
+            white-space: nowrap
+        }
+
+        /* ===== Totales (se muestra el marco pero va en blanco) ===== */
+        .totals {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #C5D930;
+            color: black;
+            font-weight: bold
+        }
+
+        .totline {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(197,217,48,.0), rgba(197,217,48,1), rgba(197,217,48,.0));
+            margin: 8px 0;
+        }
+
+        /* ===== Miniatura de imagen ===== */
+        .thumb {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #f8f9fa
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <div class="h-left">@titulo</div>
+                    <div class="h-sub">
+                        @empresaInfo
+                        · Compra: <b>@(Model.CompraId ?? "")</b>
+                        · @((Model.Fecha is DateTime dt ? dt : (Model.Fecha is DateOnly d ? d.ToDateTime(TimeOnly.MinValue) : DateTime.Now)).ToString("dd/MM/yyyy HH:mm:ss"))
+                    </div>
+                    <div>Proveedor: @(Model.Proveedor ?? "-")</div>
+                </td>
+                <td class="h-right">
+                    <span class="logo"><img src="@logoUrl" alt="Logo" /></span>
+                </td>
+            </tr>
+        </table>
+    </header>
+
+    <main class="container">
+        <div class="divider"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">Código</th>
+                    <th>Producto</th>
+                    <th class="center nowrap">Imagen</th>
+                    <th class="right nowrap">Cantidad</th>
+                    <th class="right nowrap">Precio compra</th>
+                    <th class="right nowrap">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Lineas != null)
+                {
+                    foreach (var l in Model.Lineas)
+                    {
+                        <tr>
+                            <td>@l.Codigo</td>
+                            <td>@l.Producto</td>
+                            <td class="center">
+                                @if (!string.IsNullOrWhiteSpace((string)l.Imagen))
+                                {
+                                    <img class="thumb" src="@l.Imagen" alt="@l.Producto" />
+                                }
+                                else
+                                {
+
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="right">@l.Cantidad</td>
+                            <td class="right"></td>   @* vacío para que lo llene el proveedor *@
+                            <td class="right"></td>   @* vacío *@
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td class="center" colspan="6" style="padding:16px;">No hay líneas para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <section class="totals">
+            <div class="totline">
+                <span>Total de la orden:</span>
+                <span> </span> @* Intencionalmente en blanco *@
+            </div>
+        </section>
+
+        <div style="margin-top:8px; font-size:10px; text-align:center;">
+            Orden generada por @empresaInfo — Este documento solicita al proveedor cotizar y completar los importes.
+        </div>
+    </main>
+</body>
+</html>

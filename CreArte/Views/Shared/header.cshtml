@@ -1,5 +1,7 @@
-﻿@{
-    var usuario = ViewBag.Nombre as string ?? "Usuario";
+﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor Http
+@{
+    var usuario = Http.HttpContext?.Session.GetString("Nombre") ?? "Usuario";
+    // var usuario = ViewBag.Nombre as string ?? "Usuario";
     Layout = null; // este es un layout raíz
 
     // 1) Si una vista puso un título específico, úsalo primero.

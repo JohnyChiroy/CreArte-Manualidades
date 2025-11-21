@@ -27,7 +27,7 @@
 
 <div class="container-fluid py-3">
     <div class="ua-toolbar">
-        <h2 class="m-0">Permisos</h2>
+        <h2 class="m-0"></h2>
 
         <div class="d-flex align-items-center gap-2">
             <a class="ua-btn ua-btn-new" id="btnNuevo" href="@Url.Action("Create","Permisos")">
@@ -42,14 +42,21 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77L19.43 2.6a1.25 1.25 0 0 0-1.77 0l-1.66 1.66 3.75 3.75 1.66-1.66z"/></svg>
                 MODIFICAR
             </a>
-            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/></svg>
-                EXPORTAR
-            </a>
-            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
-                REPORTE
-            </a>
+
+            <a class="ua-btn ua-btn-exportar"
+                   target="_blank"
+                   href="@Url.Action("ReportePDF", "Permisos", new {
+                       estado = Model.Estado,
+                       q      = Model.Q,
+                       sort   = Model.Sort,
+                       dir    = Model.Dir
+                   })"
+                   title="Exportar a PDF">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+                </svg>
+                    REPORTE
+                </a>
         </div>
 
         <form method="get" asp-controller="Permisos" asp-action="Index" class="ua-search d-flex align-items-center">

@@ -17,8 +17,9 @@ namespace CreArte.ModelsPartial
         [Required(ErrorMessage = "Debe seleccionar un cliente.")]
         public string ClienteId { get; set; } = null!; // = PERSONA_ID
 
-        [Required(ErrorMessage = "Debe seleccionar un usuario vendedor.")]
+        [Required]
         public string UsuarioId { get; set; } = null!;
+        public string? UsuarioNombre { get; set; }
 
         [DataType(DataType.DateTime)]
         public DateTime Fecha { get; set; } = DateTime.Now;

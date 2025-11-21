@@ -662,3 +662,102 @@ textarea:disabled {
     background-color: #242259 !important;
     color: white !important;
 }
+
+
+/*para campos defs seleccion*/
+.ts-wrapper {
+    border: 1px solid #dee2e6 !important;
+    border-radius: 10px !important;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+    color: #212529 !important;
+    height: 40px;
+    max-width: 100%; /* Evita desbordes */
+    display: flex !important;
+    align-items: center !important;
+}
+
+
+/* Control interno del select */
+.ts-control {
+    border: none !important;
+    background: transparent !important;
+    padding: 0.5rem 0.75rem !important; /* igual que input */
+    min-height: calc(1.5em + 0.75rem + 2px) !important;
+    font-family: inherit !important;
+    font-size: 0.95rem !important;
+    color: #212529 !important;
+    line-height: 1.5 !important;
+    border-radius: 10px !important;
+}
+
+/* Al pasar o enfocar → se vuelve blanco */
+.ts-wrapper.focus,
+.ts-wrapper:hover {
+    border-color: #BF265E !important; /* magenta CreArte */
+    box-shadow: 0 0 0 0.15rem rgba(191, 38, 94, 0.1);
+    background-color: #ffffff !important; /* se vuelve blanco */
+}
+
+/* Placeholder */
+.ts-control > input::placeholder {
+    color: #6c757d !important;
+}
+
+/* Dropdown (lista desplegable) */
+.ts-dropdown {
+    border: 1px solid #dee2e6 !important;
+    border-radius: 10px;
+    /*background: #fff;*/
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+    /* Opción normal */
+    .ts-dropdown .option {
+        padding: 8px 12px;
+        font-size: 0.93rem;
+        color: #333;
+        transition: background 0.15s ease;
+        border-radius: 0; /* no bordes internos */
+    }
+
+        /* Hover o seleccionada */
+        .ts-dropdown .option.active,
+        .ts-dropdown .option:hover {
+            background-color: #BF265E !important;
+            color: #fff !important;
+        }
+
+/* Flecha discreta y centrada */
+.ts-control::after {
+    border-color: #6c757d transparent transparent transparent !important;
+    top: 48% !important;
+}
+
+.ts-control:focus,
+.ts-wrapper:focus-within {
+    outline: none !important;
+}
+
+
+
+/* Forzar fondo blanco por defecto en las opciones */
+.ts-dropdown .option {
+    background: #fff !important;
+    color: #333 !important;
+}
+
+    /* Mismo look magenta para hover, active y selected (la barra gris) */
+    .ts-dropdown .option:hover,
+    .ts-dropdown .option.active,
+    .ts-dropdown .option.selected,
+    .ts-dropdown .selected {
+        background-color: #BF265E !important;
+        color: #fff !important;
+    }
+
+/* (Opcional) cuando la opción es 'no-results', mantener estilo neutro */
+.ts-dropdown .no-results {
+    background: #fff !important;
+    color: #6c757d !important;
+}

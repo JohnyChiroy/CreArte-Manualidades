@@ -1,0 +1,327 @@
+﻿@model CreArte.ModelsPartial.ReporteViewModel<CreArte.ModelsPartial.CajaIndexItemVM>
+@{
+    Layout = null;
+
+    var titulo = string.IsNullOrWhiteSpace(Model.ReportTitle) ? "Reporte de Sesiones de Caja" : Model.ReportTitle;
+    var logoUrl = string.IsNullOrWhiteSpace(Model.LogoUrl) ? Url.Content("~/Imagenes/logoCreArte.png") : Model.LogoUrl;
+    var empresaInfo = string.IsNullOrWhiteSpace(Model.CompanyInfo) ? "CreArte Manualidades" : Model.CompanyInfo;
+    var generadoPor = string.IsNullOrWhiteSpace(Model.GeneratedBy) ? "" : Model.GeneratedBy;
+
+    var totalSesiones = Model.GetTotal("Sesiones");
+    var totalAbiertas = Model.GetTotal("Abiertas");
+    var totalCerradas = Model.GetTotal("Cerradas");
+    var saldoTotal = Model.GetTotalDecimal("SaldoTotal"); ;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@titulo</title>
+    <style>
+
+        /* Reset seguro PDF */
+        * {
+            box-sizing: border-box
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff
+        }
+
+        body {
+            font-family: Arial,Helvetica,sans-serif;
+            font-size: 12px;
+            color: black;
+            line-height: 1.35
+        }
+
+        /* ================= Header minimal ================= */
+        .header {
+            /* background: #242259; */
+            color: black;
+            padding: 10px 10px;
+            border-radius: 5px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse
+        }
+
+            .header-table td {
+                border: 0;
+                vertical-align: middle;
+                background: transparent !important;
+            }
+
+        .h-left {
+            font-size: 30px;
+            font-weight: bold;
+            letter-spacing: .3px
+        }
+
+        .h-sub {
+            font-size: 12px;
+            /* color: #E8E9FF; */
+            margin-top: 2px;
+        }
+
+        .h-right {
+            width: 70px;
+            text-align: right
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Ajustes específicos de la imagen */
+        .logo {
+            width: 110px;
+            height: 60px;
+            object-fit: cover;
+            object-position: center;
+            display: inline-block; /* o block, pero inline-block se ajusta mejor aquí */
+            border-radius: 8px;
+            /* border: 1px solid #eee; */
+            /* background: #fafafa; */
+        }
+
+        /* ================= Chips / Rango ================= */
+        .container {
+            padding: 12px 18px 14px 18px
+        }
+
+        .chips {
+            margin: 2px 0 6px 0
+        }
+
+        .chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            border-radius: 999px;
+            border: 1px solid #E6E6E6;
+            background: #FFF9E0
+        }
+
+        .chip--ok {
+            background: #F5FFD1;
+            border-color: #E6F4AA
+        }
+
+        .chip--no {
+            background: #FFE6EE;
+            border-color: #F5B4C8
+        }
+
+        .range {
+            display: inline-block;
+            background: #F2B90F;
+            color: black;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid #EAC34B;
+            margin: 0 0 6px 0
+        }
+
+        /* ================= Tabla ================= */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 6px
+        }
+
+        th, td {
+            padding: 9px 10px;
+            vertical-align: top;
+            text-align: center;
+            border-bottom: 1px solid #C5D930;
+        }
+        /* línea lima suave */
+
+        thead th {
+            background: #C5D930; /* lima */
+            color: black;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            /* border-top: 1px solid #B7CC2C; */ /* bordes para volumen */
+            /* border-bottom: 2px solid #B7CC2C; */
+        }
+
+            thead th:first-child {
+                border-top-left-radius: 7px
+            }
+
+            thead th:last-child {
+                border-top-right-radius: 7px
+            }
+
+        /* Cebra sutil */
+        tbody tr:nth-child(odd) {
+            /* background: #FBFBFF */
+        }
+
+        tbody tr:nth-child(even) {
+            /* background: #F6F7FF */
+        }
+
+        .nowrap {
+            white-space: nowrap
+        }
+
+        /* Badges estado */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            /* font-weight: bold; */
+        }
+
+        .badge--ok {
+            background: #03C1FF;
+            color: white;
+        }
+        /* Activo - lima */
+        .badge--no {
+            background: #FF007D;
+            color: #fff;
+        }
+        /* Inactivo - magenta
+
+            /* ================= Totales (bloque simple) ================= */
+        .totals {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            /* background: #F7FFD9; */
+            border: 1px solid #DDEB8B;
+            color: #242259;
+            font-weight: bold
+        }
+
+            .totals .ok {
+                color: #03C1FF
+            }
+
+            .totals .no {
+                color: #FF007D
+            }
+
+        /* ================= Footer minimal (nota) ================= */
+        .note {
+            margin-top: 8px;
+            font-size: 10px;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <div class="h-left">@titulo</div>
+                    <div class="h-sub">
+                        @empresaInfo
+                        @if (!string.IsNullOrWhiteSpace(generadoPor))
+                        {
+                            <text> | Generado por: @generadoPor</text>
+                        }
+                        | @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+                    </div>
+                </td>
+                <td class="h-right">
+                    <span class="logo"><img src="@logoUrl" alt="Logo" /></span>
+                </td>
+            </tr>
+        </table>
+    </header>
+
+    <main class="container">
+        <!-- Chips -->
+        <div class="chips">
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="chip">Buscar: @Model.Search</span>
+            }
+
+            @foreach (var kv in Model.ExtraFilters)
+            {
+                <span class="chip">@kv.Key: @kv.Value</span>
+            }
+        </div>
+
+        <!-- Tabla Caja -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap" style="width:12%;">Sesión</th>
+                    <th style="width:18%;">Usuario</th>
+                    <th class="nowrap" style="width:14%;">Apertura</th>
+                    <th class="nowrap" style="width:14%;">Cierre</th>
+                    <th class="nowrap" style="width:10%;">Inicial</th>
+                    <th class="nowrap" style="width:10%;">Ingresos</th>
+                    <th class="nowrap" style="width:10%;">Egresos</th>
+                    <th class="nowrap" style="width:12%;">Saldo final</th>
+                    <th class="nowrap" style="width:10%;">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items != null && Model.Items.Any())
+                {
+                    foreach (var c in Model.Items)
+                    {
+                        <tr>
+                            <td class="nowrap">@c.CajaSesionId</td>
+                            <td>@c.UsuarioNombre</td>
+                            <td class="nowrap">@c.FechaApertura.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td class="nowrap">@c.FechaCierre?.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td class="nowrap">@c.MontoInicial.ToString("Q0.00")</td>
+                            <td class="nowrap">@c.TotalIngresos.ToString("Q0.00")</td>
+                            <td class="nowrap">@c.TotalEgresos.ToString("Q0.00")</td>
+                            <td class="nowrap">@c.SaldoFinal.ToString("Q0.00")</td>
+                            <td>
+                                @if (c.Abierta)
+                                {
+                                    <span class="badge badge--ok">Abierta</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--no">Cerrada</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="9" style="text-align:center;padding:16px;">No hay datos para mostrar.</td></tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Totales -->
+        <div class="totals">
+            Total de sesiones: @totalSesiones
+            · <span class="ok">Abiertas: @totalAbiertas</span>
+            · <span class="no">Cerradas: @totalCerradas</span>
+            · Saldo total: @saldoTotal.ToString("Q0.00")
+        </div>
+
+        <div class="note">
+            CreArte Manualidades | Reporte de sesiones de caja generado automáticamente.
+        </div>
+    </main>
+</body>
+</html>

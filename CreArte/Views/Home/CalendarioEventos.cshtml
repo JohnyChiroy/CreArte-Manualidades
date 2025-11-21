@@ -1,0 +1,157 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        /* ========= Contenedor del calendario ========= */
+        .ua-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.08);
+            padding: 14px;
+        }
+
+        /* Header del bloque */
+        .ua-block-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+            .ua-block-title h5 {
+                margin: 0;
+                font-weight: 700;
+                color: #333;
+            }
+
+        /* Leyenda */
+        .ua-legend {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+            .ua-legend .item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: .95rem;
+            }
+
+        .ua-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+            .ua-dot.pedido {
+                background: #03C1FF;
+            }
+
+            .ua-dot.compra {
+                background: #EFBD21;
+                border: 1px solid rgba(0,0,0,.1);
+            }
+
+        /* Ajustes de FullCalendar para integrarlo a tu look */
+        .fc .fc-toolbar-title {
+            font-weight: 700;
+        }
+
+        .fc .fc-button-primary {
+            background: #BF265E;
+            border-color: #BF265E;
+        }
+
+            .fc .fc-button-primary:hover {
+                filter: brightness(0.92);
+            }
+
+        .fc a {
+            color: #1a1a1a;
+        }
+        /* texto de días */
+        .fc .fc-daygrid-event {
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,.08);
+            padding: 2px 4px;
+        }
+    </style>
+}
+
+<div class="container-fluid py-3">
+    <div class="ua-card">
+        <div class="ua-block-title">
+            <h5>Calendario del Mes</h5>
+        </div>
+
+        <!-- Leyenda -->
+        <div class="ua-legend">
+            <div class="item"><span class="ua-dot pedido"></span> Pedidos</div>
+            <div class="item"><span class="ua-dot compra"></span> Compras</div>
+        </div>
+
+        <!-- Contenedor del calendario -->
+        <div id="calendar"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- FullCalendar (versión global con locales) -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <script>
+        // ============================================================
+        // Inicialización del calendario del Home (Dashboard)
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1) Obtenemos el div contenedor
+            const calendarEl = document.getElementById('calendar');
+
+            // 2) Creamos el calendario
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                // Vista principal mensual
+                initialView: 'dayGridMonth',
+
+                // Idioma español (incluido en index.global)
+                locale: 'es',
+
+                // Toolbar (arriba): navegación y título
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                },
+
+                // Altura automática para adaptarse al contenido
+                height: 'auto',
+
+                // Fuente de datos: nuestro endpoint en HomeController
+                events: '/Home/CalendarioEventos',
+
+                // Tooltip del evento (nativo via title)
+                eventDidMount: function (info) {
+                    // Puedes agregar un title más descriptivo si quieres
+                    // info.el.title = info.event.title;
+                },
+
+                // Click en evento: navegar a Details (evitamos redirección doble)
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+                    if (info.event.url) {
+                        window.location.href = info.event.url;
+                    }
+                }
+            });
+
+            // 3) Renderizamos
+            calendar.render();
+        });
+    </script>
+}

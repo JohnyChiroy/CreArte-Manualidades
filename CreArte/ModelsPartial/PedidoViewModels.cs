@@ -66,6 +66,8 @@ namespace CreArte.ModelsPartial
 
         [Range(0.00, 9999999)] public decimal PrecioPedido { get; set; }
 
+        public decimal PrecioUnitario { get; set; }
+
         public decimal Subtotal => Math.Round(Cantidad * PrecioPedido, 2);
     }
 
@@ -149,5 +151,21 @@ namespace CreArte.ModelsPartial
         public decimal Cantidad { get; set; }
         public decimal PrecioPedido { get; set; }
         public decimal Subtotal { get; set; }
+    }
+
+    public class ReciboPedidoCreateVM
+    {
+        public string PedidoId { get; set; } = null!;
+        public string UsuarioId { get; set; } = null!;
+        public string MetodoPagoId { get; set; } = null!;
+        public decimal Monto { get; set; }                   // a cobrar en la entrega
+
+        // Info para el modal
+        public decimal TotalPedido { get; set; }             // TOTAL_PEDIDO
+        public decimal TotalPagado { get; set; }             // suma de recibos vinculados al pedido
+        public decimal Pendiente => Math.Max(0, TotalPedido - TotalPagado);
+
+        // Combos
+        public List<SelectListItem> MetodosPagoCombo { get; set; } = new();
     }
 }

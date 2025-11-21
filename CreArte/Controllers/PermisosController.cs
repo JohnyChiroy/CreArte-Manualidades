@@ -1,11 +1,13 @@
-﻿// Controllers/Seguridad/PermisosController.cs
-using CreArte.Data;
+﻿using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial;
 using CreArte.Services.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
+
 
 namespace CreArte.Controllers.Seguridad
 {
@@ -377,6 +379,99 @@ namespace CreArte.Controllers.Seguridad
 
             TempData["SwalOk"] = $"Permisos actualizados correctamente ({cambios} cambio(s)).";
             return RedirectToAction(nameof(EditBulk), new { rolId = vm.RolId });
+        }
+
+        // === REPORTE PDF ===
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+    string? estado = null,
+    string? q = null,
+    string? sort = "rol",
+    string? dir = "asc",
+    CancellationToken ct = default)
+        {
+            var baseQry =
+                from p in _db.PERMISOS.AsNoTracking()
+                join r in _db.ROL.AsNoTracking() on p.ROL_ID equals r.ROL_ID
+                where !p.ELIMINADO
+                select new { p, r };
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = $"%{q.Trim()}%";
+                baseQry = baseQry.Where(x =>
+                    EF.Functions.Like(x.p.PERMISOS_ID!, term) ||
+                    EF.Functions.Like(x.p.ROL_ID!, term) ||
+                    EF.Functions.Like(x.r.ROL_NOMBRE!, term));
+            }
+
+            if (!string.IsNullOrWhiteSpace(estado) && bool.TryParse(estado, out var st))
+                baseQry = baseQry.Where(x => x.p.ESTADO == st);
+
+            // Totales (en base al query filtrado)
+            int totActivos = await baseQry.CountAsync(x => x.p.ESTADO, ct);
+            int totInactivos = await baseQry.CountAsync(x => !x.p.ESTADO, ct);
+
+            var agrupado =
+                baseQry.GroupBy(x => new { x.p.ROL_ID, x.r.ROL_NOMBRE })
+                       .Select(g => new PermisoListVM
+                       {
+                           RolId = g.Key.ROL_ID!,
+                           RolNombre = g.Key.ROL_NOMBRE!,
+                           PermisosId = g.Min(y => y.p.PERMISOS_ID!)!,
+                           FechaCreacion = g.Min(y => y.p.FECHA_CREACION)
+                       });
+
+            IOrderedQueryable<PermisoListVM> ordenado = (sort ?? "rol").ToLower() switch
+            {
+                "nombre" => (dir ?? "asc").ToLower() == "desc"
+                    ? agrupado.OrderByDescending(x => x.RolNombre)
+                    : agrupado.OrderBy(x => x.RolNombre),
+                "fecha" => (dir ?? "asc").ToLower() == "desc"
+                    ? agrupado.OrderByDescending(x => x.FechaCreacion)
+                    : agrupado.OrderBy(x => x.FechaCreacion),
+                _ => (dir ?? "asc").ToLower() == "desc"
+                    ? agrupado.OrderByDescending(x => x.RolId)
+                    : agrupado.OrderBy(x => x.RolId)
+            };
+
+            var items = await ordenado.ToListAsync(ct);
+
+            var vm = new ReporteViewModel<PermisoListVM>
+            {
+                Items = items,
+                Search = q,
+                Sort = sort,
+                Dir = dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+                ReportTitle = "Reporte de Permisos",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+            if (!string.IsNullOrWhiteSpace(estado))
+                vm.ExtraFilters["Estado permisos"] = estado;
+
+            var pdf = new ViewAsPdf("ReportePermisos", vm)
+            {
+                FileName = $"ReportePermisos.pdf",
+                ContentDisposition = ContentDisposition.Inline,
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

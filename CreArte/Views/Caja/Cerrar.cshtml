@@ -8,41 +8,38 @@
     <!-- Toolbar -->
     <div class="ua-toolbar">
         <h2 class="m-0">Cerrar sesión de caja</h2>
-        <div class="d-flex align-items-center gap-2">
-            <!-- OJO: ahora va a Details -->
-            <a asp-controller="Caja" asp-action="Details" asp-route-id="@Model.CajaSesionId" class="ua-btn ua-btn-reporte" title="Ver movimientos">
+            <!-- va a Details -->
+            <a asp-controller="Caja" asp-action="Details" asp-route-id="@Model.CajaSesionId" class="ua-btn ua-btn-exportar" title="Ver movimientos">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2z" /></svg>
                 DETALLE
             </a>
-        </div>
-        <div></div>
     </div>
 
     <div class="ua-card">
         <!-- Resumen de montos -->
         <div class="row g-3">
             <div class="col-md-3">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Monto inicial</div>
-                    <div class="fs-5 fw-semibold text-center">Q @Model.MontoInicial.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#23B6B1">
+                    <div class="small text-center" style="color:white">Monto inicial</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:white">Q @Model.MontoInicial.ToString("N2")</div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Ingresos</div>
-                    <div class="fs-5 fw-semibold text-center">Q @Model.TotalIngresos.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#03C1FF">
+                    <div class="small text-center" style="color:white">Ingresos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:white">Q @Model.TotalIngresos.ToString("N2")</div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Egresos</div>
-                    <div class="fs-5 fw-semibold text-center">Q @Model.TotalEgresos.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#FF007D">
+                    <div class="small text-center" style="color:white">Egresos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:white">Q @Model.TotalEgresos.ToString("N2")</div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Saldo final</div>
-                    <div class="fs-5 fw-semibold text-center" style="color:#BF265E">Q @Model.SaldoFinal.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#FFEA00">
+                    <div class="small text-center">Saldo final</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:black">Q @Model.SaldoFinal.ToString("N2")</div>
                 </div>
             </div>
         </div>

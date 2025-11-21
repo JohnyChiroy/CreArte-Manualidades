@@ -1,0 +1,188 @@
+﻿@model CreArte.ModelsPartial.ReciboPedidoCreateVM
+
+<div class="modal-header">
+    <h5 class="modal-title">Cobro al entregar</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+</div>
+
+<div class="modal-body">
+    <input type="hidden" id="ppPedidoId" value="@Model.PedidoId" />
+    <input type="hidden" id="ppUsuarioId" value="@Model.UsuarioId" />
+
+    <div class="mb-2">
+        <div class="d-flex justify-content-between"><span>Total del pedido</span><strong id="ppTotal">Q @Model.TotalPedido.ToString("N2")</strong></div>
+        <div class="d-flex justify-content-between"><span>Total pagado (anticipos / pagos previos)</span><strong id="ppPagado">Q @Model.TotalPagado.ToString("N2")</strong></div>
+        <div class="d-flex justify-content-between"><span>Pendiente por cobrar</span><strong id="ppPendiente" class="text-primary">Q @Model.Pendiente.ToString("N2")</strong></div>
+    </div>
+
+    @if (Model.TotalPagado > 0)
+    {
+        <div class="alert alert-info py-2">
+            Hubo pago(s) previo(s). Se cobrará únicamente el <strong>pendiente</strong>.
+        </div>
+    }
+
+    <div class="mb-2">
+        <label for="ppMetodo"><strong>Método de pago</strong></label>
+        <select id="ppMetodo" class="form-control" required @(Model.Pendiente <= 0 ? "disabled" : null)>
+            <option value="">Seleccione ↓</option>
+            @foreach (var m in Model.MetodosPagoCombo)
+            {
+                <option value="@m.Value">@m.Text</option>
+            }
+        </select>
+        <div class="text-danger small d-none" id="ppMetodoErr">Seleccione el método de pago.</div>
+    </div>
+
+    <div class="mb-2">
+        <label for="ppMonto"><strong>Monto a cobrar</strong></label>
+        <input id="ppMonto" type="number" min="0.01" step="0.01" class="form-control" value="@Model.Pendiente.ToString("0.00")" readonly />
+        <div class="text-danger small d-none" id="ppMontoErr">Monto inválido.</div>
+        <small class="text-muted">Es el saldo pendiente al momento de entregar.</small>
+    </div>
+
+    <div id="ppEfectivoBlock" class="border rounded p-2">
+        <div class="mb-2">
+            <label for="ppEfectivo"><strong>Efectivo recibido</strong></label>
+            <input id="ppEfectivo" type="number" min="0.01" step="0.01" class="form-control" @(Model.Pendiente <= 0 ? "disabled" : null) />
+            <div class="text-danger small d-none" id="ppEfectivoErr"></div>
+        </div>
+        <div class="d-flex justify-content-between">
+            <span><strong>Vuelto</strong></span>
+            <span id="ppVuelto" class="fw-bold">Q 0.00</span>
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
+        <i class="bi bi-x-circle"></i> Cancelar
+    </button>
+    <button type="button" class="btn-confirmado" id="ppBtnConfirmar">
+        <i class="bi bi-cash-coin"></i> Cobrar y entregar
+    </button>
+</div>
+
+<script>
+    (function(){
+      const num = v => Number(String(v||'').replace(',', '.')) || 0;
+      const money = n => 'Q ' + (Number(n||0).toFixed(2));
+      const metodoSel = document.getElementById('ppMetodo');
+      const montoInp   = document.getElementById('ppMonto');
+      const efecInp    = document.getElementById('ppEfectivo');
+      const vueltoLbl  = document.getElementById('ppVuelto');
+      const btn        = document.getElementById('ppBtnConfirmar');
+
+      function isMetodoEfectivo(){
+        const val = (metodoSel?.value || '').trim().toUpperCase();
+        const txt = (metodoSel?.selectedOptions?.[0]?.text || '').trim().toUpperCase();
+        return val==='EFECTIVO' || txt.includes('EFECTIVO');
+      }
+
+      function preselectEfectivo(){
+      if (!metodoSel) return;
+      const opts = Array.from(metodoSel.options);
+      let idx = opts.findIndex(o => (o.value || '').trim().toUpperCase() === 'EFECTIVO');
+      if (idx < 0) idx = opts.findIndex(o => (o.text || '').trim().toUpperCase().includes('EFECTIVO'));
+      if (idx >= 0) metodoSel.selectedIndex = idx;
+    }
+
+
+      function toggleEfec(){
+        const blk = document.getElementById('ppEfectivoBlock');
+        const esEfe = isMetodoEfectivo();
+        blk.style.opacity = esEfe ? '1' : '0.6';
+        efecInp.disabled = !esEfe;
+        if (!esEfe) { efecInp.value=''; vueltoLbl.textContent = money(0); hide('ppEfectivoErr'); }
+        validate();
+      }
+
+      function show(id, txt){ const el = document.getElementById(id); el.textContent = txt||el.textContent; el.classList.remove('d-none'); }
+      function hide(id){ const el = document.getElementById(id); el.classList.add('d-none'); }
+
+      function recalcVuelto(){
+        const total = num(montoInp.value);
+        const rec   = num(efecInp.value);
+        const v = Math.max(0, rec - total);
+        vueltoLbl.textContent = money(v);
+        validate();
+      }
+
+      function validate(){
+        let ok = true;
+        const pendiente = num(montoInp.value);
+        if (pendiente > 0){
+          if (!metodoSel.value){ show('ppMetodoErr'); ok=false; } else { hide('ppMetodoErr'); }
+          hide('ppMontoErr');
+          if (isMetodoEfectivo()){
+            const rec = num(efecInp.value);
+            const err = document.getElementById('ppEfectivoErr');
+            if (!(rec > 0)){
+               err.textContent = "Debe ingresar el efectivo recibido."; show('ppEfectivoErr'); ok=false;
+            } else if (rec < pendiente){
+               err.textContent = "El efectivo recibido no puede ser menor al pendiente."; show('ppEfectivoErr'); ok=false;
+            } else hide('ppEfectivoErr');
+          } else hide('ppEfectivoErr');
+        } else {
+          // pendiente == 0 → permitir continuar sin cobro
+          hide('ppMetodoErr'); hide('ppMontoErr'); hide('ppEfectivoErr');
+        }
+        btn.disabled = !ok;
+        return ok;
+      }
+
+        metodoSel?.addEventListener('change', toggleEfec);
+        efecInp?.addEventListener('input', recalcVuelto);
+
+        // init: seleccionar EFECTIVO si existe, luego aplicar bloque y cálculos
+        preselectEfectivo();
+        toggleEfec();
+        recalcVuelto();
+
+
+      btn?.addEventListener('click', async function(){
+        if (!validate()) return;
+
+        const pedidoId = document.getElementById('ppPedidoId').value;
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        const body = new URLSearchParams();
+        body.append("__RequestVerificationToken", token || "");
+        body.append("PedidoId", pedidoId);
+        body.append("UsuarioId", document.getElementById('ppUsuarioId').value || "");
+        body.append("MetodoPagoId", (metodoSel?.value || ""));
+        body.append("Monto", (montoInp?.value || "0"));
+
+        try{
+          const resp = await fetch('@Url.Action("RegistrarPagoEntrega", "Pedidos")', { method:'POST', headers:{ "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString() });
+          const js = await resp.json();
+
+          if (!js.ok){
+            Swal.fire({ icon:'error', title:'No se pudo registrar el pago', text: js.error || 'Error desconocido' });
+            return;
+          }
+
+          // 1) Cerrar modal (lo maneja el padre)
+          const m = bootstrap.Modal.getInstance(document.getElementById('ppModal'));
+          m?.hide();
+
+          // 2) Marcar ENTREGADO (POST a /Pedidos/Entregar/{id})
+          //    Reutilizamos tu endpoint actual
+          const form = document.createElement('form');
+          form.method = 'post';
+          form.action = '@Url.Action("Entregar", "Pedidos")/' + encodeURIComponent(pedidoId);
+          // antiforgery
+          if (token){
+            const hid = document.createElement('input'); hid.type='hidden'; hid.name='__RequestVerificationToken'; hid.value = token; form.appendChild(hid);
+          }
+          document.body.appendChild(form);
+          form.submit();
+
+          // Nota: tras Entregar, tu TempData muestra ok y redirige a Details. Allí disparamos el modal de PDF.
+          // Para mantenerlo todo en el mismo flujo, dejamos que Entregar haga su redirect.
+        }catch(e){
+          Swal.fire({ icon:'error', title:'Error de red', text: e.message || e });
+        }
+      });
+    })();
+</script>

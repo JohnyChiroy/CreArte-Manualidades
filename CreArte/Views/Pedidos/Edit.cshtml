@@ -9,9 +9,21 @@
     // Estructura: [{ id, nombre, imagen, stock, costo }]
     var productosJson = ViewBag.ProductosJson as string ?? "[]";
 
-    // Helpers locales
-    var estado = Model.EstadoPedidoId ?? "BORRADOR";
     var locked = Model.BloquearEdicion; // true => bloquear inputs/acciones (anticipo PAGADO)
+}
+
+@section Styles {
+    <style>
+        .ua-img-thumb-fila {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            object-position: center;
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+    </style>
 }
 
 <div class="ua-card">
@@ -32,26 +44,26 @@
             <div class="ua-field">
                 <label asp-for="ClienteId"><strong>Cliente:*</strong></label>
                 <select asp-for="ClienteId" class="form-control" required id="ClienteId"
-                        disabled="@(Model.BloquearEdicion ? "disabled" : null)">
+                        disabled="@(locked ? "disabled" : null)">
                     <option value="">Seleccione ↓</option>
                     @foreach (var c in Model.ClientesCombo)
                     {
                         <option value="@c.Value">@c.Text</option>
                     }
                 </select>
-
                 <span asp-validation-for="ClienteId" class="text-danger"></span>
 
-                <label asp-for="FechaEntregaDeseada"><strong>Fecha entrega deseada:</strong></label>
+                <label asp-for="FechaEntregaDeseada"><strong>Fecha entrega deseada:*</strong></label>
                 <input asp-for="FechaEntregaDeseada" type="date" class="form-control"
-                       disabled="@(Model.BloquearEdicion ? "disabled" : null)" />
+                       min="@DateTime.Now.ToString("yyyy-MM-dd")"
+                       disabled="@(locked ? "disabled" : null)" />
                 <span asp-validation-for="FechaEntregaDeseada" class="text-danger"></span>
             </div>
 
             <div class="ua-field" style="flex:1">
                 <label asp-for="Observaciones"><strong>Observaciones:</strong></label>
                 <input asp-for="Observaciones" class="form-control" maxlength="250"
-                       disabled="@(Model.BloquearEdicion ? "disabled" : null)" />
+                       disabled="@(locked ? "disabled" : null)" />
             </div>
         </div>
 
@@ -108,7 +120,7 @@
                                                value="@Model.Detalles[i].Cantidad" required @(locked ? "disabled" : null) />
                                     </td>
 
-                                    <!-- Precio (editable, se autollenará con COSTO si está 0) -->
+                                    <!-- Precio (SIEMPRE se autollenará con COSTO al cambiar producto; editable) -->
                                     <td class="text-end">
                                         <input name="Detalles[@i].PrecioPedido" type="number" min="0" step="0.01"
                                                class="form-control precio text-end js-precio"
@@ -193,7 +205,7 @@
         const money = n => 'Q ' + (Number(n||0).toFixed(2));
         const nnum = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
 
-        const locked = @((Model.BloquearEdicion ? "true" : "false")); // sincroniza con C#
+        const locked = @((Model.BloquearEdicion ? "true" : "false"));
 
         function getAllSel(){ return qsa('#tblBody select[name*=".ProductoId"]'); }
         function selectedIds(){
@@ -209,6 +221,7 @@
             }
             return html;
         }
+
         function refreshAllSelects(){
             const chosen = selectedIds();
 
@@ -234,6 +247,7 @@
             evalReady();
         }
 
+        // ===== Cambio de producto: SIEMPRE sobreescribe precio con COSTO =====
         function onProductoChange(noRecalc){
             const tr = rowEl(this);
             const row = this.getAttribute('data-row');
@@ -249,9 +263,9 @@
                 if (stk) stk.textContent = nnum(info.stock);
                 if (name) name.value = info.nombre || '';
                 if (precio){
-                    const cur = nnum(precio.value);
-                    if (!cur) precio.value = nnum(info.costo).toFixed(2);
-                    precio.title = `Costo inv.: Q ${nnum(info.costo).toFixed(2)} | Stock: ${nnum(info.stock)}`;
+                    const pv = nnum(info.costo);
+                    precio.value = pv.toFixed(2); // ✅ siempre setear desde inventario
+                    precio.title = `Costo inv.: Q ${pv.toFixed(2)} | Stock: ${nnum(info.stock)}`;
                 }
             } else {
                 if (img) img.src = '';
@@ -303,7 +317,7 @@
         let nextIndex = @Model.Detalles.Count;
 
         function agregarFila(){
-            if (locked) return; // bloqueado por anticipo pagado
+            if (locked) return;
             const i = nextIndex++;
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -333,7 +347,7 @@
             changed = true;
         }
         function eliminarFila(btn){
-            if (locked) return; // bloqueado por anticipo pagado
+            if (locked) return;
             rowEl(btn).remove();
             refreshAllSelects();
             evalReady();
@@ -345,6 +359,9 @@
             if (locked) { btn.disabled = true; return; }
 
             const clienteOk = (qs('#ClienteId')?.value || '').trim().length > 0;
+            const fechaVal = qs('input[name="FechaEntregaDeseada"]')?.value || '';
+            const hoy = new Date().toISOString().slice(0,10);
+            const fechaOk = fechaVal && (fechaVal >= hoy);
 
             let hayLinea = false;
             const used = [];
@@ -357,7 +374,7 @@
             });
             const sinDup = (new Set(used).size === used.length);
 
-            const ok = clienteOk && hayLinea && sinDup;
+            const ok = clienteOk && fechaOk && hayLinea && sinDup;
             btn.disabled = !ok;
             btn.classList.toggle('enabled', ok);
         }
@@ -368,7 +385,7 @@
             });
             qsa('.js-cant,.js-precio').forEach(inp => inp.addEventListener('input', recalcFila));
             refreshAllSelects();
-            // En bloqueo, evitamos interacciones peligrosas
+
             if (locked) {
                 qsa('#tblBody select, #tblBody input, #tblBody button.btn-eliminate').forEach(el => el.setAttribute('disabled','disabled'));
             }
@@ -423,6 +440,7 @@
             if (err) Swal.fire({ icon:'error',   title: err, timer: 2600, showConfirmButton:false });
         })();
 
+        // Post-Update flow
         (function () {
           if (!window.Swal) return;
           const flag  = '@(TempData["SwalOneBtnFlag"] ?? "")';
@@ -439,7 +457,7 @@
 
           if (flag === 'nochange') {
              Swal.fire({ icon:'info', title: title || 'Sin cambios', text: text || 'No se modificó ningún dato.', ...cfg })
-                 .then(()=>{ /* te quedas en Edit */ });
+                 .then(()=>{ /* seguir en Edit */ });
           }
           if (flag === 'updated') {
              Swal.fire({ icon:'success', title: title || '¡Pedido actualizado!', text: text || '', ...cfg })

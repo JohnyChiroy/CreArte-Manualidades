@@ -49,24 +49,29 @@
             <!-- Cerrar sesión seleccionada (solo si está abierta) -->
             <a href="#" class="ua-btn ua-btn-edit is-disabled" id="btnCerrar" title="Cerrar sesión de caja">
                 <svg viewBox="0 0 24 24" fill="currentColor">
-  <path d="M18 6H6V4h12v2zm2 3H4c-1.1 0-2 .9-2 2v9h20v-9c0-1.1-.9-2-2-2zm-4 7H8v-4h8v4zM12 2v2h2V2h-2z"/>
-</svg>
+                  <path d="M18 6H6V4h12v2zm2 3H4c-1.1 0-2 .9-2 2v9h20v-9c0-1.1-.9-2-2-2zm-4 7H8v-4h8v4zM12 2v2h2V2h-2z"/>
+                </svg>
                 CERRAR
             </a>
 
-            <!-- Exportar (placeholder) -->
-            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/>
-                </svg>
-                EXPORTAR
-            </a>
-
-            <!-- Reporte (placeholder) -->
-            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
-                </svg>
+            <a  id="btnExportar"
+                class="ua-btn ua-btn-exportar"
+                title="Exportar"
+                target="_blank"
+                href="@Url.Action("ReportePDF", "Caja", new {
+                    Search   = Model.Search,
+                    Usuario  = Model.Usuario,
+                    Abierta  = Model.Abierta,
+                    Desde    = Model.Desde?.ToString("yyyy-MM-dd"),
+                    Hasta    = Model.Hasta?.ToString("yyyy-MM-dd"),
+                    MontoMin = Model.MontoMin,
+                    MontoMax = Model.MontoMax,
+                    Sort     = Model.Sort,
+                    Dir      = Model.Dir
+                })">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/>
+            </svg>
                 REPORTE
             </a>
         </div>
@@ -181,7 +186,7 @@
                     </th>
 
                     <!-- FECHA CIERRE (ordenable) -->
-                    <th style="width:260px;">
+                    <th style="width:270px;">
                         <div class="ua-th">
                             @{
                                 var next_cie = NextDir("cierre", Model.Sort ?? "apertura", Model.Dir ?? "desc");
@@ -351,7 +356,7 @@
                     </th>
 
                     <!-- Estado (ordenable + popover select) -->
-                    <th style="width:120px;">
+                    <th style="width:100px;">
                         <div class="ua-th ua-popover-wrap">
                             @{
                                 var next_est = NextDir("estado", Model.Sort ?? "apertura", Model.Dir ?? "desc");

@@ -1,59 +1,135 @@
 ﻿@model CreArte.ModelsPartial.RecuperacionContrasenaVM
 @{
-    ViewData["Title"] = "Recuperar contraseña";
-    Layout = null;
+    ViewData["Title"] = "Enviar Correo Recuperación";
+    Layout = null; 
 }
 
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="ua-card" style="padding:20px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08);">
-                <h3 class="mb-2">Recuperar contraseña</h3>
-                <p>Ingrese su <strong>usuario</strong> o su <strong>correo registrado</strong>. Le enviaremos un enlace para restablecer su contraseña.</p>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Enviar Correo Recuperación | CreArte</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <!-- Frameworks que ya usas en Login (MISMO ORDEN) -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet" />
+
+    <!-- Reutilizamos tu CSS del login para conservar el estilo -->
+    <link rel="stylesheet" href="~/css/CambiarContrasena.css" asp-append-version="true" />
+
+    <!-- Ajustes mínimos (si necesitas afinar sin tocar tu CSS) -->
+    <style>
+        /* Mantengo vacío para respetar tu mismo patrón.
+                   Si quieres el ícono dentro del input (como en la imagen),
+                   Bootstrap 4 ya trae input-group. Solo agrego un ajuste opcional: */
+        .input-group-text svg {
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Panel Izquierdo: mismo bloque que en Login (logo + fecha/hora) -->
+        <div class="left-panel">
+            <div class="logo-container text-center">
+                <img src="~/Imagenes/logoCreArte.png" alt="Logo CreArte Manualidades" class="logo-img" />
+            </div>
+            <div class="footer-date-time">
+                <span class="badge-date" id="currentDate">--</span>
+                <span class="badge-time" id="currentTime">--:--:--</span>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: formulario de envío de enlace -->
+        <div class="right-panel">
+            <div class="form-wrapper">
+                <h1 class="fw-bold text-center">Envío Correo de Recuperación</h1>
+
+                <!-- Resumen de validación para mensajes generales -->
+                <div asp-validation-summary="ModelOnly" class="text-danger mt-3"></div>
+
+                <!-- Form: postea a /Login/EnvioDeCorreo (HttpPost) -->
+                <form class="login-form mt-4"
+                      asp-action="EnvioDeCorreo"
+                      asp-controller="Login"
+                      method="post"
+                      id="frmReset"
+                      novalidate>
+                    @Html.AntiForgeryToken()
+                    <br />
+
+                    <small class="pwd-hint d-block mt-1">
+                        Ingresa tu <strong>usuario</strong> o tu <strong>correo registrado</strong>. Te enviaremos un enlace para restablecer tu contraseña.
+                    </small>
+                    <br />
+                    <br />
+
+                    <!-- Campo: Usuario o correo -->
+                    <div class="mb-3">
+                        <label asp-for="UsuarioONCorreo">Usuario o correo</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-white">
+                                    <!-- Ícono sobre SVG inline para no depender de otra librería -->
+                                    <svg viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true">
+                                        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z" />
+                                    </svg>
+                                </span>
+                            </div>
+                            <input asp-for="UsuarioONCorreo"
+                                   class="form-control"
+                                   placeholder="p. ej. batmanchiroy ó batmanchiroy@gmail.com"
+                                   autocomplete="username email"
+                                   autofocus />
+                        </div>
+                        <span asp-validation-for="UsuarioONCorreo" class="text-warning"></span>
+                    </div>
+
+                    <!-- Botón de envío -->
+                    <button type="submit" class="btn-login" id="btnEnviar">
+                        <!-- sobre BS4 no usamos bi-*, mantenemos texto/emoji si quieres -->
+                        Enviar enlace
+                    </button>
+                </form>
+
+                <!-- Mensaje informativo si vienes de un flujo previo -->
                 @if (TempData["ResetInfo"] != null)
                 {
-                    <div class="alert alert-info">@TempData["ResetInfo"]</div>
+                    <div class="alert alert-warning mt-3">@TempData["ResetInfo"]</div>
                 }
                 @if (TempData["ResetError"] != null)
                 {
-                    <div class="alert alert-danger">@TempData["ResetError"]</div>
+                    <div class="alert alert-danger mt-3">@TempData["ResetError"]</div>
                 }
 
-                <form asp-action="EnvioDeCorreo" asp-controller="Login" method="post" id="frmReset">
-                    @Html.AntiForgeryToken()
-
-                    <div class="mb-3">
-                        <label asp-for="UsuarioONCorreo" class="form-label"></label>
-                        <input asp-for="UsuarioONCorreo" class="form-control" />
-                        <span asp-validation-for="UsuarioONCorreo" class="text-danger"></span>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-dark" id="btnEnviar">
-                            <i class="bi bi-envelope-check"></i> Enviar enlace
-                        </button>
-                        <a asp-action="Login" asp-controller="Login" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver al login
-                        </a>
-                    </div>
-                </form>
+                <!-- Botón volver -->
+                <a asp-action="Login" asp-controller="Login" class="btn btn-outline-light btn-block mt-3">
+                    ← Volver al login
+                </a>
             </div>
         </div>
     </div>
-</div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <!-- Reutilizamos tu JS de login (fecha/hora, etc.) -->
+    <script src="~/js/Login.js" asp-append-version="true"></script>
+
+    <!-- UX envío: deshabilita botón al enviar (mismo patrón que usas) -->
     <script>
-        (function(){
+        (function () {
             const frm = document.getElementById('frmReset');
             const btn = document.getElementById('btnEnviar');
-            if(!frm || !btn) return;
-            frm.addEventListener('submit', function(){
+            if (!frm || !btn) return;
+            frm.addEventListener('submit', function () {
                 btn.disabled = true;
-                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+                btn.textContent = 'Enviando...';
             });
         })();
     </script>
-}
+
+    <!-- Validación del lado del cliente (sin layout, lo incluimos aquí) -->
+    <partial name="_ValidationScriptsPartial" />
+</body>
+</html>

@@ -463,8 +463,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // GET: /Areas/ReportePDF
-        // Genera PDF con Rotativa usando la vista "ReporteAreas.cshtml"
-        // Recibe los mismos filtros del Index (sin paginar).
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> ReportePDF(
@@ -518,6 +516,7 @@ namespace CreArte.Controllers
             // 7) Generar PDF inline
             var pdf = new ViewAsPdf("ReporteAreas", vm)
             {
+                FileName = $"ReporteAreas.pdf",
                 ContentDisposition = ContentDisposition.Inline,
                 PageSize = Size.Letter,
                 PageOrientation = Orientation.Portrait,
@@ -532,7 +531,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // GET: /Areas/ReportePreview
-        // Vista HTML para previsualizar el reporte (sin generar PDF).
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> ReportePreview(

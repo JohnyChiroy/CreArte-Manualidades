@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
+
 namespace CreArte.Controllers
 {
     public class InventarioController : Controller
@@ -18,7 +19,6 @@ namespace CreArte.Controllers
 
         // -------------------------------------------------------
         // GET: /Inventario
-        // Despliega inventario con filtros básicos
         // -------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> Index([FromQuery] InventarioIndexVM vm)
@@ -451,7 +451,7 @@ namespace CreArte.Controllers
                 }
 
                 var costoAnterior = inv.COSTO_UNITARIO;
-                var costoNuevo = vm.NuevoCostoUnitario;
+                var costoNuevo = vm.NuevoPrecioUnitario;
 
                 // Cambiar costo (no mueve stock)
                 inv.COSTO_UNITARIO = costoNuevo;
@@ -565,6 +565,242 @@ namespace CreArte.Controllers
             };
 
             return View(vm);
+        }
+
+        // -------------------------------------------------------
+        // GET: /Inventario/StockProducto?productoId=PR0000001
+        // -------------------------------------------------------
+        [HttpGet]
+        public async Task<IActionResult> StockProducto(string productoId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(productoId)) return NotFound();
+
+            var inv = await _db.INVENTARIO
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.PRODUCTO_ID == productoId && i.ELIMINADO == false, ct);
+
+            var vm = new InventarioStockMinVM
+            {
+                PRODUCTO_ID = productoId,
+                StockMinimo = inv?.STOCK_MINIMO ?? 0
+            };
+
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+            if (isAjax)
+            {
+                ViewData["Modal"] = true;
+                return PartialView("StockProducto", vm);
+            }
+
+            return View(vm);
+        }
+
+        // -------------------------------------------------------
+        // POST: /Inventario/StockProducto
+        // Actualiza INVENTARIO.STOCK_MINIMO (crea inventario si no existe)
+        // -------------------------------------------------------
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> StockProducto(InventarioStockMinVM vm, CancellationToken ct)
+        {
+            bool isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
+            if (!ModelState.IsValid)
+            {
+                if (isAjax)
+                {
+                    ViewData["Modal"] = true;
+                    return PartialView("StockProducto", vm); // vuelve HTML con los mensajes
+                }
+                return View(vm);
+            }
+
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var usuario = User?.Identity?.Name ?? "sistema";
+                var ahora = DateTime.Now;
+
+                var inv = await _db.INVENTARIO
+                    .FirstOrDefaultAsync(i => i.PRODUCTO_ID == vm.PRODUCTO_ID && i.ELIMINADO == false, ct);
+
+                if (inv == null)
+                {
+                    inv = new INVENTARIO
+                    {
+                        INVENTARIO_ID = Guid.NewGuid().ToString("N")[..10],
+                        PRODUCTO_ID = vm.PRODUCTO_ID,
+                        STOCK_ACTUAL = 0,
+                        STOCK_MINIMO = vm.StockMinimo,
+                        COSTO_UNITARIO = 0,
+                        ESTADO = true,
+                        ELIMINADO = false,
+                        USUARIO_CREACION = usuario,
+                        FECHA_CREACION = ahora
+                    };
+                    _db.INVENTARIO.Add(inv);
+                }
+                else
+                {
+                    inv.STOCK_MINIMO = vm.StockMinimo;
+                    inv.USUARIO_MODIFICACION = usuario;
+                    inv.FECHA_MODIFICACION = ahora;
+                }
+
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+
+                var redirectUrl = Url.Action("Details", "Inventario", new { id = inv.INVENTARIO_ID });
+
+                if (isAjax) return Json(new { ok = true, message = "Stock mínimo actualizado.", redirect = redirectUrl });
+
+                TempData["ok"] = "Stock mínimo actualizado.";
+                return Redirect(redirectUrl);
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync(ct);
+                if (isAjax) return BadRequest(new { ok = false, message = ex.Message });
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(vm);
+            }
+        }
+
+
+        //=====================Reporte PDF===========================    
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+            string? Search,
+            bool SoloActivos = false,
+            bool SoloStockBajo = false,
+            DateTime? VenceAntesDe = null,
+            string? Sort = "producto",
+            string? Dir = "asc")
+        {
+            var q = from inv in _db.INVENTARIO
+                    join prod in _db.PRODUCTO on inv.PRODUCTO_ID equals prod.PRODUCTO_ID
+                    where inv.ELIMINADO == false
+                    select new { inv, prod };
+
+            // Filtros
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                var term = Search.Trim();
+                q = q.Where(x =>
+                    x.prod.PRODUCTO_NOMBRE.Contains(term) ||
+                    x.inv.PRODUCTO_ID.Contains(term) ||
+                    x.inv.INVENTARIO_ID.Contains(term));
+            }
+
+            if (SoloActivos)
+                q = q.Where(x => x.inv.ESTADO);
+
+            if (SoloStockBajo)
+                q = q.Where(x => x.inv.STOCK_ACTUAL <= x.inv.STOCK_MINIMO);
+
+            if (VenceAntesDe.HasValue)
+            {
+                var limite = DateOnly.FromDateTime(VenceAntesDe.Value.Date);
+                q = q.Where(x => x.inv.FECHA_VENCIMIENTO != null && x.inv.FECHA_VENCIMIENTO <= limite);
+            }
+
+            // Orden
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            switch ((Sort ?? "producto").ToLowerInvariant())
+            {
+                case "id":
+                    q = asc ? q.OrderBy(x => x.inv.INVENTARIO_ID) : q.OrderByDescending(x => x.inv.INVENTARIO_ID);
+                    break;
+                case "producto":
+                    q = asc ? q.OrderBy(x => x.prod.PRODUCTO_NOMBRE).ThenBy(x => x.inv.PRODUCTO_ID)
+                            : q.OrderByDescending(x => x.prod.PRODUCTO_NOMBRE).ThenByDescending(x => x.inv.PRODUCTO_ID);
+                    break;
+                case "stock":
+                    q = asc ? q.OrderBy(x => x.inv.STOCK_ACTUAL) : q.OrderByDescending(x => x.inv.STOCK_ACTUAL);
+                    break;
+                case "minimo":
+                    q = asc ? q.OrderBy(x => x.inv.STOCK_MINIMO) : q.OrderByDescending(x => x.inv.STOCK_MINIMO);
+                    break;
+                case "costo":
+                    q = asc ? q.OrderBy(x => x.inv.COSTO_UNITARIO) : q.OrderByDescending(x => x.inv.COSTO_UNITARIO);
+                    break;
+                case "vence":
+                    q = asc
+                        ? q.OrderBy(x => x.inv.FECHA_VENCIMIENTO == null).ThenBy(x => x.inv.FECHA_VENCIMIENTO)
+                        : q.OrderByDescending(x => x.inv.FECHA_VENCIMIENTO).ThenBy(x => x.inv.FECHA_VENCIMIENTO == null);
+                    break;
+                case "estado":
+                    q = asc ? q.OrderBy(x => x.inv.ESTADO) : q.OrderByDescending(x => x.inv.ESTADO);
+                    break;
+                default:
+                    q = q.OrderBy(x => x.prod.PRODUCTO_NOMBRE).ThenBy(x => x.inv.PRODUCTO_ID);
+                    break;
+            }
+
+            // Proyección al VM (ya trae ImagenUrl)
+            var items = await q
+                .Select(x => new InventarioListItemVM
+                {
+                    INVENTARIO_ID = x.inv.INVENTARIO_ID,
+                    PRODUCTO_ID = x.inv.PRODUCTO_ID,
+                    ProductoNombre = x.prod.PRODUCTO_NOMBRE,
+                    ImagenUrl = x.prod.IMAGEN_PRODUCTO,
+                    STOCK_ACTUAL = x.inv.STOCK_ACTUAL,
+                    STOCK_MINIMO = x.inv.STOCK_MINIMO,
+                    COSTO_UNITARIO = x.inv.COSTO_UNITARIO,
+                    FECHA_VENCIMIENTO = x.inv.FECHA_VENCIMIENTO == null
+                                        ? (DateTime?)null
+                                        : x.inv.FECHA_VENCIMIENTO.Value.ToDateTime(TimeOnly.MinValue),
+                    ESTADO = x.inv.ESTADO
+                })
+                .ToListAsync();
+
+            // Totales
+            int totActivos = items.Count(x => x.ESTADO);
+            int totInactivos = items.Count(x => !x.ESTADO);
+            int totStockBajo = items.Count(x => x.STOCK_ACTUAL <= x.STOCK_MINIMO);
+
+            // ViewModel genérico
+            var vm = new ReporteViewModel<InventarioListItemVM>
+            {
+                Items = items,
+                Search = Search,
+                Sort = Sort,
+                Dir = Dir,
+
+                ReportTitle = "Reporte de Inventario",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+            vm.AddTotal("StockBajo", totStockBajo);
+
+            if (SoloActivos) vm.ExtraFilters["Sólo activos"] = "Sí";
+            if (SoloStockBajo) vm.ExtraFilters["Sólo stock bajo"] = "Sí";
+            if (VenceAntesDe.HasValue) vm.ExtraFilters["Vence antes de"] = VenceAntesDe.Value.ToString("dd/MM/yyyy");
+
+            var pdf = new Rotativa.AspNetCore.ViewAsPdf("ReporteInventario", vm)
+            {
+                FileName = $"ReporteInventario.pdf",
+                ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
+                PageMargins = new Rotativa.AspNetCore.Options.Margins
+                {
+                    Left = 10,
+                    Right = 10,
+                    Top = 15,
+                    Bottom = 15
+                },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

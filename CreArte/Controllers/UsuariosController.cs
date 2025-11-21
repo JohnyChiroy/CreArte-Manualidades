@@ -1,19 +1,17 @@
-﻿// ===============================================
-// RUTA: Controllers/UsuariosController.cs
-// DESCRIPCIÓN: CRUD de USUARIO con filtros, orden,
-// paginación y auditoría. Control de contraseñas
-// con PBKDF2 + SALT (USUARIO_CONTRASENA, USUARIO_SALT).
-// ===============================================
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
-using CreArte.Data;
+﻿using CreArte.Data;
 using CreArte.Models;
 using CreArte.ModelsPartial;
 using CreArte.Services.Auditoria; // IAuditoriaService
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Rotativa.AspNetCore;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
+
 
 namespace CreArte.Controllers
 {
@@ -29,10 +27,7 @@ namespace CreArte.Controllers
         }
 
         // ============================================================
-        // LISTADO – GET /Usuarios?Search=&Rol=&FechaInicio=&FechaFin=&Estado=&Sort=&Dir=&Page=&PageSize=
-        // ▸ Filtros: búsqueda global (ID/Usuario/Empleado/Correo), Rol, rango de fecha de registro, Estado
-        // ▸ Orden: id | usuario | fecha | rol | estado
-        // ▸ Paginación
+        // LISTADO – GET /Usuarios
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Index(
@@ -146,7 +141,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // DETAILS (Partial para modal) – GET /Usuarios/DetailsCard?id=...
-        // ▸ Devuelve datos del usuario + rol + empleado (nombre completo)
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> DetailsCard(string id)
@@ -195,7 +189,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // CREATE (GET) – GET /Usuarios/Create
-        // ▸ Genera ID (US + 8 dígitos) y carga combos Rol/Empleado
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Create()
@@ -217,9 +210,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // CREATE (POST) – POST /Usuarios/Create
-        // ▸ Valida: unicidad de USUARIO_NOMBRE, FKs activos/no eliminados,
-        //   contraseña con política y confirmación, correo válido (si viene).
-        // ▸ Genera SALT y HASH PBKDF2 (HMACSHA256).
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -324,7 +314,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // EDIT (GET) – GET /Usuarios/Edit/{id}
-        // ▸ Carga el usuario y combos. (La contraseña no se muestra)
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Edit(string id)
@@ -356,8 +345,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // EDIT (POST) – POST /Usuarios/Edit/{id}
-        // ▸ Actualiza datos generales, rol, empleado, correo, estado.
-        // ▸ Si viene nueva contraseña, la valida y re-hashea.
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -459,7 +446,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // DELETE – GET /Usuarios/Delete/{id}  y  POST /Usuarios/Delete/{id}
-        // ▸ Borrado lógico (no se elimina físicamente)
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Delete(string id)
@@ -580,5 +566,121 @@ namespace CreArte.Controllers
             byte[] hash = pbkdf2.GetBytes(32); // 256 bits
             return (hash, salt);
         }
+
+        //==========REPORTE PDF
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Rol,
+    DateTime? FechaInicio,
+    DateTime? FechaFin,
+    bool? Estado,
+    string Sort = "id",
+    string Dir = "asc")
+        {
+            IQueryable<USUARIO> q = _context.USUARIO
+                .AsNoTracking()
+                .Where(u => !u.ELIMINADO);
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+                q = q.Where(u =>
+                    EF.Functions.Like(u.USUARIO_ID, $"%{s}%") ||
+                    EF.Functions.Like(u.USUARIO_NOMBRE, $"%{s}%") ||
+                    EF.Functions.Like(u.USUARIO_CORREO ?? "", $"%{s}%") ||
+                    EF.Functions.Like(u.ROL.ROL_NOMBRE, $"%{s}%") ||
+                    EF.Functions.Like(
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (u.EMPLEADO.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    )
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(Rol))
+            {
+                string r = Rol.Trim();
+                q = q.Where(u =>
+                    u.ROL_ID == r ||
+                    EF.Functions.Like(u.ROL.ROL_NOMBRE, $"%{r}%"));
+            }
+
+            if (FechaInicio.HasValue)
+            {
+                var fi = FechaInicio.Value.Date;
+                q = q.Where(u => u.USUARIO_FECHAREGISTRO >= fi);
+            }
+            if (FechaFin.HasValue)
+            {
+                var ff = FechaFin.Value.Date.AddDays(1).AddTicks(-1);
+                q = q.Where(u => u.USUARIO_FECHAREGISTRO <= ff);
+            }
+
+            if (Estado.HasValue)
+                q = q.Where(u => u.ESTADO == Estado.Value);
+
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc ? q.OrderBy(u => u.USUARIO_ID) : q.OrderByDescending(u => u.USUARIO_ID),
+                "usuario" => asc ? q.OrderBy(u => u.USUARIO_NOMBRE) : q.OrderByDescending(u => u.USUARIO_NOMBRE),
+                "fecha" => asc ? q.OrderBy(u => u.USUARIO_FECHAREGISTRO) : q.OrderByDescending(u => u.USUARIO_FECHAREGISTRO),
+                "rol" => asc ? q.OrderBy(u => u.ROL.ROL_NOMBRE) : q.OrderByDescending(u => u.ROL.ROL_NOMBRE),
+                "estado" => asc ? q.OrderBy(u => u.ESTADO) : q.OrderByDescending(u => u.ESTADO),
+                _ => asc ? q.OrderBy(u => u.FECHA_CREACION) : q.OrderByDescending(u => u.FECHA_CREACION),
+            };
+
+            var items = await q
+                .Include(u => u.ROL)
+                .Include(u => u.EMPLEADO).ThenInclude(e => e.EMPLEADONavigation)
+                .ToListAsync();
+
+            int totActivos = items.Count(u => u.ESTADO);
+            int totInactivos = items.Count(u => !u.ESTADO);
+
+            var vm = new ReporteViewModel<USUARIO>
+            {
+                Items = items,
+                Search = Search,
+                FechaInicio = FechaInicio,
+                FechaFin = FechaFin,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+                ReportTitle = "Reporte de Usuarios",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+            if (!string.IsNullOrWhiteSpace(Rol)) vm.ExtraFilters["Rol"] = Rol;
+
+            var pdf = new ViewAsPdf("ReporteUsuarios", vm)
+            {
+                FileName = $"ReporteUsuarios.pdf",
+                ContentDisposition = ContentDisposition.Inline,
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
+        }
+
     }
 }

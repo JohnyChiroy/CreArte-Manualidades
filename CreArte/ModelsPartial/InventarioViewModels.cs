@@ -34,12 +34,11 @@ namespace CreArte.ModelsPartial
         public string? Dir { get; set; } = "asc"; // asc|desc
 
         // --------------- Paginación --------------
-        public int Page { get; set; } = 1;          // página actual (1-based)
+        public int Page { get; set; } = 1;          // página actual
         public int PageSize { get; set; } = 20;     // filas por página
         public int TotalItems { get; set; }         // total de filas (para armar paginador)
         public int TotalPages => (int)Math.Ceiling(TotalItems / (double)Math.Max(1, PageSize));
 
-        // UI: opciones del combo "por página" (para TagHelper asp-items)
         public IEnumerable<SelectListItem> PageSizeOptions =>
             new[] { 10, 20, 50, 100 }.Select(s => new SelectListItem
             {
@@ -70,19 +69,15 @@ namespace CreArte.ModelsPartial
     {
         [Required] public string PRODUCTO_ID { get; set; } = null!;
 
-        // Usaremos estos valores: ENTRADA | SALIDA  (y seguimos soportando "AJUSTE" si hicieras algo puntual)
+        
         [Required, RegularExpression("ENTRADA|SALIDA|AJUSTE")]
         public string TIPO_MOVIMIENTO { get; set; } = "AJUSTE";
 
         [Required, Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser > 0")]
         public int CANTIDAD { get; set; }
 
-        // Para ENTRADA puedes dejarlo en 0 o null; en SALIDA no lo exigimos.
+        
         public decimal? COSTO_UNITARIO { get; set; }
-
-        // este es el campo que se grabará en KARDEX.REFERENCIA
-        //[Display(Name = "Razón"), StringLength(300)]
-        //public string? Razon { get; set; }
 
         [Display(Name = "Razón"), StringLength(300)]
         [Required(ErrorMessage = "La razón es obligatoria.")]
@@ -102,7 +97,7 @@ namespace CreArte.ModelsPartial
 
         [Required, Display(Name = "Nuevo costo unitario")]
         [Range(0, double.MaxValue, ErrorMessage = "El costo no puede ser negativo.")]
-        public decimal NuevoCostoUnitario { get; set; }
+        public decimal NuevoPrecioUnitario { get; set; }
 
         [Display(Name = "Razón"), StringLength(300)]
         [Required(ErrorMessage = "La razón es obligatoria.")]
@@ -124,6 +119,19 @@ namespace CreArte.ModelsPartial
         public string ProductoNombre { get; set; } = null!;
         public string? INVENTARIO_ID { get; set; }
         public List<PrecioHistoricoItemVM> Items { get; set; } = new();
+    }
+
+    public class InventarioStockMinVM
+    {
+        [Required] public string PRODUCTO_ID { get; set; } = null!;
+
+        [Display(Name = "Stock mínimo")]
+        [Range(0, int.MaxValue, ErrorMessage = "El stock mínimo no puede ser negativo.")]
+        public int StockMinimo { get; set; }
+
+        // (Opcional) por si quieres dejar trazabilidad en observaciones (no se guarda en KARDEX)
+        [Display(Name = "Razón"), StringLength(300)]
+        public string? Razon { get; set; }
     }
 
 }

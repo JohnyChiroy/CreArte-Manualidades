@@ -4,14 +4,11 @@
 @{
     ViewData["Title"] = "Detalle del Pedido";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var metodosPago = ViewBag.MetodosPagoCombo as List<SelectListItem> ?? new List<SelectListItem>();
 }
 
 @section Styles {
     <style>
-        /* ============================================================
-                   Estilos “heredados” de Ventas/Compras, adaptados a PEDIDOS
-                   ============================================================ */
-
         /* ======== Grid de resumen (stats) ======== */
         .ua-summary {
             display: grid;
@@ -168,7 +165,7 @@
 }
 
 <div class="ua-card">
-    <!-- ========================= TOOLBAR (mantengo tu lógica) ========================= -->
+    <!-- ========================= TOOLBAR ========================= -->
     <div class="ua-toolbar">
         <h2 class="m-0">Pedido @Model.PedidoId</h2>
 
@@ -210,16 +207,18 @@
                         </button>
                     </form>
                 }
-                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                @if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
                 {
-                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                    <form class="frm-anticipo d-inline"
+                          asp-action="PagarAnticipo" asp-controller="Pedidos"
+                          asp-route-id="@Model.PedidoId" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
                         </button>
                     </form>
                 }
+
             }
 
             @* ======== APROBADO ======== *@
@@ -227,18 +226,19 @@
             {
                 if (Model.PuedeFinalizar)
                 {
-                    <form asp-action="Finalizar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                          onsubmit="return confirm('Esto iniciará producción (EN_PRODU), convertirá la RESERVA en SALIDA y marcará TERMINADO. ¿Continuar?');">
+                    <form asp-action="EnProduccion" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
+                          onsubmit="return confirm('Esto iniciará producción'. ¿Continuar?');">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn-confirmado">
                             <i class="bi bi-hammer"></i> <span>En Producción</span>
                         </button>
                     </form>
                 }
-                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                @if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
                 {
-                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                    <form class="frm-anticipo d-inline"
+                          asp-action="PagarAnticipo" asp-controller="Pedidos"
+                          asp-route-id="@Model.PedidoId" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
@@ -270,16 +270,18 @@
                         </button>
                     </form>
                 }
-                if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
+                @if (Model.PuedePagarAnticipo && Model.RequiereAnticipo && Model.AnticipoEstado == "PENDIENTE")
                 {
-                    <form asp-action="PagarAnticipo" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                          onsubmit="return confirm('Confirmar pago de anticipo');">
+                    <form class="frm-anticipo d-inline"
+                          asp-action="PagarAnticipo" asp-controller="Pedidos"
+                          asp-route-id="@Model.PedidoId" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn-enviado">
                             <i class="bi bi-cash-stack"></i> <span>Pagar anticipo</span>
                         </button>
                     </form>
                 }
+
                 if (Model.PuedeCancelar)
                 {
                     <form asp-action="Cancelar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
@@ -292,19 +294,24 @@
                 }
             }
 
-            @* ======== TERMINADO ======== *@
             @if (Model.EstadoId == "TERMINADO")
             {
                 if (Model.PuedeEntregar)
                 {
-                    <form asp-action="Entregar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline"
-                          onsubmit="return confirm('¿Confirmar ENTREGADO?');">
+                    <form id="frmEntregar" asp-action="Entregar" asp-controller="Pedidos" asp-route-id="@Model.PedidoId" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn-recibir">
                             <i class="bi bi-truck"></i> <span>Entregar</span>
                         </button>
                     </form>
                 }
+            }
+            @if (Model.EstadoId == "ENTREGADO")
+            {
+                <a class="btn-confirmado" target="_blank"
+                   href="@Url.Action("ReciboPedido", "Pedidos", new { id = Model.PedidoId })">
+                    <i class="bi bi-file-earmark-pdf"></i> <span>Ver recibo de venta</span>
+                </a>
             }
             @* ENTREGADO / CANCELADO / RECHAZADO: sin acciones *@
         </div>
@@ -360,7 +367,6 @@
             <div class="sub">Suma de líneas solicitadas</div>
         </div>
         <!-- ========================= OBSERVACIONES ========================= -->
-        @* <div class="ua-stat"> *@
             <div style="margin-top:8px;">
                 <div class="ua-field" style="flex:1 1 100%;">
                     <div class="ua-kv-mini">
@@ -369,7 +375,6 @@
                     </div>
                 </div>
             </div>
-        @* </div> *@
     </div>
 
     <!-- ========================= DETALLE DE LÍNEAS ========================= -->
@@ -428,6 +433,151 @@
     </div>
 </div>
 
+<!-- Hidden para JS -->
+<input type="hidden" id="ppTotalPedido"
+       value="@Model.TotalPedido.ToString("0.##").Replace(',', '.')" />
+
+<input type="hidden" id="ppAnticipoPagado"
+       value="@(((Model.RequiereAnticipo && Model.AnticipoEstado == "PAGADO")
+                       ? Model.AnticipoMinimo : 0m).ToString("0.##").Replace(',', '.'))" />
+
+<!-- ========================= MODAL DE COBRO EN ENTREGA ========================= -->
+<div class="modal fade" id="ppModal" tabindex="-1" aria-labelledby="ppModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="ppModalLabel">Registrar pago</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label for="ppMetodo"><strong>Método de pago</strong></label>
+                    <select id="ppMetodo" class="form-control" required>
+                        <option value="">Seleccione ↓</option>
+                        @if (ViewBag.MetodosPagoCombo is List<SelectListItem> mps && mps.Count > 0)
+                        {
+                            foreach (var m in mps)
+                            {
+                                <option value="@m.Value" data-nombre="@m.Text">@m.Text</option>
+                            }
+                        }
+                    </select>
+                    <div class="text-danger small d-none" id="ppMetodoErr">Seleccione el método de pago.</div>
+                </div>
+
+                <!-- Anticipo & Saldo -->
+                <div class="p-2 rounded" style="background:#E6F7FF;border:1px solid #BDEBFF;margin-bottom:8px;">
+                    <div><strong>Anticipo pagado:</strong> <span id="ppAnticipoTxt">Q 0.00</span></div>
+                    <div><strong>Saldo a cobrar:</strong> <span id="ppSaldoTxt">Q 0.00</span></div>
+                </div>
+
+                <div class="mb-2">
+                    <label for="ppMonto"><strong>Monto a cobrar</strong></label>
+                    <input id="ppMonto" type="number" min="0.01" step="0.01" class="form-control" readonly />
+                    <div class="text-danger small d-none" id="ppMontoErr">Monto inválido.</div>
+                    <small class="text-muted">Es el saldo pendiente por cobrar del pedido.</small>
+                </div>
+
+                <!-- Bloque Efectivo -->
+                <div id="ppEfectivoBlock" class="border rounded p-2">
+                    <div class="mb-2">
+                        <label for="ppEfectivo"><strong>Efectivo recibido</strong></label>
+                        <input id="ppEfectivo" type="number" min="0.01" step="0.01" class="form-control" />
+                        <div class="text-danger small d-none" id="ppEfectivoErr"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span><strong>Vuelto</strong></span>
+                        <span id="ppVuelto" class="fw-bold">Q 0.00</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 mt-2 mb-0">
+                    Total actual: <strong id="ppTotalTexto">Q 0.00</strong>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+                <button type="button" class="btn-confirmado" id="ppBtnConfirmar">
+                    <i class="bi bi-cash-coin"></i> Confirmar pago
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ========================= MODAL PAGO ANTICIPO ========================= -->
+<div class="modal fade" id="apModal" tabindex="-1" aria-labelledby="apModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="apModalLabel">Pagar anticipo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label for="apMetodo"><strong>Método de pago</strong></label>
+                    <select id="apMetodo" class="form-control" required>
+                        <option value="">Seleccione ↓</option>
+                        @if (ViewBag.MetodosPagoCombo is List<SelectListItem> mps2 && mps2.Count > 0)
+                        {
+                            foreach (var m in mps2)
+                            {
+                                <option value="@m.Value" data-nombre="@m.Text">@m.Text</option>
+                            }
+                        }
+                    </select>
+                    <div class="text-danger small d-none" id="apMetodoErr">Seleccione el método de pago.</div>
+                </div>
+
+                <div class="mb-2">
+                    <label for="apMonto"><strong>Monto del anticipo</strong></label>
+                    <input id="apMonto" type="number" min="0.01" step="0.01" class="form-control" readonly />
+                    <div class="text-danger small d-none" id="apMontoErr">Monto inválido.</div>
+                    <small class="text-muted">Corresponde al anticipo mínimo configurado del pedido.</small>
+                </div>
+
+                <!-- Bloque Efectivo -->
+                <div id="apEfectivoBlock" class="border rounded p-2">
+                    <div class="mb-2">
+                        <label for="apEfectivo"><strong>Efectivo recibido</strong></label>
+                        <input id="apEfectivo" type="number" min="0.01" step="0.01" class="form-control" />
+                        <div class="text-danger small d-none" id="apEfectivoErr"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span><strong>Vuelto</strong></span>
+                        <span id="apVuelto" class="fw-bold">Q 0.00</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 mt-2 mb-0">
+                    Anticipo configurado: <strong id="apTotalTexto">Q 0.00</strong>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+                <button type="button" class="btn-confirmado" id="apBtnConfirmar">
+                    <i class="bi bi-cash-coin"></i> Confirmar pago
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 @functions {
     /* Mapeo de estado → clase de badge (se respeta tu convención) */
     private string GetEstadoClass(string estado) => estado switch
@@ -442,4 +592,380 @@
         "RECHAZADO" => "anu",
         _ => "light text-dark"
     };
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function(){
+          function qs(s, r=document){ return r.querySelector(s); }
+          function money(n){ return 'Q ' + Number(n||0).toFixed(2); }
+
+          // Detecta si el método seleccionado es EFECTIVO (por nombre visible o data-nombre)
+          function isMetodoEfectivo(){
+            const sel = qs('#ppMetodo');
+            if (!sel) return false;
+            const opt = sel.selectedOptions?.[0];
+            const nombre = (opt?.getAttribute('data-nombre') || opt?.text || '').trim().toUpperCase();
+            return nombre.includes('EFECTIVO'); // independiente del ID (MP00000001)
+          }
+
+          function toggleEfectivoBlock(){
+            const block = qs('#ppEfectivoBlock');
+            const inp   = qs('#ppEfectivo');
+            const esEf  = isMetodoEfectivo();
+
+            if (block) block.style.opacity = esEf ? '1' : '0.6';
+            if (inp){
+              inp.disabled = !esEf;
+              if (!esEf){
+                inp.value = '';
+                qs('#ppVuelto').textContent = money(0);
+                qs('#ppEfectivoErr')?.classList.add('d-none');
+              } else {
+                setTimeout(()=> inp.focus(), 50);
+              }
+            }
+            validatePago();
+          }
+
+          function recalcVuelto(){
+            const total = Number((qs('#ppMonto')?.value || 0));
+            const rec   = Number((qs('#ppEfectivo')?.value || 0));
+            const v = Math.max(0, rec - total);
+            qs('#ppVuelto').textContent = money(v);
+            validatePago();
+          }
+
+          function validatePago(){
+            const metodo = (qs('#ppMetodo')?.value || '').trim();
+            const monto  = Number(qs('#ppMonto')?.value || 0);
+            const btn    = qs('#ppBtnConfirmar');
+            let ok = true;
+
+            if(!metodo){ qs('#ppMetodoErr')?.classList.remove('d-none'); ok = false; }
+            else       { qs('#ppMetodoErr')?.classList.add('d-none'); }
+
+            if(!(monto > 0)){ qs('#ppMontoErr')?.classList.remove('d-none'); ok = false; }
+            else            { qs('#ppMontoErr')?.classList.add('d-none'); }
+
+            if (isMetodoEfectivo()){
+              const rec = Number(qs('#ppEfectivo')?.value || 0);
+              const err = qs('#ppEfectivoErr');
+              if (!(rec > 0)) {
+                err.textContent = "Debe ingresar el efectivo recibido.";
+                err.classList.remove('d-none'); ok = false;
+              } else if (rec < monto){
+                err.textContent = "El efectivo recibido no puede ser menor al monto a cobrar.";
+                err.classList.remove('d-none'); ok = false;
+              } else {
+                err.classList.add('d-none');
+              }
+            } else {
+              qs('#ppEfectivoErr')?.classList.add('d-none');
+            }
+
+            if (btn) btn.disabled = !ok;
+            return ok;
+          }
+
+          // Preselecciona EFECTIVO por nombre
+          function preselectEfectivo(){
+            const sel = qs('#ppMetodo');
+            if (!sel) return;
+            const opts = Array.from(sel.options);
+            const idx = opts.findIndex(o => ((o.getAttribute('data-nombre') || o.text || '').toUpperCase()).includes('EFECTIVO'));
+            if (idx >= 0) sel.selectedIndex = idx;
+          }
+
+                  // Abre el modal con SALDO = TotalPedido - AnticipoPagado
+        function openPagoModal() {
+          const totalPedido = Number(document.getElementById('ppTotalPedido')?.value || 0);
+          const anticipoPagado = Number(document.getElementById('ppAnticipoPagado')?.value || 0);
+          const saldo = Math.max(0, totalPedido - anticipoPagado);
+
+          const el = document.getElementById('ppModal');
+          const modal = new bootstrap.Modal(el, {backdrop:'static', keyboard:false});
+
+          // Info visual
+          document.getElementById('ppAnticipoTxt').textContent = money(anticipoPagado);
+          document.getElementById('ppSaldoTxt').textContent    = money(saldo);
+
+          // Monto a cobrar = SALDO
+          const monto = document.getElementById('ppMonto');
+          if (monto){
+            monto.value = saldo.toFixed(2);
+            monto.readOnly = true;
+          }
+
+          document.getElementById('ppTotalTexto').textContent = money(saldo);
+
+          // Preseleccionar efectivo y preparar validaciones (tus funciones existentes)
+          preselectEfectivo?.();
+          toggleEfectivoBlock?.();
+          recalcVuelto?.();
+          validatePago?.();
+
+          // limpiar errores
+          document.getElementById('ppMetodoErr')?.classList.add('d-none');
+          document.getElementById('ppMontoErr')?.classList.add('d-none');
+          document.getElementById('ppEfectivoErr')?.classList.add('d-none');
+
+          modal.show();
+          return modal;
+        }
+
+          // Eventos modal
+          document.getElementById('ppMetodo')?.addEventListener('change', toggleEfectivoBlock);
+          document.getElementById('ppEfectivo')?.addEventListener('input', recalcVuelto);
+
+          document.getElementById('ppBtnConfirmar')?.addEventListener('click', function(){
+            if (!validatePago()) return;
+
+            const metodo   = (qs('#ppMetodo')?.value || '').trim();     // aquí envías el ID (MP0000…)
+            const monto    = Number(qs('#ppMonto')?.value || 0);
+            const efectivo = Number(qs('#ppEfectivo')?.value || 0);
+
+            const entregarForm = document.getElementById('frmEntregar');
+            if (!entregarForm){
+              Swal.fire({ icon:'error', title:'No se encontró el formulario de Entregar.' });
+              return;
+            }
+            function setHidden(name, value){
+              let input = entregarForm.querySelector(`input[name="${name}"]`);
+              if (!input){
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                entregarForm.appendChild(input);
+              }
+              input.value = value;
+            }
+            setHidden('MetodoPagoId', metodo);
+            setHidden('MontoPago',   monto.toFixed(2));
+            setHidden('EfectivoRecibido', isMetodoEfectivo() ? efectivo.toFixed(2) : '');
+
+            bootstrap.Modal.getInstance(document.getElementById('ppModal'))?.hide();
+            entregarForm.submit();
+          });
+
+          // // Interceptar submit del form Entregar (abrir modal)
+          // document.addEventListener('DOMContentLoaded', function(){
+          //   const frm = document.getElementById('frmEntregar');
+          //   if (!frm) return;
+          //   frm.addEventListener('submit', function(e){
+          //     e.preventDefault();
+
+          //     // Usa saldo del servidor si lo envías en un hidden; si no, recurre a TotalPedido:
+          //     const hiddenSaldo = document.getElementById('saldoPendiente');
+          //     let totalPendiente = 0;
+          //     if (hiddenSaldo) {
+          //       totalPendiente = Number((hiddenSaldo.value || '0').toString().replace(',', '.')) || 0;
+          //     } else {
+          //       totalPendiente = Number('@(ViewBag.SaldoPendiente ?? Model.TotalPedido)'.toString().replace(',', '.')) || 0;
+          //     }
+          //     openPagoModal(totalPendiente);
+          //   });
+          // });
+
+                  // Interceptar submit de Entregar ⇒ abrir modal con SALDO
+        document.addEventListener('DOMContentLoaded', function(){
+          const frm = document.getElementById('frmEntregar');
+          if (!frm) return;
+          frm.addEventListener('submit', function(e){
+            e.preventDefault();
+            openPagoModal();   // ya calcula saldo internamente
+          });
+        });
+
+          // ========= ALERTAS =========
+          // Solo mostrar "Entrega confirmada → Generar Recibo" cuando venga la bandera ok_entregar
+          (function () {
+            const okEnt = '@(TempData["ok_entregar"] ?? "")';
+            const ok    = '@(TempData["ok"] ?? "")';
+            const err   = '@(TempData["err"] ?? "")';
+
+            if (okEnt) {
+              Swal.fire({ icon:'success', title: okEnt, timer: 1200, showConfirmButton:false })
+                .then(() => {
+                  Swal.fire({
+                    title: 'Entrega confirmada',
+                    html: '¿Desea generar el Recibo del Pedido en PDF?',
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'Generar Recibo',
+                    cancelButtonText: 'Cerrar'
+                  }).then(r=>{
+                    if (r.isConfirmed){
+                      const url = '@Url.Action("ReciboPedido", "Pedidos")' + '?id=' + encodeURIComponent('@Model.PedidoId');
+                      window.open(url, '_blank');
+                    }
+                  });
+                });
+            } else if (ok) {
+              // Para otros OK genéricos (sin oferta de PDF)
+              Swal.fire({ icon:'success', title: ok, timer: 1600, showConfirmButton:false });
+            }
+
+            if (err) {
+              Swal.fire({ icon:'error', title: err, timer: 2600, showConfirmButton:false });
+            }
+          })();
+        })();
+
+        // JS pago de anticipo
+        (function(){
+          // ===== Helpers =====
+          function qs(s, r=document){ return r.querySelector(s); }
+          function money(n){ return 'Q ' + Number(n||0).toFixed(2); }
+          function apIsEfectivo(){
+            const sel = qs('#apMetodo');
+            const opt = sel?.selectedOptions?.[0];
+            const nombre = (opt?.getAttribute('data-nombre') || opt?.text || '').trim().toUpperCase();
+            return nombre.includes('EFECTIVO');
+          }
+
+          function apToggleEfectivo(){
+            const block = qs('#apEfectivoBlock');
+            const inp   = qs('#apEfectivo');
+            const esEf  = apIsEfectivo();
+            if (block) block.style.opacity = esEf ? '1' : '0.6';
+            if (inp){
+              inp.disabled = !esEf;
+              if (!esEf){
+                inp.value = '';
+                qs('#apVuelto').textContent = money(0);
+                qs('#apEfectivoErr')?.classList.add('d-none');
+              } else {
+                setTimeout(()=> inp.focus(), 50);
+              }
+            }
+            apValidate();
+          }
+
+          function apRecalcVuelto(){
+            const total = Number((qs('#apMonto')?.value || 0));
+            const rec   = Number((qs('#apEfectivo')?.value || 0));
+            const v = Math.max(0, rec - total);
+            qs('#apVuelto').textContent = money(v);
+            apValidate();
+          }
+
+          function apValidate(){
+            const metodo = (qs('#apMetodo')?.value || '').trim();
+            const monto  = Number(qs('#apMonto')?.value || 0);
+            const btn    = qs('#apBtnConfirmar');
+            let ok = true;
+
+            if(!metodo){ qs('#apMetodoErr')?.classList.remove('d-none'); ok = false; }
+            else       { qs('#apMetodoErr')?.classList.add('d-none'); }
+
+            if(!(monto > 0)){ qs('#apMontoErr')?.classList.remove('d-none'); ok = false; }
+            else            { qs('#apMontoErr')?.classList.add('d-none'); }
+
+            if (apIsEfectivo()){
+              const rec = Number(qs('#apEfectivo')?.value || 0);
+              const err = qs('#apEfectivoErr');
+              if (!(rec > 0)) {
+                err.textContent = "Debe ingresar el efectivo recibido.";
+                err.classList.remove('d-none'); ok = false;
+              } else if (rec < monto){
+                err.textContent = "El efectivo recibido no puede ser menor al anticipo.";
+                err.classList.remove('d-none'); ok = false;
+              } else {
+                err.classList.add('d-none');
+              }
+            } else {
+              qs('#apEfectivoErr')?.classList.add('d-none');
+            }
+
+            if (btn) btn.disabled = !ok;
+            return ok;
+          }
+
+          function apPreselectEfectivo(){
+            const sel = qs('#apMetodo');
+            if (!sel) return;
+            const opts = Array.from(sel.options);
+            const idx = opts.findIndex(o => ((o.getAttribute('data-nombre') || o.text || '').toUpperCase()).includes('EFECTIVO'));
+            if (idx >= 0) sel.selectedIndex = idx;
+          }
+
+          function openAnticipoModal(montoAnticipo){
+            const el = document.getElementById('apModal');
+            const modal = new bootstrap.Modal(el, {backdrop:'static', keyboard:false});
+            qs('#apTotalTexto').textContent = money(montoAnticipo);
+            const monto = qs('#apMonto');
+            if (monto){
+              monto.value = Number(montoAnticipo).toFixed(2);
+              monto.readOnly = true;
+            }
+            apPreselectEfectivo();
+            apToggleEfectivo();
+            apRecalcVuelto();
+            apValidate();
+            qs('#apMetodoErr')?.classList.add('d-none');
+            qs('#apMontoErr')?.classList.add('d-none');
+            qs('#apEfectivoErr')?.classList.add('d-none');
+            modal.show();
+            return modal;
+          }
+
+          // === Wire-up
+          document.getElementById('apMetodo')?.addEventListener('change', apToggleEfectivo);
+          document.getElementById('apEfectivo')?.addEventListener('input', apRecalcVuelto);
+
+          // 2.1 Interceptar TODOS los formularios de anticipo (¡sin asp-*!)
+          document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form.frm-anticipo').forEach(function(frm){
+              frm.addEventListener('submit', function(e){
+                e.preventDefault();
+                const anticipo = Number('@Model.AnticipoMinimo'.toString().replace(',', '.')) || 0;
+                if (!(anticipo > 0)) {
+                  Swal.fire({icon:'warning', title:'Anticipo no configurado', text:'El anticipo mínimo es 0.'});
+                  return;
+                }
+                window.__frmAnticipoActual = frm;
+                openAnticipoModal(anticipo);
+              });
+            });
+          });
+
+          // 2.2 Confirmar → inyectar campos y enviar el MISMO form
+          document.getElementById('apBtnConfirmar')?.addEventListener('click', function(){
+            if (!apValidate()) return;
+            const metodo   = (document.getElementById('apMetodo')?.value || '').trim();
+            const monto    = Number(document.getElementById('apMonto')?.value || 0);
+            const efectivo = Number(document.getElementById('apEfectivo')?.value || 0);
+
+            const frm = window.__frmAnticipoActual || document.querySelector('form.frm-anticipo');
+            if (!frm) {
+              Swal.fire({ icon:'error', title:'No se encontró el formulario de Anticipo.' });
+              return;
+            }
+            function setHidden(name, value){
+              let input = frm.querySelector(`input[name="${name}"]`);
+              if (!input){
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                frm.appendChild(input);
+              }
+              input.value = value;
+            }
+            setHidden('MetodoPagoId', metodo);
+            setHidden('MontoPago',   monto.toFixed(2));
+            setHidden('EfectivoRecibido', apIsEfectivo() ? efectivo.toFixed(2) : '');
+
+            bootstrap.Modal.getInstance(document.getElementById('apModal'))?.hide();
+            frm.submit();
+          });
+
+          // Alerta OK anticipo
+          (function () {
+            const okAnt = '@(TempData["ok_anticipo"] ?? "")';
+            if (okAnt) Swal.fire({ icon:'success', title: okAnt, timer: 1400, showConfirmButton:false });
+          })();
+        })();
+    </script>
 }

@@ -1,61 +1,198 @@
 ﻿@model CreArte.ModelsPartial.RestablecerContrasenaVM
 @{
     ViewData["Title"] = "Restablecer contraseña";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = null; // Vista independiente (sin _Layout)
+
+    // Token que envías por ViewBag desde el controlador
     string token = ViewBag.RecoveryToken as string ?? "";
+
+    // Ruta del logo (ajústala si tu imagen se llama distinto)
+    var logoUrl = Url.Content("~/Imagenes/logoCreArte.png");
 }
 
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="ua-card" style="padding:20px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08);">
-                <h3 class="mb-2">Restablecer contraseña</h3>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>@ViewData["Title"] | CreArte</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-                @if (TempData["Mensaje"] != null)
-                {
-                    <div class="alert alert-info">@TempData["Mensaje"]</div>
-                }
+    <!-- Mismo framework que tu vista ejemplo para mantener consistencia -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
 
-                <form asp-action="RestablecerContrasenaPorToken" asp-controller="Login" method="post" id="frmChange">
+    <!-- Fuente Poppins (como en tu login) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet" />
+
+    <!-- Reutiliza tu CSS del login/cambiar contraseña (misma apariencia de la maqueta) -->
+    <link rel="stylesheet" href="~/css/CambiarContrasena.css" asp-append-version="true" />
+
+    <!-- Microajustes opcionales (paleta CreArte y detalles del ojo) -->
+    <style>
+        /* Comentario: si ya tienes estos estilos en tu CSS, puedes dejar este bloque vacío */
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-login {
+            background-color: #FFC107;
+            color: #222;
+            font-weight: bold;
+            border: none;
+            padding: .6rem;
+            border-radius: 6px;
+            width: 100%;
+        }
+
+            .btn-login:hover {
+                background-color: #e0a800;
+            }
+
+        .form-control:focus {
+            box-shadow: 0 0 0 .25rem rgba(255,193,7,.25);
+            border-color: #FFC107;
+        }
+
+        /* Icono ojo posicionado dentro del input */
+        .password-container {
+            position: relative;
+        }
+
+        .eye-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            user-select: none;
+            color: #333;
+        }
+
+        /* Badge fecha/hora (si no está en tu CSS global) */
+        .badge-date, .badge-time {
+            background-color: #C3245A;
+            color: #fff;
+            font-weight: 500;
+            border-radius: 6px;
+            padding: .4rem .8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <!-- =================== Panel Izquierdo: logo + fecha/hora =================== -->
+        <div class="left-panel">
+            <div class="logo-container text-center">
+                <img src="@logoUrl" alt="Logo CreArte Manualidades" class="logo-img" />
+            </div>
+            <div class="footer-date-time">
+                <span class="badge-date" id="currentDate">--</span>
+                <span class="badge-time" id="currentTime">--:--:--</span>
+            </div>
+        </div>
+
+        <!-- =================== Panel Derecho: formulario =================== -->
+        <div class="right-panel">
+            <div class="form-wrapper">
+                <h1 class="fw-bold text-center">Restablecer contraseña</h1>
+
+                <!-- Resumen de validación para mensajes generales -->
+                <div asp-validation-summary="ModelOnly" class="text-warning mt-2"></div>
+
+                <!-- Form: postea a /Login/RestablecerContrasenaPorToken (HttpPost) -->
+                <form class="login-form mt-4"
+                      asp-action="RestablecerContrasenaPorToken"
+                      asp-controller="Login"
+                      method="post"
+                      id="frmChange"
+                      novalidate>
                     @Html.AntiForgeryToken()
+
+                    <!-- Token oculto que asocia el restablecimiento -->
                     <input type="hidden" name="token" value="@token" />
 
+                    <small class="pwd-hint d-block mt-1">
+                        Usa al menos 8 caracteres, mezcla mayúsculas, minúsculas, números y símbolos.
+                    </small>
+                    <br />
+
+                    <!-- Campo: Nueva contraseña (RestablecerContrasenaVM.NuevaContrasena) -->
                     <div class="mb-3">
-                        <label asp-for="NuevaContrasena" class="form-label"></label>
-                        <input asp-for="NuevaContrasena" class="form-control" />
-                        <span asp-validation-for="NuevaContrasena" class="text-danger"></span>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="ConfirmarContrasena" class="form-label"></label>
-                        <input asp-for="ConfirmarContrasena" class="form-control" />
-                        <span asp-validation-for="ConfirmarContrasena" class="text-danger"></span>
+                        <label asp-for="NuevaContrasena"></label>
+                        <div class="password-container">
+                            <input asp-for="NuevaContrasena"
+                                   type="password"
+                                   class="form-control"
+                                   id="nueva"
+                                   placeholder="Escribe tu nueva contraseña"
+                                   autocomplete="new-password" />
+                            <span class="eye-toggle" onclick="togglePwd('nueva')" aria-label="Mostrar/ocultar">👁️</span>
+                        </div>
+                        <span asp-validation-for="NuevaContrasena" class="text-warning"></span>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-dark" id="btnCambiar">
-                            <i class="bi bi-shield-lock"></i> Guardar
-                        </button>
-                        <a asp-action="Login" asp-controller="Login" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver al login
-                        </a>
+                    <!-- Campo: Confirmar contraseña (RestablecerContrasenaVM.ConfirmarContrasena) -->
+                    <div class="mb-3">
+                        <label asp-for="ConfirmarContrasena"></label>
+                        <div class="password-container">
+                            <input asp-for="ConfirmarContrasena"
+                                   type="password"
+                                   class="form-control"
+                                   id="confirmar"
+                                   placeholder="Confirma tu nueva contraseña"
+                                   autocomplete="new-password" />
+                            <span class="eye-toggle" onclick="togglePwd('confirmar')" aria-label="Mostrar/ocultar">👁️</span>
+                        </div>
+                        <span asp-validation-for="ConfirmarContrasena" class="text-warning"></span>
                     </div>
+
+                    <!-- Botón de guardado -->
+                    <button type="submit" class="btn-login" id="btnCambiar">
+                        Guardar nueva contraseña
+                    </button>
                 </form>
+
+                <!-- Mensaje informativo si viene en TempData -->
+                @if (TempData["Mensaje"] != null)
+                {
+                    <div class="alert alert-warning mt-3">@TempData["Mensaje"]</div>
+                }
             </div>
         </div>
     </div>
-</div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <!-- ========== Scripts ========== -->
+    <!-- Reutiliza tu JS que ya muestra fecha/hora en el login (y otros helpers) -->
+    <script src="~/js/Login.js" asp-append-version="true"></script>
+
+    <!-- Bootstrap (si tu Login.js no lo incluye) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@4.0.0/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Mostrar/ocultar inputs password -->
     <script>
+        // Comentario: función simple para alternar tipo password/text por id de input
+        function togglePwd(id){
+            const input = document.getElementById(id);
+            if(!input) return;
+            input.type = (input.type === 'password') ? 'text' : 'password';
+        }
+
+        // UX: al enviar, bloquea el botón y muestra feedback
         (function(){
             const frm = document.getElementById('frmChange');
             const btn = document.getElementById('btnCambiar');
             if(!frm || !btn) return;
             frm.addEventListener('submit', function(){
                 btn.disabled = true;
-                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                btn.textContent = 'Guardando...';
             });
         })();
     </script>
-}
+
+    <!-- Validación del lado del cliente (sin layout, lo incluimos aquí) -->
+    <partial name="_ValidationScriptsPartial" />
+</body>
+</html>

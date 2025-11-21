@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
 
 namespace CreArte.Controllers
 {
@@ -22,10 +24,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // LISTADO – /Proveedores?Search=...&Empresa=...&Estado=...
-        // Filtros: Search (ID, Nombre completo, NIT, DPI, Empresa),
-        //          Empresa (texto), Estado (bool?).
-        // Orden: id | nombre | empresa | estado | fecha
-        // Paginación: Page, PageSize.
         // ============================================================
         public async Task<IActionResult> Index(
             string? Search,
@@ -546,6 +544,129 @@ namespace CreArte.Controllers
 
             var siguiente = maxNum + 1;
             return prefijo + siguiente.ToString(new string('0', ancho));
+        }
+
+
+        //=======================REPORTE PDF
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Empresa,
+    bool? Estado,
+    string Sort = "id",
+    string Dir = "asc")
+        {
+            // 1) Base (no eliminados)
+            IQueryable<PROVEEDOR> q = _context.PROVEEDOR
+                .AsNoTracking()
+                .Where(pv => !pv.ELIMINADO);
+
+            // 2) Búsqueda global
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+
+                q = q.Where(pv =>
+                    EF.Functions.Like(pv.PROVEEDOR_ID, $"%{s}%") ||
+                    EF.Functions.Like(pv.EMPRESA ?? "", $"%{s}%") ||
+                    EF.Functions.Like(
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    ) ||
+                    EF.Functions.Like(pv.PROVEEDORNavigation.PERSONA_NIT ?? "", $"%{s}%") ||
+                    EF.Functions.Like(pv.PROVEEDORNavigation.PERSONA_CUI ?? "", $"%{s}%")
+                );
+            }
+
+            // 3) Filtro Empresa
+            if (!string.IsNullOrWhiteSpace(Empresa))
+            {
+                string e = Empresa.Trim();
+                q = q.Where(pv => pv.EMPRESA != null && EF.Functions.Like(pv.EMPRESA, $"%{e}%"));
+            }
+
+            // 4) Estado
+            if (Estado.HasValue)
+                q = q.Where(pv => pv.ESTADO == Estado.Value);
+
+            // 5) Orden
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc ? q.OrderBy(pv => pv.PROVEEDOR_ID) : q.OrderByDescending(pv => pv.PROVEEDOR_ID),
+
+                "nombre" => asc
+                    ? q.OrderBy(pv =>
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_APELLIDOCASADA ?? ""))
+                    : q.OrderByDescending(pv =>
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (pv.PROVEEDORNavigation.PERSONA_APELLIDOCASADA ?? "")),
+
+                "empresa" => asc ? q.OrderBy(pv => pv.EMPRESA) : q.OrderByDescending(pv => pv.EMPRESA),
+                "estado" => asc ? q.OrderBy(pv => pv.ESTADO) : q.OrderByDescending(pv => pv.ESTADO),
+                _ => asc ? q.OrderBy(pv => pv.FECHA_CREACION) : q.OrderByDescending(pv => pv.FECHA_CREACION),
+            };
+
+            // 6) Traer TODOS los datos (sin paginar), con PERSONA
+            var items = await q
+                .Include(pv => pv.PROVEEDORNavigation)
+                .ToListAsync();
+
+            int totActivos = items.Count(pv => pv.ESTADO);
+            int totInactivos = items.Count(pv => !pv.ESTADO);
+
+            // 7) ViewModel genérico
+            var vm = new ReporteViewModel<PROVEEDOR>
+            {
+                Items = items,
+                Search = Search,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+                ReportTitle = "Reporte de Proveedores",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+            if (!string.IsNullOrWhiteSpace(Empresa))
+                vm.ExtraFilters["Empresa"] = Empresa;
+
+            // 8) PDF
+            var pdf = new ViewAsPdf("ReporteProveedores", vm)
+            {
+                FileName = $"ReporteProveedores.pdf",
+                ContentDisposition = ContentDisposition.Inline,
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

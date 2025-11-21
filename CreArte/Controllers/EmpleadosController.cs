@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
 
 namespace CreArte.Controllers
 {
@@ -21,7 +23,7 @@ namespace CreArte.Controllers
         }
 
         // ============================================================
-        // LISTADO (NO TOCAR) – /Empleados?...
+        // LISTADO /Empleados?...
         // ============================================================
         public async Task<IActionResult> Index(
     string? Search,
@@ -35,10 +37,10 @@ namespace CreArte.Controllers
     int Page = 1,
     int PageSize = 10)
         {
-            // 0) Helper local para armar el nombre completo en C# (para ViewBag)
+            
             string ComposeFullName(PERSONA p)
             {
-                // Concatenamos todas las partes (permitiendo nulos) y limpiamos espacios sobrantes.
+                
                 var parts = new[]
                 {
             p.PERSONA_PRIMERNOMBRE,
@@ -59,9 +61,6 @@ namespace CreArte.Controllers
             {
                 string s = Search.Trim();
 
-                // IMPORTANTE: Para aplicar LIKE sobre el nombre completo en SQL,
-                // usamos la concatenación traducible por EF. Puede generar dobles espacios,
-                // lo cual no afecta la búsqueda.
                 q = q.Where(e =>
                     EF.Functions.Like(e.EMPLEADO_ID, $"%{s}%") ||
                     EF.Functions.Like(e.PUESTO.PUESTO_NOMBRE, $"%{s}%") ||
@@ -188,8 +187,7 @@ namespace CreArte.Controllers
         }
 
         // ============================================================
-        // DETAILS para modal (PartialView) – /Empleados/DetailsCard?id=...
-        // ▸ Ajustado: Nombres = Nombre COMPLETO (6 partes); Apellidos = "" (solo aquí)
+        // DETAILS  – /Empleados/DetailsCard?id=...
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> DetailsCard(string id)
@@ -206,11 +204,6 @@ namespace CreArte.Controllers
                     EMPLEADO_ID = e.EMPLEADO_ID,
                     PERSONA_ID = e.EMPLEADONavigation.PERSONA_ID,
 
-                    // ================== NOMBRE COMPLETO ==================
-                    // Concatenamos 6 partes (ignorando nulls con ?? "").
-                    // Nota: .Trim() se traduce a LTRIM/RTRIM en SQL Server.
-                    // Quedará bien para la gran mayoría de casos; si alguna parte
-                    // es vacía podrían quedar espacios dobles, pero es poco común.
                     Nombres =
                         (
                             (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
@@ -255,7 +248,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // CREATE (GET) – RUTA: GET /Empleados/Create
-        // Muestra formulario con IDs generados y combos cargados.
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Create()
@@ -282,9 +274,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // CREATE (POST) – RUTA: POST /Empleados/Create
-        // Crea PERSONA + EMPLEADO en 1 transacción.
-        // Convierte DateTime? (VM) -> DateOnly/DateOnly? (ENTIDAD).
-        // + Valida edad > 12 y unicidad de DPI/NIT.
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -330,7 +319,7 @@ namespace CreArte.Controllers
                 ModelState.AddModelError(nameof(vm.PUESTO_ID), "El puesto seleccionado no existe o no está activo.");
 
             // ============================
-            // ✅ VALIDACIÓN DE EDAD > 12
+            // VALIDACIÓN DE EDAD > 12
             // ============================
             if (vm.EMPLEADO_FECHANACIMIENTO.HasValue && vm.EMPLEADO_FECHAINGRESO.HasValue)
             {
@@ -345,7 +334,7 @@ namespace CreArte.Controllers
             }
 
             // ==========================================
-            // ✅ UNICIDAD: DPI/CUI y NIT (si hay valor)
+            //  UNICIDAD: DPI/CUI y NIT 
             // ==========================================
             string dpiNorm = (vm.PERSONA_CUI ?? "").Trim();
             if (!string.IsNullOrEmpty(dpiNorm))
@@ -365,7 +354,6 @@ namespace CreArte.Controllers
                     ModelState.AddModelError(nameof(vm.PERSONA_NIT), "Ya existe un registro con este NIT.");
             }
 
-            // Si hay errores, recarga combos y retorna la vista
             if (!ModelState.IsValid)
             {
                 vm.Puestos = await CargarPuestosAsync();
@@ -448,7 +436,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // EDIT (GET) – RUTA: GET /Empleados/Edit/{id}
-        // Carga PERSONA + EMPLEADO y convierte DateOnly -> DateTime? para inputs.
         // ============================================================
         [HttpGet]
         public async Task<IActionResult> Edit(string id)
@@ -503,7 +490,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // EDIT (POST) – RUTA: POST /Empleados/Edit/{id}
-        // Actualiza PERSONA + EMPLEADO. Convierte DateTime? (VM) -> DateOnly.
         // + Valida edad > 12 y unicidad de DPI/NIT (excluyendo el propio registro).
         // ============================================================
         [HttpPost]
@@ -547,7 +533,7 @@ namespace CreArte.Controllers
                 ModelState.AddModelError(nameof(vm.PUESTO_ID), "El puesto seleccionado no existe o no está activo.");
 
             // ============================
-            // ✅ VALIDACIÓN DE EDAD > 12
+            // VALIDACIÓN DE EDAD > 12
             // ============================
             if (vm.EMPLEADO_FECHANACIMIENTO.HasValue && vm.EMPLEADO_FECHAINGRESO.HasValue)
             {
@@ -562,7 +548,7 @@ namespace CreArte.Controllers
             }
 
             // ==========================================
-            // ✅ UNICIDAD: DPI/CUI y NIT (excluye propio)
+            // UNICIDAD: DPI/CUI y NIT (excluye propio)
             // ==========================================
             string dpiNorm = (vm.PERSONA_CUI ?? "").Trim();
             if (!string.IsNullOrEmpty(dpiNorm))
@@ -643,7 +629,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // DELETE (GET/POST) – Borrado lógico del EMPLEADO
-        // (No elimina PERSONA para preservar integridad)
         // ============================================================
         public async Task<IActionResult> Delete(string id)
         {
@@ -720,5 +705,144 @@ namespace CreArte.Controllers
             new SelectListItem { Text = "Femenino", Value = "Femenino" },
             new SelectListItem { Text = "Masculino", Value = "Masculino" }
         };
+
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Puesto,
+    string? Genero,
+    DateTime? FechaIngresoIni,
+    DateTime? FechaIngresoFin,
+    bool? Estado,
+    string Sort = "id",
+    string Dir = "asc")
+        {
+            IQueryable<EMPLEADO> q = _context.EMPLEADO
+                .AsNoTracking()
+                .Where(e => !e.ELIMINADO);
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+                q = q.Where(e =>
+                    EF.Functions.Like(e.EMPLEADO_ID, $"%{s}%") ||
+                    EF.Functions.Like(e.PUESTO.PUESTO_NOMBRE, $"%{s}%") ||
+                    EF.Functions.Like(
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""),
+                        $"%{s}%"
+                    )
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(Puesto))
+            {
+                if (Puesto == "__BLANKS__")
+                    q = q.Where(e => e.PUESTO == null || string.IsNullOrEmpty(e.PUESTO.PUESTO_NOMBRE));
+                else if (Puesto == "__NONBLANKS__")
+                    q = q.Where(e => e.PUESTO != null && !string.IsNullOrEmpty(e.PUESTO.PUESTO_NOMBRE));
+                else
+                {
+                    string s = Puesto.Trim();
+                    q = q.Where(e => EF.Functions.Like(e.PUESTO.PUESTO_NOMBRE, $"%{s}%"));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(Genero))
+            {
+                string g = Genero.Trim();
+                q = q.Where(e => e.EMPLEADO_GENERO != null && e.EMPLEADO_GENERO == g);
+            }
+
+            if (FechaIngresoIni.HasValue)
+            {
+                var fIni = DateOnly.FromDateTime(FechaIngresoIni.Value.Date);
+                q = q.Where(e => e.EMPLEADO_FECHAINGRESO >= fIni);
+            }
+            if (FechaIngresoFin.HasValue)
+            {
+                var fFin = DateOnly.FromDateTime(FechaIngresoFin.Value.Date);
+                q = q.Where(e => e.EMPLEADO_FECHAINGRESO <= fFin);
+            }
+
+            if (Estado.HasValue)
+                q = q.Where(e => e.ESTADO == Estado.Value);
+
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            q = (Sort?.ToLower()) switch
+            {
+                "id" => asc ? q.OrderBy(e => e.EMPLEADO_ID) : q.OrderByDescending(e => e.EMPLEADO_ID),
+                "nombre" => asc
+                    ? q.OrderBy(e =>
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? ""))
+                    : q.OrderByDescending(e =>
+                        (e.EMPLEADONavigation.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_TERCERNOMBRE ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_SEGUNDOAPELLIDO ?? "") + " " +
+                        (e.EMPLEADONavigation.PERSONA_APELLIDOCASADA ?? "")),
+                "puesto" => asc ? q.OrderBy(e => e.PUESTO.PUESTO_NOMBRE) : q.OrderByDescending(e => e.PUESTO.PUESTO_NOMBRE),
+                "ingreso" => asc ? q.OrderBy(e => e.EMPLEADO_FECHAINGRESO) : q.OrderByDescending(e => e.EMPLEADO_FECHAINGRESO),
+                "estado" => asc ? q.OrderBy(e => e.ESTADO) : q.OrderByDescending(e => e.ESTADO),
+                _ => asc ? q.OrderBy(e => e.FECHA_CREACION) : q.OrderByDescending(e => e.FECHA_CREACION),
+            };
+
+            var items = await q
+                .Include(e => e.EMPLEADONavigation)
+                .Include(e => e.PUESTO)
+                .ToListAsync();
+
+            int totActivos = items.Count(e => e.ESTADO);
+            int totInactivos = items.Count(e => !e.ESTADO);
+
+            var vm = new ReporteViewModel<EMPLEADO>
+            {
+                Items = items,
+                Search = Search,
+                FechaInicio = FechaIngresoIni,
+                FechaFin = FechaIngresoFin,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+                ReportTitle = "Reporte de Empleados",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+            if (!string.IsNullOrWhiteSpace(Puesto)) vm.ExtraFilters["Puesto"] = Puesto;
+            if (!string.IsNullOrWhiteSpace(Genero)) vm.ExtraFilters["Género"] = Genero;
+
+            var pdf = new ViewAsPdf("ReporteEmpleados", vm)
+            {
+                FileName = $"ReporteEmpleados.pdf",
+                ContentDisposition = ContentDisposition.Inline,
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 15, Bottom = 15 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
+        }
     }
 }

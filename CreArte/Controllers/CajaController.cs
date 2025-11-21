@@ -454,5 +454,245 @@ namespace CreArte.Controllers
             ViewBag.SesionId = id;
             return View(movimientos); 
         }
+
+        // =====================Reporte PDF======================================
+        [HttpGet]
+    public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Usuario,
+    bool? Abierta,
+    DateTime? Desde,
+    DateTime? Hasta,
+    decimal? MontoMin,
+    decimal? MontoMax,
+    string? Sort = "apertura",
+    string? Dir = "desc")
+        {
+            var baseQuery =
+                from c in _db.CAJA_SESION.AsNoTracking()
+                join u in _db.USUARIO.AsNoTracking() on c.USUARIO_APERTURA_ID equals u.USUARIO_ID
+                select new CajaIndexItemVM
+                {
+                    CajaSesionId = c.SESION_ID,
+                    UsuarioNombre = (u.USUARIO_NOMBRE ?? u.USUARIO_ID),
+                    FechaApertura = c.FECHA_APERTURA,
+                    FechaCierre = c.FECHA_CIERRE,
+                    MontoInicial = c.MONTO_INICIAL,
+                    Abierta = (c.ESTADO_SESION == "ABIERTA"),
+
+                    TotalIngresos = _db.MOVIMIENTO_CAJA
+                        .Where(m => m.SESION_ID == c.SESION_ID && m.TIPO == "INGRESO")
+                        .Select(m => (decimal?)m.MONTO).Sum() ?? 0m,
+
+                    TotalEgresos = _db.MOVIMIENTO_CAJA
+                        .Where(m => m.SESION_ID == c.SESION_ID && m.TIPO == "EGRESO")
+                        .Select(m => (decimal?)m.MONTO).Sum() ?? 0m
+                };
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                var s = Search.Trim();
+                baseQuery = baseQuery.Where(x =>
+                    x.CajaSesionId.Contains(s) ||
+                    x.UsuarioNombre.Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(Usuario))
+            {
+                var u = Usuario.Trim();
+                baseQuery = baseQuery.Where(x => x.UsuarioNombre.Contains(u));
+            }
+
+            if (Abierta.HasValue)
+                baseQuery = baseQuery.Where(x => x.Abierta == Abierta.Value);
+
+            if (Desde.HasValue)
+                baseQuery = baseQuery.Where(x => x.FechaApertura >= Desde.Value);
+
+            if (Hasta.HasValue)
+            {
+                var hasta = Hasta.Value.Date.AddDays(1).AddTicks(-1);
+                baseQuery = baseQuery.Where(x => x.FechaApertura <= hasta);
+            }
+
+            if (MontoMin.HasValue)
+                baseQuery = baseQuery.Where(x => x.SaldoFinal >= MontoMin.Value);
+            if (MontoMax.HasValue)
+                baseQuery = baseQuery.Where(x => x.SaldoFinal <= MontoMax.Value);
+
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            switch ((Sort ?? "apertura").ToLower())
+            {
+                case "id": baseQuery = asc ? baseQuery.OrderBy(x => x.CajaSesionId) : baseQuery.OrderByDescending(x => x.CajaSesionId); break;
+                case "usuario": baseQuery = asc ? baseQuery.OrderBy(x => x.UsuarioNombre) : baseQuery.OrderByDescending(x => x.UsuarioNombre); break;
+                case "inicial": baseQuery = asc ? baseQuery.OrderBy(x => x.MontoInicial) : baseQuery.OrderByDescending(x => x.MontoInicial); break;
+                case "ingresos": baseQuery = asc ? baseQuery.OrderBy(x => x.TotalIngresos) : baseQuery.OrderByDescending(x => x.TotalIngresos); break;
+                case "egresos": baseQuery = asc ? baseQuery.OrderBy(x => x.TotalEgresos) : baseQuery.OrderByDescending(x => x.TotalEgresos); break;
+                case "saldo": baseQuery = asc ? baseQuery.OrderBy(x => x.SaldoFinal) : baseQuery.OrderByDescending(x => x.SaldoFinal); break;
+                case "cierre": baseQuery = asc ? baseQuery.OrderBy(x => x.FechaCierre) : baseQuery.OrderByDescending(x => x.FechaCierre); break;
+                case "estado": baseQuery = asc ? baseQuery.OrderBy(x => x.Abierta) : baseQuery.OrderByDescending(x => x.Abierta); break;
+                default: baseQuery = asc ? baseQuery.OrderBy(x => x.FechaApertura) : baseQuery.OrderByDescending(x => x.FechaApertura); break;
+            }
+
+            var items = await baseQuery.ToListAsync();
+
+            int totSesiones = items.Count;
+            int totAbiertas = items.Count(x => x.Abierta);
+            int totCerradas = items.Count(x => !x.Abierta);
+            decimal saldoTotal = items.Sum(x => x.SaldoFinal);
+
+            var vm = new ReporteViewModel<CajaIndexItemVM>
+            {
+                Items = items,
+                Search = Search,
+                Sort = Sort,
+                Dir = Dir,
+
+                ReportTitle = "Reporte de Sesiones de Caja",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("Sesiones", totSesiones);
+            vm.AddTotal("Abiertas", totAbiertas);
+            vm.AddTotal("Cerradas", totCerradas);
+            vm.AddTotal("SaldoTotal", saldoTotal); 
+
+            if (!string.IsNullOrWhiteSpace(Usuario)) vm.ExtraFilters["Usuario"] = Usuario;
+            if (Abierta.HasValue) vm.ExtraFilters["Estado sesión"] = Abierta.Value ? "Abierta" : "Cerrada";
+            if (Desde.HasValue || Hasta.HasValue)
+                vm.ExtraFilters["Rango fechas"] =
+                    $"{Desde?.ToString("dd/MM/yyyy") ?? "—"} a {Hasta?.ToString("dd/MM/yyyy") ?? "—"}";
+            if (MontoMin.HasValue || MontoMax.HasValue)
+                vm.ExtraFilters["Rango saldo"] =
+                    $"{MontoMin?.ToString("Q0.00") ?? "—"} a {MontoMax?.ToString("Q0.00") ?? "—"}";
+
+            var pdf = new Rotativa.AspNetCore.ViewAsPdf("ReporteCaja", vm)
+            {
+                FileName = $"ReporteCaja.pdf",
+                ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
+                PageMargins = new Rotativa.AspNetCore.Options.Margins
+                {
+                    Left = 10,
+                    Right = 10,
+                    Top = 15,
+                    Bottom = 15
+                },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
+        }
+
+        // =====================Reporte de movimientos de caja PDF======================================
+        [HttpGet]
+        public async Task<IActionResult> ReporteMovimientosPDF(string id, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                TempData["error"] = "Falta el identificador de la sesión.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 1) Sesión de caja
+            var sesion = await _db.CAJA_SESION.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.SESION_ID == id, ct);
+
+            if (sesion == null)
+            {
+                TempData["error"] = "Sesión no encontrada.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2) Totales de ingresos/egresos
+            var ingresos = await _db.MOVIMIENTO_CAJA
+                .Where(m => m.SESION_ID == id && m.TIPO == "INGRESO")
+                .Select(m => (decimal?)m.MONTO).SumAsync(ct) ?? 0m;
+
+            var egresos = await _db.MOVIMIENTO_CAJA
+                .Where(m => m.SESION_ID == id && m.TIPO == "EGRESO")
+                .Select(m => (decimal?)m.MONTO).SumAsync(ct) ?? 0m;
+
+            var saldo = sesion.MONTO_INICIAL + ingresos - egresos;
+
+            // 3) Header para el reporte (igual idea que en Details)
+            ViewBag.Header = new
+            {
+                SesionId = sesion.SESION_ID,
+                Estado = sesion.ESTADO,
+                EstadoDescripcion = sesion.ESTADO_SESION, // si tienes un campo de texto tipo "ABIERTA"/"CERRADA"
+                FechaAper = sesion.FECHA_APERTURA,
+                FechaCierre = sesion.FECHA_CIERRE,
+                MontoInicial = sesion.MONTO_INICIAL,
+                Ingresos = ingresos,
+                Egresos = egresos,
+                Saldo = saldo
+            };
+
+            // 4) Movimientos de la sesión
+            var movimientos = await (
+                from m in _db.MOVIMIENTO_CAJA.AsNoTracking()
+                join u in _db.USUARIO on m.USUARIO_CREACION equals u.USUARIO_ID into ju
+                from u in ju.DefaultIfEmpty()
+                where m.SESION_ID == id
+                orderby m.FECHA descending
+                select new CajaDetalleMovimientoVM
+                {
+                    MovimientoId = m.MOVIMIENTO_ID,
+                    Fecha = m.FECHA,
+                    TipoMovimiento = m.TIPO,
+                    Referencia = m.REFERENCIA,
+                    Monto = m.MONTO,
+                    UsuarioNombre = (u != null ? (u.USUARIO_NOMBRE ?? u.USUARIO_ID)
+                                               : (m.USUARIO_CREACION ?? "sistema"))
+                }
+            ).ToListAsync(ct);
+
+            // 5) ViewModel genérico de reporte
+            var vm = new ReporteViewModel<CajaDetalleMovimientoVM>
+            {
+                Items = movimientos,
+                // Aquí podrías guardar filtros si luego agregas, por ahora nada.
+
+                ReportTitle = $"Movimientos de Caja — Sesión {id}",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            // (Opcional) Totales de movimientos como conteos
+            vm.AddTotal("Movimientos", movimientos.Count);
+            vm.AddTotal("Ingresos", movimientos.Count(m => m.TipoMovimiento == "INGRESO"));
+            vm.AddTotal("Egresos", movimientos.Count(m => m.TipoMovimiento == "EGRESO"));
+
+            // 6) PDF con Rotativa usando la vista "ReporteMovimientos"
+            var pdf = new Rotativa.AspNetCore.ViewAsPdf("ReporteMovimientos", vm)
+            {
+                FileName = $"MovimientosCaja_{id}.pdf",
+                ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
+                PageMargins = new Rotativa.AspNetCore.Options.Margins
+                {
+                    Left = 10,
+                    Right = 10,
+                    Top = 15,
+                    Bottom = 15
+                },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
+        }
+
     }
 }

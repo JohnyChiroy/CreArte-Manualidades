@@ -129,6 +129,77 @@ public class PedidosController : Controller
             .ToListAsync();
     }
 
+    // ===== Helpers de pago =====
+    private async Task<List<SelectListItem>> GetMetodosPagoComboAsync(CancellationToken ct)
+    {
+        return await _db.METODO_PAGO
+            .Where(m => m.ESTADO == true && m.ELIMINADO == false)
+            .OrderBy(m => m.METODO_PAGO_NOMBRE)
+            .Select(m => new SelectListItem
+            {
+                Value = m.METODO_PAGO_ID,          
+                Text = m.METODO_PAGO_NOMBRE  
+            })
+            .ToListAsync(ct);
+    }
+
+    private async Task<decimal> TotalPagadoPedidoAsync(string pedidoId, CancellationToken ct = default)
+    {
+        // Asumimos que tu tabla RECIBO tiene columna PEDIDO_ID (la usaste para anticipo)
+        return await _db.RECIBO
+            .Where(r => r.ESTADO == true && r.VENTA_ID == pedidoId)
+            .Select(r => (decimal?)r.MONTO)
+            .SumAsync(ct) ?? 0m;
+    }
+
+    // MC secuencial tipo "MC00000001" 
+    private async Task<string> SiguienteMovimientoCajaIdAsync()
+    {
+        const string prefijo = "MC";
+        const int ancho = 8;
+        var ids = await _db.MOVIMIENTO_CAJA.Select(x => x.MOVIMIENTO_ID)
+            .Where(id => id.StartsWith(prefijo)).ToListAsync();
+        int maxNum = 0;
+        var rx = new System.Text.RegularExpressions.Regex(@"^" + prefijo + @"(?<n>\d+)$");
+        foreach (var id in ids)
+        {
+            var m = rx.Match(id ?? "");
+            if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum) maxNum = n;
+        }
+        return prefijo + (maxNum + 1).ToString(new string('0', ancho));
+    }
+
+    // Sesión de caja activa 
+    private async Task<string?> GetSesionCajaActivaAsync(string usuarioId)
+    {
+        return await _db.CAJA_SESION
+            .Where(c => c.ESTADO == true)
+            .OrderByDescending(c => c.FECHA_APERTURA)
+            .Select(c => c.SESION_ID)
+            .FirstOrDefaultAsync();
+    }
+
+    // RC secuencial para recibo 
+    private async Task<string> SiguienteReciboIdAsync()
+    {
+        const string prefijo = "RC";
+        const int ancho = 8;
+        var ids = await _db.RECIBO.Select(r => r.RECIBO_ID)
+            .Where(id => id.StartsWith(prefijo)).ToListAsync();
+
+        int maxNum = 0;
+        var rx = new System.Text.RegularExpressions.Regex(@"^" + prefijo + @"(?<n>\d+)$");
+        foreach (var id in ids)
+        {
+            var m = rx.Match(id ?? "");
+            if (m.Success && int.TryParse(m.Groups["n"].Value, out int n) && n > maxNum) maxNum = n;
+        }
+        return prefijo + (maxNum + 1).ToString(new string('0', ancho));
+    }
+
+    // NUEVO: ID de recibo (mismo estilo que usas en Revertir: prefijo + Guid recortado)
+    private static string NewReciboId() => "RCB" + Guid.NewGuid().ToString("N").Substring(0, 7);
+
     // ======================================================
     // GET: /Pedidos  (listado con filtros/orden/paginación)
     // ======================================================
@@ -314,9 +385,10 @@ public class PedidosController : Controller
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
                             .Select(i => i.STOCK_ACTUAL)
                             .FirstOrDefault() ?? 0m,
-                costo = (decimal?)_db.INVENTARIO
+                // <- precioVenta = COSTO_UNITARIO
+                precioVenta = _db.INVENTARIO
                             .Where(i => i.PRODUCTO_ID == p.PRODUCTO_ID)
-                            .Select(i => i.COSTO_UNITARIO)
+                            .Select(i => (decimal?)i.COSTO_UNITARIO)
                             .FirstOrDefault() ?? 0m
             }
         )
@@ -338,7 +410,15 @@ public class PedidosController : Controller
             ModelState.AddModelError(nameof(vm.ClienteId), "Seleccione un cliente.");
 
         if (!vm.FechaEntregaDeseada.HasValue)
+        {
             ModelState.AddModelError(nameof(vm.FechaEntregaDeseada), "Seleccione la fecha de entrega.");
+        }
+        else
+        {
+            var hoy = DateOnly.FromDateTime(DateTime.Now.Date);
+            if (vm.FechaEntregaDeseada.Value < hoy)
+                ModelState.AddModelError(nameof(vm.FechaEntregaDeseada), "La fecha de entrega debe ser hoy o posterior.");
+        }
 
         if (vm.Detalles == null || vm.Detalles.Count == 0)
             ModelState.AddModelError("", "Debe agregar al menos un ítem al pedido.");
@@ -356,7 +436,6 @@ public class PedidosController : Controller
             FECHA_PEDIDO = DateTime.Now,
             CLIENTE_ID = vm.ClienteId!,
             ESTADO_PEDIDO_ID = "BORRADOR",
-            //FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada,
             FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada!.Value,
             OBSERVACIONES_PEDIDO = vm.Observaciones,
             USUARIO_CREACION = UserName(),
@@ -364,22 +443,43 @@ public class PedidosController : Controller
             ESTADO = true
         };
 
-        pedido.DETALLE_PEDIDO = vm.Detalles.Select(d => new DETALLE_PEDIDO
+        // Autorrelleno de precio: si el usuario deja 0, usamos COSTO_UNITARIO
+        var detalles = new List<DETALLE_PEDIDO>();
+        foreach (var d in vm.Detalles)
         {
-            DETALLE_PEDIDO_ID = NewDetallePedidoId(),
-            PEDIDO_ID = pedido.PEDIDO_ID,
-            PRODUCTO_ID = d.ProductoId!,
-            CANTIDAD = RoundToInt(d.Cantidad),
-            PRECIO_PEDIDO = d.PrecioPedido,
-            SUBTOTAL = Math.Round(d.Cantidad * d.PrecioPedido, 2),
-            USUARIO_CREACION = UserName(),
-            FECHA_CREACION = DateTime.Now,
-            ESTADO = true
-        }).ToList();
+            if (string.IsNullOrWhiteSpace(d.ProductoId)) continue;
+
+            var precioUi = d.PrecioPedido;
+            if (precioUi <= 0)
+            {
+                // respaldo de precio desde inventario (COSTO_UNITARIO)
+                var costo = await _db.INVENTARIO
+                    .Where(i => i.PRODUCTO_ID == d.ProductoId)
+                    .Select(i => (decimal?)i.COSTO_UNITARIO)
+                    .FirstOrDefaultAsync(ct) ?? 0m;
+
+                precioUi = costo;
+            }
+
+            var cantInt = RoundToInt(d.Cantidad);
+            detalles.Add(new DETALLE_PEDIDO
+            {
+                DETALLE_PEDIDO_ID = NewDetallePedidoId(),
+                PEDIDO_ID = pedido.PEDIDO_ID,
+                PRODUCTO_ID = d.ProductoId!,
+                CANTIDAD = cantInt,
+                PRECIO_PEDIDO = precioUi,
+                SUBTOTAL = Math.Round(cantInt * precioUi, 2),
+                USUARIO_CREACION = UserName(),
+                FECHA_CREACION = DateTime.Now,
+                ESTADO = true
+            });
+        }
+        pedido.DETALLE_PEDIDO = detalles;
 
         // 1) Calcula total base a partir de detalle
         PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
-        // 2) Aplica costo de elaboración (=total base) y recalcula anticipo sobre total final
+        // 2) Costo de elaboración (doble) + anticipo sobre total final (si así definiste la regla)
         DoblarTotalYRecalcularAnticipo(pedido);
 
         _db.PEDIDO.Add(pedido);
@@ -471,6 +571,14 @@ public class PedidosController : Controller
             Lineas = lineas
         };
 
+        //ViewBag.MetodosPagoCombo = await GetMetodosPagoComboAsync(ct);
+        ViewBag.MetodosPagoCombo = await _db.METODO_PAGO
+            .Where(m => m.ESTADO == true && m.ELIMINADO == false)
+            .OrderBy(m => m.METODO_PAGO_NOMBRE)
+            .Select(m => new SelectListItem { Value = m.METODO_PAGO_ID, Text = m.METODO_PAGO_NOMBRE })
+            .ToListAsync(ct);
+
+
         // ========= Permisos según estado =========
         var st = pedido.ESTADO_PEDIDO_ID?.ToUpperInvariant() ?? "";
 
@@ -508,6 +616,12 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id);
 
         if (pedido == null) return NotFound();
+
+        if (pedido.ESTADO_PEDIDO_ID is not ("BORRADOR" or "COTIZADO"))
+        {
+            TempData["err"] = "Solo puedes modificar pedidos en estado BORRADOR O COTIZADO";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
         var productos = await _db.PRODUCTO
             .Where(p => p.ESTADO == true && p.TIPO_PRODUCTO.TIPO_PRODUCTO_NOMBRE != "PRODUCTO FINAL")
@@ -562,194 +676,234 @@ public class PedidosController : Controller
         return View(vm);
     }
 
-    // ==============================================
-    // POST: /Pedidos/Edit/{id}
-    // ==============================================
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(string id, PedidoCreateEditVM vm, CancellationToken ct)
-    {
-        var pedido = await _db.PEDIDO
-            .Include(p => p.DETALLE_PEDIDO)
-            .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+// ==============================================
+// POST: /Pedidos/Edit/{id}
+// ==============================================
+[HttpPost, ValidateAntiForgeryToken]
+public async Task<IActionResult> Edit(string id, PedidoCreateEditVM vm, CancellationToken ct)
+{
+    var pedido = await _db.PEDIDO
+        .Include(p => p.DETALLE_PEDIDO)
+        .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
 
-        if (pedido == null) return NotFound();
+    if (pedido == null) return NotFound();
 
-        //aquí empieza la desgracia xD
+        if (pedido.ESTADO_PEDIDO_ID is not ("BORRADOR" or "COTIZADO"))
+        {
+            TempData["err"] = "Solo puedes modificar pedidos en estado BORRADOR O COTIZADO.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
+        // ===== Validación fecha de entrega: requerida y >= hoy =====
         if (!vm.FechaEntregaDeseada.HasValue)
+    {
+        TempData["err"] = "Seleccione la fecha de entrega.";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+    var hoy = DateOnly.FromDateTime(DateTime.Now.Date);
+    if (vm.FechaEntregaDeseada.Value < hoy)
+    {
+        TempData["err"] = "La fecha de entrega debe ser hoy o posterior.";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    if (string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+    {
+        TempData["err"] = "No se puede editar: el anticipo ya fue pagado.";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    var lineasValidas = (vm.Detalles ?? new List<PedidoDetalleVM>())
+        .Where(d => !string.IsNullOrWhiteSpace(d.ProductoId) && d.Cantidad > 0)
+        .ToList();
+
+    if (lineasValidas.Count == 0)
+    {
+        TempData["err"] = "Debe agregar al menos una línea válida (producto y cantidad).";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    var setProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var l in lineasValidas)
+    {
+        if (!setProd.Add(l.ProductoId!))
         {
-            TempData["err"] = "Seleccione la fecha de entrega.";
+            TempData["err"] = $"El producto {l.ProductoId} está repetido en el detalle.";
             return RedirectToAction(nameof(Edit), new { id });
         }
+    }
 
-        bool hayCambiosCab = false;
+    // ===== Snapshot para determinar cambios y transición de anticipo =====
+    var snap = new
+    {
+        pedido.TOTAL_PEDIDO,
+        pedido.ESTADO_PEDIDO_ID,
+        OBS = pedido.OBSERVACIONES_PEDIDO ?? "",
+        pedido.CLIENTE_ID,
+        FECHA_ENTREGA = pedido.FECHA_ENTREGA_PEDIDO,
+        pedido.REQUIERE_ANTICIPO,
+        pedido.ANTICIPO_MINIMO,
+        ANT_EST = pedido.ANTICIPO_ESTADO ?? ""
+    };
 
-        //hasta acá todo bien, ahora el detalle
+    // ===== Cabecera =====
+    bool hayCambiosCab = false;
 
-        if (string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+    if (!string.Equals(pedido.CLIENTE_ID, vm.ClienteId, StringComparison.Ordinal))
+    {
+        pedido.CLIENTE_ID = vm.ClienteId!;
+        hayCambiosCab = true;
+    }
+
+    if (pedido.FECHA_ENTREGA_PEDIDO != vm.FechaEntregaDeseada)
+    {
+        pedido.FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada;
+        hayCambiosCab = true;
+    }
+
+    if (!string.Equals(pedido.OBSERVACIONES_PEDIDO ?? "", vm.Observaciones ?? "", StringComparison.Ordinal))
+    {
+        pedido.OBSERVACIONES_PEDIDO = vm.Observaciones;
+        hayCambiosCab = true;
+    }
+
+    if (hayCambiosCab)
+    {
+        pedido.USUARIO_MODIFICACION = UserName();
+        pedido.FECHA_MODIFICACION = DateTime.Now;
+    }
+
+    // ===== Detalle (UPSERT por PRODUCTO_ID) =====
+    bool hayCambiosDet = false;
+
+    var existentesPorProd = pedido.DETALLE_PEDIDO
+        .ToDictionary(d => d.PRODUCTO_ID, d => d, StringComparer.OrdinalIgnoreCase);
+
+    var productosVM = new HashSet<string>(lineasValidas.Select(x => x.ProductoId!), StringComparer.OrdinalIgnoreCase);
+
+    foreach (var l in lineasValidas)
+    {
+        var cantInt = RoundToInt(l.Cantidad);
+        var nuevoSub = Math.Round(l.Cantidad * l.PrecioPedido, 2);
+
+        if (existentesPorProd.TryGetValue(l.ProductoId!, out var det))
         {
-            TempData["err"] = "No se puede editar: el anticipo ya fue pagado.";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
+            bool cambia = false;
 
-        var lineasValidas = (vm.Detalles ?? new List<PedidoDetalleVM>())
-            .Where(d => !string.IsNullOrWhiteSpace(d.ProductoId) && d.Cantidad > 0)
-            .ToList();
+            if (det.CANTIDAD != cantInt) { det.CANTIDAD = cantInt; cambia = true; }
+            if ((det.PRECIO_PEDIDO ?? 0m) != l.PrecioPedido) { det.PRECIO_PEDIDO = l.PrecioPedido; cambia = true; }
+            if (det.SUBTOTAL != nuevoSub) { det.SUBTOTAL = nuevoSub; cambia = true; }
 
-        if (lineasValidas.Count == 0)
-        {
-            TempData["err"] = "Debe agregar al menos una línea válida (producto y cantidad).";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        var setProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var l in lineasValidas)
-        {
-            if (!setProd.Add(l.ProductoId!))
+            if (cambia)
             {
-                TempData["err"] = $"El producto {l.ProductoId} está repetido en el detalle.";
-                return RedirectToAction(nameof(Edit), new { id });
-            }
-        }
-
-        // SNAPSHOT
-        var snap = new
-        {
-            pedido.TOTAL_PEDIDO,
-            pedido.FECHA_PEDIDO,
-            pedido.ESTADO_PEDIDO_ID,
-            OBS = pedido.OBSERVACIONES_PEDIDO ?? "",
-            pedido.CLIENTE_ID,
-            pedido.REQUIERE_ANTICIPO,
-            pedido.ANTICIPO_MINIMO,
-            ANT_EST = pedido.ANTICIPO_ESTADO ?? ""
-        };
-
-        if (!string.Equals(pedido.CLIENTE_ID, vm.ClienteId, StringComparison.Ordinal))
-        {
-            pedido.CLIENTE_ID = vm.ClienteId!;
-            hayCambiosCab = true;
-        }
-
-        if (pedido.FECHA_ENTREGA_PEDIDO != vm.FechaEntregaDeseada)
-        {
-            pedido.FECHA_ENTREGA_PEDIDO = vm.FechaEntregaDeseada;
-            hayCambiosCab = true;
-        }
-
-        if (!string.Equals(pedido.OBSERVACIONES_PEDIDO ?? "", vm.Observaciones ?? "", StringComparison.Ordinal))
-        {
-            pedido.OBSERVACIONES_PEDIDO = vm.Observaciones;
-            hayCambiosCab = true;
-        }
-
-        if (hayCambiosCab)
-        {
-            pedido.USUARIO_MODIFICACION = UserName();
-            pedido.FECHA_MODIFICACION = DateTime.Now;
-        }
-
-        // DETALLE (UPSERT por PRODUCTO_ID)
-        bool hayCambiosDet = false;
-
-        var existentesPorProd = pedido.DETALLE_PEDIDO
-            .ToDictionary(d => d.PRODUCTO_ID, d => d, StringComparer.OrdinalIgnoreCase);
-
-        var productosVM = new HashSet<string>(lineasValidas.Select(x => x.ProductoId!), StringComparer.OrdinalIgnoreCase);
-
-        foreach (var l in lineasValidas)
-        {
-            var cantInt = RoundToInt(l.Cantidad);
-            var nuevoSub = Math.Round(l.Cantidad * l.PrecioPedido, 2);
-
-            if (existentesPorProd.TryGetValue(l.ProductoId!, out var det))
-            {
-                bool cambia = false;
-
-                if (det.CANTIDAD != cantInt) { det.CANTIDAD = cantInt; cambia = true; }
-                if ((det.PRECIO_PEDIDO ?? 0m) != l.PrecioPedido) { det.PRECIO_PEDIDO = l.PrecioPedido; cambia = true; }
-                if (det.SUBTOTAL != nuevoSub) { det.SUBTOTAL = nuevoSub; cambia = true; }
-
-                if (cambia)
-                {
-                    det.USUARIO_MODIFICACION = UserName();
-                    det.FECHA_MODIFICACION = DateTime.Now;
-                    hayCambiosDet = true;
-                }
-            }
-            else
-            {
-                var nuevo = new DETALLE_PEDIDO
-                {
-                    DETALLE_PEDIDO_ID = NewDetallePedidoId(),
-                    PEDIDO_ID = pedido.PEDIDO_ID,
-                    PRODUCTO_ID = l.ProductoId!,
-                    CANTIDAD = cantInt,
-                    PRECIO_PEDIDO = l.PrecioPedido,
-                    SUBTOTAL = nuevoSub,
-                    USUARIO_CREACION = UserName(),
-                    FECHA_CREACION = DateTime.Now,
-                    ESTADO = true
-                };
-                _db.DETALLE_PEDIDO.Add(nuevo);
+                det.USUARIO_MODIFICACION = UserName();
+                det.FECHA_MODIFICACION = DateTime.Now;
                 hayCambiosDet = true;
             }
         }
-
-        foreach (var det in pedido.DETALLE_PEDIDO.ToList())
+        else
         {
-            if (!productosVM.Contains(det.PRODUCTO_ID))
+            var nuevo = new DETALLE_PEDIDO
             {
-                _db.DETALLE_PEDIDO.Remove(det);
-                hayCambiosDet = true;
+                DETALLE_PEDIDO_ID = NewDetallePedidoId(),
+                PEDIDO_ID = pedido.PEDIDO_ID,
+                PRODUCTO_ID = l.ProductoId!,
+                CANTIDAD = cantInt,
+                PRECIO_PEDIDO = l.PrecioPedido,
+                SUBTOTAL = nuevoSub,
+                USUARIO_CREACION = UserName(),
+                FECHA_CREACION = DateTime.Now,
+                ESTADO = true
+            };
+            _db.DETALLE_PEDIDO.Add(nuevo);
+            hayCambiosDet = true;
+        }
+    }
+
+    foreach (var det in pedido.DETALLE_PEDIDO.ToList())
+    {
+        if (!productosVM.Contains(det.PRODUCTO_ID))
+        {
+            _db.DETALLE_PEDIDO.Remove(det);
+            hayCambiosDet = true;
+        }
+    }
+
+    // ===== Totales y Anticipo (regla 300 y 25%) =====
+    PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
+    DoblarTotalYRecalcularAnticipo(pedido); // aplica costo de elaboración (=base) y recalcula anticipo
+
+    // ===== Transición de estado de anticipo según nuevo total =====
+    // Si ahora REQUIERE anticipo y no está PAGADO, forzar PENDIENTE si antes no aplicaba o estaba vacío.
+    if (pedido.REQUIERE_ANTICIPO)
+    {
+        if (!string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!snap.REQUIERE_ANTICIPO
+                || string.IsNullOrWhiteSpace(snap.ANT_EST)
+                || string.Equals(snap.ANT_EST, "NO APLICA", StringComparison.OrdinalIgnoreCase))
+            {
+                pedido.ANTICIPO_ESTADO = "PENDIENTE";
+                pedido.USUARIO_MODIFICACION = UserName();
+                pedido.FECHA_MODIFICACION = DateTime.Now;
+                hayCambiosCab = true;
             }
         }
-
-        // Totales/anticipo
-        PedidoCalculadora.RecalcularTotalesYAnticipo(pedido);
-        DoblarTotalYRecalcularAnticipo(pedido);
-
-        // ¿hubo cambios?
-        bool cambioSupervisado =
-            snap.TOTAL_PEDIDO != pedido.TOTAL_PEDIDO ||
-            snap.FECHA_PEDIDO != pedido.FECHA_PEDIDO ||
-            snap.ESTADO_PEDIDO_ID != pedido.ESTADO_PEDIDO_ID ||
-            snap.OBS != (pedido.OBSERVACIONES_PEDIDO ?? "") ||
-            snap.CLIENTE_ID != pedido.CLIENTE_ID ||
-            snap.REQUIERE_ANTICIPO != pedido.REQUIERE_ANTICIPO ||
-            snap.ANTICIPO_MINIMO != pedido.ANTICIPO_MINIMO ||
-            snap.ANT_EST != (pedido.ANTICIPO_ESTADO ?? "");
-
-        if (cambioSupervisado)
+    }
+    else
+    {
+        // Ya no requiere anticipo → normalizar a NO APLICA
+        if (!string.Equals(pedido.ANTICIPO_ESTADO ?? "", "NO APLICA", StringComparison.OrdinalIgnoreCase))
         {
+            pedido.ANTICIPO_ESTADO = "NO APLICA";
+            pedido.ANTICIPO_MINIMO = 0m;
             pedido.USUARIO_MODIFICACION = UserName();
             pedido.FECHA_MODIFICACION = DateTime.Now;
             hayCambiosCab = true;
         }
+    }
 
-        bool hayCambios = hayCambiosCab || hayCambiosDet;
+    // ===== ¿Hubo cambios? =====
+    bool cambioSupervisado =
+        snap.TOTAL_PEDIDO != pedido.TOTAL_PEDIDO ||
+        snap.ESTADO_PEDIDO_ID != pedido.ESTADO_PEDIDO_ID ||
+        snap.OBS != (pedido.OBSERVACIONES_PEDIDO ?? "") ||
+        snap.CLIENTE_ID != pedido.CLIENTE_ID ||
+        snap.FECHA_ENTREGA != pedido.FECHA_ENTREGA_PEDIDO ||
+        snap.REQUIERE_ANTICIPO != pedido.REQUIERE_ANTICIPO ||
+        snap.ANTICIPO_MINIMO != pedido.ANTICIPO_MINIMO ||
+        snap.ANT_EST != (pedido.ANTICIPO_ESTADO ?? "");
 
-        if (!hayCambios)
-        {
-            TempData["SwalOneBtnFlag"] = "nochange";
-            TempData["SwalTitle"] = "Sin cambios";
-            TempData["SwalText"] = "No se modificó ningún dato.";
-            return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
-        }
+    if (cambioSupervisado && !hayCambiosCab)
+    {
+        pedido.USUARIO_MODIFICACION = UserName();
+        pedido.FECHA_MODIFICACION = DateTime.Now;
+        hayCambiosCab = true;
+    }
 
-        await _db.SaveChangesAsync(ct);
+    bool hayCambios = hayCambiosCab || hayCambiosDet;
 
-        await _bitacora.LogAsync(
-            "PEDIDO", "UPDATE", UserName(),
-            $"Editó pedido {pedido.PEDIDO_ID} (cabecera: {(hayCambiosCab ? "sí" : "no")}, detalle: {(hayCambiosDet ? "sí" : "no")}).",
-            ct);
-
-        TempData["SwalOneBtnFlag"] = "updated";
-        TempData["SwalTitle"] = "¡Pedido actualizado!";
-        TempData["SwalText"] = $"El pedido \"{pedido.PEDIDO_ID}\" se actualizó correctamente.";
-
+    if (!hayCambios)
+    {
+        TempData["SwalOneBtnFlag"] = "nochange";
+        TempData["SwalTitle"] = "Sin cambios";
+        TempData["SwalText"] = "No se modificó ningún dato.";
         return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
     }
+
+    await _db.SaveChangesAsync(ct);
+
+    await _bitacora.LogAsync(
+        "PEDIDO", "UPDATE", UserName(),
+        $"Editó pedido {pedido.PEDIDO_ID} (cabecera: {(hayCambiosCab ? "sí" : "no")}, detalle: {(hayCambiosDet ? "sí" : "no")}).",
+        ct);
+
+    TempData["SwalOneBtnFlag"] = "updated";
+    TempData["SwalTitle"] = "¡Pedido actualizado!";
+    TempData["SwalText"] = $"El pedido \"{pedido.PEDIDO_ID}\" se actualizó correctamente.";
+
+    return RedirectToAction(nameof(Edit), new { id = pedido.PEDIDO_ID });
+}
 
     // ======================================================
     // GET: /Pedidos/Cotizar/{id}
@@ -955,23 +1109,145 @@ public class PedidosController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        pedido.ANTICIPO_ESTADO = "PAGADO";
+        // ======== Lectura del modal ========
+        string metodoId = (Request.Form["MetodoPagoId"].ToString() ?? "").Trim(); // MP0000...
+        string montoStr = (Request.Form["MontoPago"].ToString() ?? "0").Trim();
+        string efectivoStr = (Request.Form["EfectivoRecibido"].ToString() ?? "").Trim();
+
+        static decimal ParseMoney(string s)
+        {
+            s = (s ?? "").Trim().Replace("Q", "", StringComparison.OrdinalIgnoreCase).Replace(",", "");
+            return decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0m;
+        }
+
+        if (string.IsNullOrWhiteSpace(metodoId))
+        {
+            TempData["err"] = "Debe seleccionar el método de pago.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        decimal monto = ParseMoney(montoStr);
+        decimal anticipo = pedido.ANTICIPO_MINIMO <= 0 ? 0m : pedido.ANTICIPO_MINIMO;
+
+        if (monto <= 0 || Math.Abs(monto - anticipo) > 0.01m)
+        {
+            TempData["err"] = $"Monto de anticipo inválido. Debe ser Q{anticipo:N2}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Si ya está totalmente pagado, no tiene sentido cobrar anticipo
+        if (await TotalPagadoPedidoAsync(pedido.PEDIDO_ID, ct) >= pedido.TOTAL_PEDIDO)
+        {
+            TempData["err"] = "El pedido ya no tiene saldo pendiente.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Resolver el nombre del método por el ID (p.ej. MP00000001 -> "EFECTIVO")
+        string metodoNombre = await _db.METODO_PAGO
+            .Where(x => x.METODO_PAGO_ID == metodoId)
+            .Select(x => x.METODO_PAGO_NOMBRE)
+            .FirstOrDefaultAsync(ct) ?? metodoId;
+
+        bool esEfectivo = metodoNombre.Equals("EFECTIVO", StringComparison.OrdinalIgnoreCase);
+        if (esEfectivo)
+        {
+            var recibido = ParseMoney(efectivoStr);
+            if (recibido < monto)
+            {
+                TempData["err"] = "El efectivo recibido no puede ser menor al monto del anticipo.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
+        await using var trx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // ==== CAJA (INGRESO) con referencia "ANTICIPO PED:{id}"
+            var sesion = await GetSesionCajaActivaAsync(UserName());
+            if (!string.IsNullOrWhiteSpace(sesion))
+            {
+                var mov = new MOVIMIENTO_CAJA
+                {
+                    MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
+                    SESION_ID = sesion,
+                    TIPO = "INGRESO",
+                    MONTO = monto,
+                    REFERENCIA = $"ANTICIPO {pedido.PEDIDO_ID}",
+                    FECHA = DateTime.Now,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.MOVIMIENTO_CAJA.Add(mov);
+                await _db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                await _bitacora.LogAsync("CAJA_SESION", "WARN", UserName(),
+                    $"Anticipo Q{monto:N2} para pedido {pedido.PEDIDO_ID} sin sesión de caja activa.", ct);
+            }
+
+            // ==== Marcar el anticipo como PAGADO
+            pedido.ANTICIPO_ESTADO = "PAGADO";
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+
+            await _bitacora.LogAsync("CAJA", "INSERT", UserName(),
+                $"Anticipo PED:{pedido.PEDIDO_ID} por Q{monto:N2} (método: {metodoNombre}).", ct);
+
+            await trx.CommitAsync(ct);
+
+            TempData["ok_anticipo"] = $"Anticipo registrado por Q{monto:N2}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            await trx.RollbackAsync(ct);
+            TempData["err"] = "No se pudo registrar el anticipo: " + ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    // ======================================================
+    // POST: /Pedidos/EnProduccion/{id}
+    // ======================================================
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EnProduccion(string id, CancellationToken ct)
+    {
+        var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
+        if (pedido == null) return NotFound();
+
+        var st = (pedido.ESTADO_PEDIDO_ID ?? "").ToUpperInvariant();
+
+        if (st == "EN_PRODU")
+        {
+            TempData["ok"] = "El pedido ya está en producción.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (st != "APROBADO")
+        {
+            TempData["err"] = "Para iniciar producción, el pedido debe estar APROBADO.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        pedido.ESTADO_PEDIDO_ID = "EN_PRODU";
         pedido.USUARIO_MODIFICACION = UserName();
         pedido.FECHA_MODIFICACION = DateTime.Now;
 
         await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó anticipo PAGADO en pedido {pedido.PEDIDO_ID}", ct);
+        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Inició producción de {pedido.PEDIDO_ID}", ct);
 
-        TempData["ok"] = "Anticipo marcado como PAGADO.";
+        TempData["ok"] = "Pedido marcado como EN_PRODUCCIÓN.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
+
     // ======================================================
     // POST: /Pedidos/Finalizar/{id}
-    //   - (Validación) Si requiere anticipo y está PENDIENTE → bloquear
-    //   - Paso transitorio EN_PRODU (auditar)
-    //   - Conversión RESERVA → SALIDA (sin tocar stock de nuevo)
-    //   - Estado final: TERMINADO
     // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Finalizar(string id, CancellationToken ct)
@@ -981,27 +1257,28 @@ public class PedidosController : Controller
             .FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
-        if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        var st = (pedido.ESTADO_PEDIDO_ID ?? "").ToUpperInvariant();
+        if (st != "EN_PRODU")
+        {
+            TempData["err"] = "Para finalizar, el pedido debe estar EN_PRODU.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (pedido.REQUIERE_ANTICIPO &&
+            !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "No se puede finalizar: el anticipo requerido está PENDIENTE.";
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // Paso intermedio para auditoría
-            pedido.ESTADO_PEDIDO_ID = "EN_PRODU";
-            pedido.USUARIO_MODIFICACION = UserName();
-            pedido.FECHA_MODIFICACION = DateTime.Now;
-            await _db.SaveChangesAsync(ct);
-            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Inició producción de {pedido.PEDIDO_ID}", ct);
-
             foreach (var d in pedido.DETALLE_PEDIDO)
             {
                 var prodId = d.PRODUCTO_ID;
 
-                // Convertir RESERVA → SALIDA (misma fila, no cambia PK)
+                // Buscar la reserva para este producto y pedido
                 var reserva = await _db.KARDEX
                     .Where(k => k.PRODUCTO_ID == prodId
                                 && k.REFERENCIA == pedido.PEDIDO_ID
@@ -1009,16 +1286,22 @@ public class PedidosController : Controller
                     .OrderBy(k => k.FECHA)
                     .FirstOrDefaultAsync(ct);
 
+                var costoUnit = d.PRECIO_PEDIDO; 
+
                 if (reserva != null)
                 {
+                    // Convertir en la MISMA fila - no mueve stock
                     reserva.TIPO_MOVIMIENTO = "SALIDA PEDIDO";
                     reserva.FECHA = DateTime.Now;
                     reserva.USUARIO_MODIFICACION = UserName();
                     reserva.FECHA_MODIFICACION = DateTime.Now;
+
+                    // actualizar COSTO_UNITARIO en la fila convertida
+                    reserva.COSTO_UNITARIO = costoUnit;
                 }
                 else
                 {
-                    // Fallback sin tocar inventario (ya se descontó en la reserva)
+                    // registrar SALIDA sin tocar stock 
                     _db.KARDEX.Add(new KARDEX
                     {
                         KARDEX_ID = NewId10(),
@@ -1026,7 +1309,8 @@ public class PedidosController : Controller
                         FECHA = DateTime.Now,
                         TIPO_MOVIMIENTO = "SALIDA PEDIDO",
                         CANTIDAD = RoundToInt(Convert.ToDecimal(d.CANTIDAD)),
-                        COSTO_UNITARIO = 0m,
+                        // guardar costo unitario desde el detalle
+                        COSTO_UNITARIO = costoUnit,
                         REFERENCIA = pedido.PEDIDO_ID,
                         USUARIO_CREACION = UserName(),
                         FECHA_CREACION = DateTime.Now,
@@ -1047,54 +1331,159 @@ public class PedidosController : Controller
             await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Finalizó pedido {pedido.PEDIDO_ID}", ct);
 
             TempData["ok"] = "Pedido finalizado. Reserva convertida a SALIDA PEDIDO (sin mover stock nuevamente).";
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Details), new { id });
         }
         catch (Exception ex)
         {
             await tx.RollbackAsync(ct);
             TempData["err"] = "Error al finalizar: " + ex.Message;
-            return RedirectToAction("Details", new { id });
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 
     // ======================================================
     // POST: /Pedidos/Entregar/{id}
-    //   Requiere: TERMINADO, y si requiere anticipo → PAGADO
-    //   Mensaje incluye pendiente informativo (TOTAL - ANTICIPO_MINIMO)
     // ======================================================
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Entregar(string id, CancellationToken ct)
     {
+        // 1) Cargar pedido
         var pedido = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == id, ct);
         if (pedido == null) return NotFound();
 
+        // 2) Guardas de negocio
         if (!string.Equals(pedido.ESTADO_PEDIDO_ID, "TERMINADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "El pedido debe estar TERMINADO para poder entregarlo.";
             return RedirectToAction(nameof(Details), new { id });
         }
-
         if (pedido.REQUIERE_ANTICIPO && !string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
         {
             TempData["err"] = "No se puede entregar: anticipo requerido no pagado.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        pedido.ESTADO_PEDIDO_ID = "ENTREGADO";
+        // 3) Lectura y validación del modal de pago
+        string metodo = (Request.Form["MetodoPagoId"].ToString() ?? "").Trim();
+        string montoStr = (Request.Form["MontoPago"].ToString() ?? "0").Trim();
+        string efectivoStr = (Request.Form["EfectivoRecibido"].ToString() ?? "").Trim();
 
-        if (!pedido.FECHA_ENTREGA_PEDIDO.HasValue)
-            pedido.FECHA_ENTREGA_PEDIDO = DateOnly.FromDateTime(DateTime.Now);
+        static decimal ParseMoney(string s)
+        {
+            s = (s ?? "").Trim().Replace("Q", "", StringComparison.OrdinalIgnoreCase).Replace(",", "");
+            return decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0m;
+        }
 
-        pedido.USUARIO_MODIFICACION = UserName();
-        pedido.FECHA_MODIFICACION = DateTime.Now;
+        if (string.IsNullOrWhiteSpace(metodo))
+        {
+            TempData["err"] = "Debe seleccionar el método de pago.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
-        await _db.SaveChangesAsync(ct);
-        await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(), $"Marcó ENTREGADO el pedido {pedido.PEDIDO_ID}", ct);
+        var monto = ParseMoney(montoStr);
+        if (monto <= 0)
+        {
+            TempData["err"] = "Monto a cobrar inválido.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
-        var pendiente = pedido.TOTAL_PEDIDO - pedido.ANTICIPO_MINIMO;
-        if (pendiente < 0) pendiente = 0m;
-        TempData["ok"] = $"Pedido entregado correctamente. Pendiente a cobrar: Q{pendiente:N2}.";
-        return RedirectToAction(nameof(Details), new { id });
+        if (metodo.Equals("EFECTIVO", StringComparison.OrdinalIgnoreCase))
+        {
+            var recibido = ParseMoney(efectivoStr);
+            if (recibido < monto)
+            {
+                TempData["err"] = "El efectivo recibido no puede ser menor al monto a cobrar.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
+        // 3.1) Validar contra saldo pendiente real
+        //     (sumamos el anticipo pagado porque NO se registró como RECIBO)
+        var pagadoActual = await TotalPagadoPedidoAsync(id, ct);
+        if (pedido.REQUIERE_ANTICIPO && string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+        {
+            pagadoActual += Math.Max(0m, pedido.ANTICIPO_MINIMO);
+        }
+        var pendienteReal = Math.Max(0, pedido.TOTAL_PEDIDO - pagadoActual);
+        if (monto > pendienteReal + 0.01m)
+        {
+            TempData["err"] = $"El monto excede el saldo pendiente (Q{pendienteReal:N2}).";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // 4) Todo en una transacción: RECIBO + CAJA + ENTREGADO
+        await using var trx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // 4.1) RECIBO
+            var rcId = await SiguienteReciboIdAsync();
+            var recibo = new RECIBO
+            {
+                RECIBO_ID = rcId,
+                VENTA_ID = pedido.PEDIDO_ID,          // referencia al pedido
+                METODO_PAGO_ID = metodo,
+                MONTO = monto,                         // ← aquí ya llega SOLO el saldo
+                FECHA = DateTime.Now,
+                USUARIO_CREACION = UserName(),
+                FECHA_CREACION = DateTime.Now,
+                ESTADO = true
+            };
+            _db.RECIBO.Add(recibo);
+            await _db.SaveChangesAsync(ct);
+
+            // 4.2) CAJA (INGRESO)
+            var sesion = await GetSesionCajaActivaAsync(UserName());
+            if (!string.IsNullOrWhiteSpace(sesion))
+            {
+                var mov = new MOVIMIENTO_CAJA
+                {
+                    MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
+                    SESION_ID = sesion,
+                    TIPO = "INGRESO",
+                    MONTO = monto,                     // ← se registra el saldo cobrado
+                    REFERENCIA = pedido.PEDIDO_ID,
+                    FECHA = DateTime.Now,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.MOVIMIENTO_CAJA.Add(mov);
+                await _db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                await _bitacora.LogAsync("CAJA_SESION", "WARN", UserName(),
+                    $"Pago Q{monto:N2} para pedido {pedido.PEDIDO_ID} sin sesión de caja activa.", ct);
+            }
+
+            // 4.3) ENTREGADO
+            pedido.ESTADO_PEDIDO_ID = "ENTREGADO";
+            if (!pedido.FECHA_ENTREGA_PEDIDO.HasValue)
+                pedido.FECHA_ENTREGA_PEDIDO = DateOnly.FromDateTime(DateTime.Now);
+            pedido.USUARIO_MODIFICACION = UserName();
+            pedido.FECHA_MODIFICACION = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+            await _bitacora.LogAsync("RECIBO", "INSERT", UserName(),
+                $"Pago en entrega PED:{pedido.PEDIDO_ID} por Q{monto:N2}.", ct);
+            await _bitacora.LogAsync("PEDIDO", "UPDATE", UserName(),
+                $"Marcó ENTREGADO el pedido {pedido.PEDIDO_ID}", ct);
+
+            await trx.CommitAsync(ct);
+
+            // 5) OK
+            var nuevoPagado = pagadoActual + monto;
+            var nuevoPend = Math.Max(0, pedido.TOTAL_PEDIDO - nuevoPagado);
+            TempData["ok_entregar"] = $"Pedido ENTREGADO y pago registrado (Q{monto:N2}). Pendiente: Q{nuevoPend:N2}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            await trx.RollbackAsync(ct);
+            TempData["err"] = "No se pudo completar la entrega: " + ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 
     // ======================================================
@@ -1193,4 +1582,422 @@ public class PedidosController : Controller
         TempData["ok"] = "Pedido rechazado correctamente.";
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    // ==========================================
+    // GET: /Pedidos/PagoEntregaModal?pedidoId=PE00000001
+    // Devuelve parcial con total, anticipo pagado y saldo pendiente
+    // ==========================================
+    [HttpGet]
+    public async Task<IActionResult> PagoEntregaModal(string pedidoId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(pedidoId))
+            return BadRequest("PedidoId requerido.");
+
+        var ped = await _db.PEDIDO.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PEDIDO_ID == pedidoId, ct);
+
+        if (ped == null) return NotFound("Pedido no encontrado.");
+
+        // debe estar TERMINADO para entregar
+        if (!string.Equals(ped.ESTADO_PEDIDO_ID, "TERMINADO", StringComparison.OrdinalIgnoreCase))
+            return BadRequest("El pedido debe estar TERMINADO para poder entregarlo.");
+
+        var pagado = await TotalPagadoPedidoAsync(pedidoId, ct);
+
+        var vm = new ReciboPedidoCreateVM
+        {
+            PedidoId = pedidoId,
+            UsuarioId = UserName(),
+            TotalPedido = ped.TOTAL_PEDIDO,
+            TotalPagado = pagado,
+            MetodosPagoCombo = await GetMetodosPagoComboAsync(ct)
+        };
+
+        return PartialView("_PagoPedidoModal", vm);
+    }
+
+    // ==========================================
+    // POST: /Pedidos/RegistrarPagoEntrega
+    // Registra recibo (PEDIDO_ID), movimiento de caja y responde JSON
+    // ==========================================
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegistrarPagoEntrega(ReciboPedidoCreateVM vm, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(vm.PedidoId))
+            return Json(new { ok = false, error = "Pedido no especificado." });
+
+        var ped = await _db.PEDIDO.FirstOrDefaultAsync(p => p.PEDIDO_ID == vm.PedidoId, ct);
+        if (ped == null)
+            return Json(new { ok = false, error = "No se encontró el pedido." });
+
+        if (!string.Equals(ped.ESTADO_PEDIDO_ID, "TERMINADO", StringComparison.OrdinalIgnoreCase))
+            return Json(new { ok = false, error = "El pedido debe estar TERMINADO para entregar." });
+
+        // Totales
+        var pagadoActual = await TotalPagadoPedidoAsync(vm.PedidoId, ct);
+        var pendiente = Math.Max(0, ped.TOTAL_PEDIDO - pagadoActual);
+
+        // Si ya no hay pendiente, devolvemos ok sin cobrar
+        if (pendiente <= 0 && vm.Monto <= 0)
+        {
+            return Json(new
+            {
+                ok = true,
+                reciboId = (string?)null,
+                totalPagado = pagadoActual.ToString("N2"),
+                pendiente = "0.00",
+                skipCobro = true
+            });
+        }
+
+        // Validaciones del modal
+        if (string.IsNullOrWhiteSpace(vm.MetodoPagoId))
+            return Json(new { ok = false, error = "Seleccione el método de pago." });
+
+        if (vm.Monto <= 0)
+            return Json(new { ok = false, error = "El monto debe ser mayor a cero." });
+
+        if (vm.Monto > pendiente + 0.01m)
+            return Json(new { ok = false, error = $"El monto excede el saldo pendiente (Q{pendiente:N2})." });
+
+        await using var trx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // 1) RECIBO ligado al PEDIDO
+            var recibo = new RECIBO
+            {
+                RECIBO_ID = NewReciboId(),
+                VENTA_ID = ped.PEDIDO_ID,
+                METODO_PAGO_ID = vm.MetodoPagoId,
+                MONTO = vm.Monto,
+                FECHA = DateTime.Now,
+                USUARIO_CREACION = UserName(),
+                FECHA_CREACION = DateTime.Now,
+                ESTADO = true
+            };
+            _db.RECIBO.Add(recibo);
+            await _db.SaveChangesAsync(ct);
+
+            // 2) CAJA (INGRESO) si hay sesión activa
+            var sesion = await GetSesionCajaActivaAsync(vm.UsuarioId);
+            if (!string.IsNullOrWhiteSpace(sesion))
+            {
+                var mov = new MOVIMIENTO_CAJA
+                {
+                    MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
+                    SESION_ID = sesion,
+                    TIPO = "INGRESO",
+                    MONTO = vm.Monto,
+                    REFERENCIA = vm.PedidoId,
+                    FECHA = DateTime.Now,
+                    USUARIO_CREACION = UserName(),
+                    FECHA_CREACION = DateTime.Now,
+                    ESTADO = true
+                };
+                _db.MOVIMIENTO_CAJA.Add(mov);
+                await _db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                await _bitacora.LogAsync("CAJA_SESION", "WARN", UserName(),
+                    $"Pago Q{vm.Monto:N2} para pedido {ped.PEDIDO_ID} sin sesión de caja activa.", ct);
+            }
+
+            await _bitacora.LogAsync("RECIBO", "INSERT", UserName(),
+                $"Pago en entrega PED:{ped.PEDIDO_ID} por Q{vm.Monto:N2}.", ct);
+
+            await trx.CommitAsync(ct);
+
+            var nuevoPagado = pagadoActual + vm.Monto;
+            var nuevoPend = Math.Max(0, ped.TOTAL_PEDIDO - nuevoPagado);
+
+            return Json(new
+            {
+                ok = true,
+                reciboId = NewReciboId(),
+                totalPagado = nuevoPagado.ToString("N2"),
+                pendiente = nuevoPend.ToString("N2")
+            });
+        }
+        catch (Exception ex)
+        {
+            await trx.RollbackAsync(ct);
+            return Json(new { ok = false, error = ex.Message });
+        }
+    }
+
+    // ====================recibo PDF======================
+    [HttpGet]
+    public async Task<IActionResult> ReciboPedido(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return NotFound();
+
+        // ===== Cabecera + cliente (desde PEDIDO) =====
+        var pedido = await (
+            from p in _db.PEDIDO
+            join c in _db.CLIENTE on p.CLIENTE_ID equals c.CLIENTE_ID
+            join per in _db.PERSONA on c.CLIENTE_ID equals per.PERSONA_ID
+            where p.PEDIDO_ID == id
+            select new
+            {
+                p.PEDIDO_ID,
+                p.FECHA_PEDIDO,
+                CLIENTE = ((per.PERSONA_PRIMERNOMBRE ?? "") + " " + (per.PERSONA_PRIMERAPELLIDO ?? "")).Trim(),
+                TOTAL = p.TOTAL_PEDIDO,
+                p.REQUIERE_ANTICIPO,
+                p.ANTICIPO_MINIMO,
+                p.ANTICIPO_ESTADO
+            }
+        ).FirstOrDefaultAsync();
+
+        if (pedido == null) return NotFound();
+
+        // ===== Líneas del pedido =====
+        var lineas = await (
+            from d in _db.DETALLE_PEDIDO
+            join prod in _db.PRODUCTO on d.PRODUCTO_ID equals prod.PRODUCTO_ID
+            where d.PEDIDO_ID == id
+            select new
+            {
+                Producto = prod.PRODUCTO_NOMBRE ?? d.PRODUCTO_ID,
+                Cantidad = d.CANTIDAD,
+                PrecioUnitario = (decimal?)d.PRECIO_PEDIDO ?? 0m,
+                Subtotal = (decimal?)d.SUBTOTAL
+                           ?? ((decimal)d.CANTIDAD) * ((decimal?)d.PRECIO_PEDIDO ?? 0m)
+            }
+        ).ToListAsync();
+
+        // ===== Último RECIBO (pago en la entrega) =====
+        // Nota: en tu flujo guardaste PEDIDO_ID en RECIBO.VENTA_ID
+        var mp = await _db.RECIBO
+            .Where(r => r.VENTA_ID == id && r.ESTADO == true)
+            .OrderByDescending(r => r.FECHA)
+            .Select(r => new { r.METODO_PAGO_ID, r.MONTO, r.USUARIO_CREACION })
+            .FirstOrDefaultAsync();
+
+        // Anticipo pagado (si aplica y está marcado como PAGADO)
+        var anticipoPagado = (pedido.REQUIERE_ANTICIPO == true
+            && string.Equals(pedido.ANTICIPO_ESTADO, "PAGADO", StringComparison.OrdinalIgnoreCase))
+            ? pedido.ANTICIPO_MINIMO
+            : 0m;
+
+        var pagoEntrega = mp?.MONTO ?? 0m;
+        var totalRecibido = anticipoPagado + pagoEntrega;
+
+        var vm = new
+        {
+            PedidoId = pedido.PEDIDO_ID,
+            Fecha = pedido.FECHA_PEDIDO,
+            ClienteNombre = pedido.CLIENTE,
+            UsuarioNombre = mp?.USUARIO_CREACION ?? "-",
+            TotalPedido = pedido.TOTAL,
+            // Nuevos campos para el recibo
+            AnticipoPagado = anticipoPagado,
+            PagoEntrega = pagoEntrega,
+            TotalRecibido = totalRecibido,
+            MetodoPagoEntrega = mp?.METODO_PAGO_ID ?? "—",
+            Lineas = lineas
+                .Select(l => new
+                {
+                    l.Producto,
+                    l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario,
+                    Subtotal = l.Subtotal
+                })
+                .ToList()
+        };
+
+        return new Rotativa.AspNetCore.ViewAsPdf("ReciboPedido", vm)
+        {
+            FileName = $"Recibo_{pedido.PEDIDO_ID}.pdf",
+            ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+            PageMargins = new Rotativa.AspNetCore.Options.Margins(15, 10, 15, 10),
+            PageSize = Rotativa.AspNetCore.Options.Size.A5,
+            PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait
+        };
+    }
+
+    //====================REPORTE PDF
+    [HttpGet]
+    public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Estado,
+    string? Cliente,
+    bool? RequiereAnticipo,
+    string? AnticipoEstado,
+    DateTime? Desde,
+    DateTime? Hasta,
+    decimal? TotalMin,
+    decimal? TotalMax,
+    string? Sort = "id",
+    string? Dir = "asc")
+    {
+        var q = _db.PEDIDO.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(Search))
+        {
+            string s = Search.Trim();
+            q = q.Where(p =>
+                p.PEDIDO_ID.Contains(s) ||
+                p.CLIENTE_ID.Contains(s) ||
+                (p.OBSERVACIONES_PEDIDO ?? "").Contains(s) ||
+                _db.PERSONA.Any(per =>
+                    per.PERSONA_ID == p.CLIENTE_ID &&
+                    ((per.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                     (per.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                     (per.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                     (per.PERSONA_SEGUNDOAPELLIDO ?? "")).Contains(s)
+                )
+            );
+        }
+
+        if (!string.IsNullOrWhiteSpace(Estado))
+            q = q.Where(p => p.ESTADO_PEDIDO_ID == Estado);
+
+        if (!string.IsNullOrWhiteSpace(Cliente))
+        {
+            string c = Cliente.Trim();
+            q = q.Where(p => _db.PERSONA.Any(per =>
+                per.PERSONA_ID == p.CLIENTE_ID &&
+                ((per.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                 (per.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                 (per.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                 (per.PERSONA_SEGUNDOAPELLIDO ?? "")).Contains(c)
+            ));
+        }
+
+        if (RequiereAnticipo.HasValue)
+            q = q.Where(p => p.REQUIERE_ANTICIPO == RequiereAnticipo.Value);
+
+        if (!string.IsNullOrWhiteSpace(AnticipoEstado))
+            q = q.Where(p => (p.ANTICIPO_ESTADO ?? "") == AnticipoEstado);
+
+        if (Desde.HasValue)
+            q = q.Where(p => p.FECHA_PEDIDO >= Desde.Value);
+
+        if (Hasta.HasValue)
+        {
+            var hasta = Hasta.Value.Date.AddDays(1).AddTicks(-1);
+            q = q.Where(p => p.FECHA_PEDIDO <= hasta);
+        }
+
+        if (TotalMin.HasValue) q = q.Where(p => p.TOTAL_PEDIDO >= TotalMin.Value);
+        if (TotalMax.HasValue) q = q.Where(p => p.TOTAL_PEDIDO <= TotalMax.Value);
+
+        bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+        switch ((Sort ?? "id").ToLower())
+        {
+            case "fecha":
+                q = asc ? q.OrderBy(p => p.FECHA_PEDIDO) : q.OrderByDescending(p => p.FECHA_PEDIDO);
+                break;
+            case "cliente":
+                q = asc
+                    ? q.OrderBy(p => _db.PERSONA
+                          .Where(per => per.PERSONA_ID == p.CLIENTE_ID)
+                          .Select(per => per.PERSONA_PRIMERAPELLIDO)
+                          .FirstOrDefault())
+                       .ThenBy(p => p.PEDIDO_ID)
+                    : q.OrderByDescending(p => _db.PERSONA
+                          .Where(per => per.PERSONA_ID == p.CLIENTE_ID)
+                          .Select(per => per.PERSONA_PRIMERAPELLIDO)
+                          .FirstOrDefault())
+                       .ThenByDescending(p => p.PEDIDO_ID);
+                break;
+            case "estado":
+                q = asc ? q.OrderBy(p => p.ESTADO_PEDIDO_ID).ThenBy(p => p.PEDIDO_ID)
+                        : q.OrderByDescending(p => p.ESTADO_PEDIDO_ID).ThenByDescending(p => p.PEDIDO_ID);
+                break;
+            case "total":
+                q = asc ? q.OrderBy(p => p.TOTAL_PEDIDO).ThenBy(p => p.PEDIDO_ID)
+                        : q.OrderByDescending(p => p.TOTAL_PEDIDO).ThenByDescending(p => p.PEDIDO_ID);
+                break;
+            case "anticipo":
+                q = asc ? q.OrderBy(p => p.REQUIERE_ANTICIPO).ThenBy(p => p.ANTICIPO_ESTADO).ThenBy(p => p.PEDIDO_ID)
+                        : q.OrderByDescending(p => p.REQUIERE_ANTICIPO).ThenByDescending(p => p.ANTICIPO_ESTADO).ThenByDescending(p => p.PEDIDO_ID);
+                break;
+            default:
+                q = asc ? q.OrderBy(p => p.PEDIDO_ID) : q.OrderByDescending(p => p.PEDIDO_ID);
+                break;
+        }
+
+        var data = await q
+            .Select(p => new PedidoIndexItemVM
+            {
+                PedidoId = p.PEDIDO_ID,
+                FechaPedido = p.FECHA_PEDIDO,
+                EstadoPedidoId = p.ESTADO_PEDIDO_ID,
+                FechaEntrega = p.FECHA_ENTREGA_PEDIDO,
+                ClienteId = p.CLIENTE_ID,
+                ClienteNombre = _db.PERSONA
+                    .Where(per => per.PERSONA_ID == p.CLIENTE_ID)
+                    .Select(per => (
+                        (per.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (per.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (per.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (per.PERSONA_SEGUNDOAPELLIDO ?? "")
+                    ).Trim())
+                    .FirstOrDefault() ?? p.CLIENTE_ID,
+                TotalPedido = p.TOTAL_PEDIDO,
+                AnticipoEstado = p.ANTICIPO_ESTADO,
+                RequiereAnticipo = p.REQUIERE_ANTICIPO
+            })
+            .ToListAsync();
+
+        int totalPedidos = data.Count;
+        int conAnticipo = data.Count(x => x.RequiereAnticipo);
+        int sinAnticipo = data.Count(x => !x.RequiereAnticipo);
+        decimal totalMontos = data.Sum(x => x.TotalPedido);
+
+        var vm = new ReporteViewModel<PedidoIndexItemVM>
+        {
+            Items = data,
+            Search = Search,
+            Sort = Sort,
+            Dir = Dir,
+
+            ReportTitle = "Reporte de Pedidos",
+            CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+            GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+            LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+        };
+
+        vm.AddTotal("TotalPedidos", totalPedidos);
+        vm.AddTotal("ConAnticipo", conAnticipo);
+        vm.AddTotal("SinAnticipo", sinAnticipo);
+        vm.AddTotal("MontoTotal", totalMontos);
+
+        if (!string.IsNullOrWhiteSpace(Estado)) vm.ExtraFilters["Estado pedido"] = Estado;
+        if (!string.IsNullOrWhiteSpace(Cliente)) vm.ExtraFilters["Cliente"] = Cliente;
+        if (RequiereAnticipo.HasValue) vm.ExtraFilters["Requiere anticipo"] = RequiereAnticipo.Value ? "Sí" : "No";
+        if (!string.IsNullOrWhiteSpace(AnticipoEstado)) vm.ExtraFilters["Estado anticipo"] = AnticipoEstado;
+        if (Desde.HasValue || Hasta.HasValue)
+            vm.ExtraFilters["Rango fechas"] =
+                $"{Desde?.ToString("dd/MM/yyyy") ?? "—"} a {Hasta?.ToString("dd/MM/yyyy") ?? "—"}";
+        if (TotalMin.HasValue || TotalMax.HasValue)
+            vm.ExtraFilters["Rango total"] =
+                $"{TotalMin?.ToString("Q0.00") ?? "—"} a {TotalMax?.ToString("Q0.00") ?? "—"}";
+
+        var pdf = new Rotativa.AspNetCore.ViewAsPdf("ReportePedidos", vm)
+        {
+            FileName = $"ReportePedidos.pdf",
+            ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+            PageSize = Rotativa.AspNetCore.Options.Size.Letter,
+            PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
+            PageMargins = new Rotativa.AspNetCore.Options.Margins
+            {
+                Left = 10,
+                Right = 10,
+                Top = 15,
+                Bottom = 15
+            },
+            CustomSwitches =
+                $"--footer-center \"Página [page] de [toPage]\"" +
+                $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+        };
+
+        return pdf;
+    }
+
 }

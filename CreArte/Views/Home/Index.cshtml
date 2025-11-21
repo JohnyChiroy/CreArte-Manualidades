@@ -1,4 +1,610 @@
 ﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        /* =========================================================
+                   PALETA CreArte (variables CSS para reutilizar)
+                   ========================================================= */
+        :root {
+            --ua-c-azul: #03C1FF;
+            --ua-c-fucsia: #FF007D;
+            --ua-c-teal: #23B6B1;
+            --ua-c-morado: #332973;
+            --ua-c-amar: #FFEA00;
+            --ua-c-mag: #BF265E;
+            --ua-c-lima: #C5D930;
+            --ua-c-oro: #F2B90F;
+            /* Derivados */
+            --ua-bg: #ffffff;
+            --ua-text: black; /* -- texto negro */
+            --ua-muted: #6b7280;
+            --ua-card-shadow: 0 14px 30px rgba(0,0,0,.10);
+            --ua-soft: #f8f9fb;
+            --ua-border: #ececf3;
+        }
+
+        /* =========================================================
+                   Tarjeta contenedora
+                   ========================================================= */
+        .ua-card {
+            background: var(--ua-bg);
+            border-radius: 18px; /* más redondeado */
+            box-shadow: var(--ua-card-shadow);
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+            /* Gradiente sutil superior: morado -> azul */
+            .ua-card::before {
+                content: "";
+                position: absolute;
+                inset: -40px -40px auto -40px;
+                height: 140px;
+                /* background: radial-gradient(1200px 180px at 20% 0%, rgba(51,41,115,.10) 0%, rgba(3,193,255,.10) 40%, transparent 70%); */
+                pointer-events: none;
+            }
+
+        /* =========================================================
+                   Barra superior (título + acciones)
+                   ========================================================= */
+        .ua-block-title {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+            .ua-block-title h5 {
+                margin: 0;
+                font-weight: 800;
+                color: var(--ua-text);
+                letter-spacing: .2px;
+            }
+
+        .ua-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .ua-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--ua-border);
+            background: var(--ua-soft);
+            color: var(--ua-text);
+            padding: 7px 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .08s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+        }
+
+            .ua-btn:hover {
+                background: #eef2f7;
+            }
+
+            .ua-btn:active {
+                transform: translateY(1px);
+            }
+
+        /* Botón principal (morado) + acentos en hover */
+        .ua-btn-primary {
+            background: var(--ua-c-lima);
+            border-color: var(--ua-c-lima);
+            color: black;
+        }
+
+            .ua-btn-primary:hover {
+                color: white;
+                border-color: var(--ua-c-lima);
+                background: var(--ua-c-lima);
+            }
+
+        .ua-btn-today {
+            background: var(--ua-c-oro);
+            color: black;
+            border-color: var(--ua-c-oro);
+        }
+
+            .ua-btn-today:hover {
+                background: var(--ua-c-amar);
+                border-color: var(--ua-c-amar);
+                color: white;
+            }
+
+        /* =========================================================
+                   Filtros (chips) + leyenda
+                   ========================================================= */
+        .ua-filters-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .ua-filters {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .ua-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid var(--ua-border);
+            cursor: pointer;
+            user-select: none;
+            /* box-shadow: 0 4px 10px rgba(0,0,0,.04); */
+        }
+
+            .ua-filter input {
+                accent-color: var(--ua-c-lima);
+            }
+
+        .ua-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+            .ua-dot.pedido {
+                background: var(--ua-c-mag);
+            }
+            /* Pedidos = Magenta CreArte */
+            .ua-dot.compra {
+                background: var(--ua-c-oro);
+                border: 1px solid rgba(0,0,0,.08);
+            }
+        /* Compras = Oro */
+        .ua-badge {
+            background: #f1f5f9;
+            color: var(--ua-text);
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: .85rem;
+        }
+
+        .ua-legend {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            color: var(--ua-muted);
+        }
+
+        /* =========================================================
+                   Loader overlay
+                   ========================================================= */
+        .ua-loading {
+            position: absolute;
+            inset: 0;
+            display: none;
+            place-items: center;
+            background: linear-gradient( to bottom, rgba(255,255,255,.65), rgba(255,255,255,.85) );
+            backdrop-filter: blur(1px);
+            z-index: 3;
+        }
+
+            .ua-loading.show {
+                display: grid;
+            }
+
+        .ua-spinner {
+            width: 42px;
+            height: 42px;
+            border: 4px solid #e7e7e7;
+            border-top-color: var(--ua-c-fucsia);
+            border-radius: 50%;
+            animation: ua-spin 1s linear infinite;
+        }
+        @@keyframes ua-spin {
+            to
+
+        {
+            transform: rotate(360deg);
+        }
+
+        }
+
+        /* =========================================================
+                   Estado vacío
+                   ========================================================= */
+        .ua-empty {
+            display: none;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: #fff;
+            border: 1px dashed var(--ua-border);
+            border-radius: 14px;
+            color: var(--ua-muted);
+            font-weight: 700;
+        }
+
+            .ua-empty.show {
+                display: flex;
+            }
+
+        /* =========================================================
+                   FullCalendar: redondeado, menos “cuadrado” y texto negro
+                   ========================================================= */
+
+        /* Quitar azul de links y números de días: todo negro */
+        .fc a, .fc .fc-daygrid-day-number {
+            color: var(--ua-text) !important;
+            text-decoration: none;
+        }
+
+        /* Botones FC con tu tema morado y detalles en lima/teal para hover */
+        .fc .fc-button-primary {
+            background: var(--ua-c-teal);
+            border-color: var(--ua-c-teal);
+            color: #fff;
+        }
+
+            .fc .fc-button-primary:hover {
+                filter: brightness(.95);
+            }
+
+        /* Contenedor del grid con bordes suaves y sombra */
+        .fc-theme-standard .fc-scrollgrid {
+            border: 1px solid var(--ua-border);
+            border-radius: 16px; /* más redondeado al calendario */
+            overflow: hidden; /* recorta esquinas internas */
+            box-shadow: 0 10px 24px rgba(0,0,0,.06);
+        }
+
+        /* Líneas divisorias suaves */
+        .fc-theme-standard td,
+        .fc-theme-standard th {
+            border-color: #f0f1f6;
+        }
+
+        /* Cabecera de días con degradé sutil */
+        .fc .fc-col-header-cell-cushion {
+            padding: 10px 6px;
+            font-weight: 800;
+            color: var(--ua-text);
+        }
+
+        .fc .fc-col-header {
+            background: #03C1FF;
+        }
+
+        /* Día “hoy” resaltado con borde lime y fondo suave */
+        .fc .fc-day-today {
+            background: rgba(3,193,255,.12) !important; /* lima suave */
+        }
+
+            .fc .fc-day-today .fc-daygrid-day-number {
+                font-weight: 900;
+                color: var(--ua-text) !important;
+            }
+
+        /* Día hover con halo */
+        .fc .fc-daygrid-day:hover {
+            background: rgba(3,193,255,.06);
+        }
+
+        /* Celdas con relleno interno para que no se vea “apretado” */
+        .fc .fc-daygrid-day-frame {
+            padding: 6px;
+        }
+
+        /* Eventos con pill + sombra suave */
+        .fc .fc-daygrid-event {
+            border-radius: 999px; /* pastilla */
+            box-shadow: 0 4px 10px rgba(0,0,0,.08);
+            padding: 3px 8px;
+            border: none;
+            color: black; /* texto negro dentro del evento */
+            font-weight: 700;
+        }
+
+        /* Popover (al hacer “+X más”) redondeado */
+        .fc .fc-popover {
+            border-radius: 14px;
+            border-color: var(--ua-border);
+            box-shadow: 0 16px 36px rgba(0,0,0,.16);
+        }
+
+        /* Pedido */
+        .fc-event.PEDIDO .fc-list-event-dot {
+            background: var(--ua-c-mag) !important;
+        }
+
+        /* Compra */
+        .fc-event.COMPRA .fc-list-event-dot {
+            background: var(--ua-c-oro) !important;
+        }
+
+        /* ============================
+           Estilo para LIST VIEW
+           ============================ */
+
+        /* Fila completa */
+        .fc .fc-list-event {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,.07);
+            margin-bottom: 6px;
+            border: 1px solid #f0f0f0;
+        }
+
+            /* Celda de contenido */
+            .fc .fc-list-event td {
+                padding: 10px 14px !important;
+                color: black !important; /* texto negro */
+                font-weight: 600;
+            }
+
+        /* Bolita de color del evento */
+        .fc .fc-list-event-dot {
+            width: 12px !important;
+            height: 12px !important;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        /* Hora del evento */
+        .fc .fc-list-event-time {
+            font-weight: 800 !important;
+            color: black !important;
+            margin-right: 10px;
+        }
+
+        /* Texto del evento */
+        .fc .fc-list-event-title {
+            font-weight: 700 !important;
+            color: black !important;
+        }
+
+        /* Separadores */
+        .fc .fc-list-table td,
+        .fc .fc-list-table th {
+            border: none !important;
+        }
+
+        /* Encabezado del día en modo lista */
+        .fc .fc-list-day-cushion {
+            background: #00CFFF;
+            color: white !important;
+            font-weight: 900 !important;
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+    </style>
+}
+
+@* <div class="container-fluid py-3"> *@
+    <div class="ua-card">
+        <!-- ===== Overlay de carga ===== -->
+        <div class="ua-loading" id="uaLoading">
+            <div class="ua-spinner" aria-label="Cargando..."></div>
+        </div>
+
+        <!-- ===== Título + Acciones ===== -->
+        <div class="ua-block-title">
+            <h5 id="uaMonthTitle">Calendario del Mes</h5>
+            <div class="ua-actions">
+                <button type="button" id="btnHoy" class="ua-btn ua-btn-today" title="Ir a hoy">
+                    <span class="bi bi-calendar-event"></span> Hoy
+                </button>
+                <button type="button" id="btnRefrescar" class="ua-btn ua-btn-primary" title="Recargar eventos">
+                    <span class="bi bi-arrow-clockwise"></span> Actualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== Filtros + Conteos + Leyenda ===== -->
+        <div class="ua-filters-wrap">
+            <div class="ua-filters">
+                <!-- Checkbox Pedidos -->
+                <label class="ua-filter" title="Mostrar/ocultar Pedidos">
+                    <input type="checkbox" id="chkPedidos" checked />
+                    <span class="ua-dot pedido"></span>
+                    <span>Pedidos</span>
+                    <span class="ua-badge" id="badPedidos">0</span>
+                </label>
+
+                <!-- Checkbox Compras -->
+                <label class="ua-filter" title="Mostrar/ocultar Compras">
+                    <input type="checkbox" id="chkCompras" checked />
+                    <span class="ua-dot compra"></span>
+                    <span>Compras</span>
+                    <span class="ua-badge" id="badCompras">0</span>
+                </label>
+            </div>
+
+            <div class="ua-legend">
+                <small><span style="color:var(--ua-c-teal); font-weight:800;">Tip:</span> Haz clic en un evento para ir al detalle.</small>
+            </div>
+        </div>
+
+        <!-- ===== Estado vacío ===== -->
+        <div id="uaEmpty" class="ua-empty">
+            <span class="bi bi-info-circle"></span>
+            <span>No hay eventos para el rango mostrado.</span>
+        </div>
+
+        <!-- ===== Calendario ===== -->
+        <div id="calendar" aria-label="Calendario mensual"></div>
+    </div>
+@* </div> *@
+
+@section Scripts {
+    <!-- Bootstrap Icons (si no están ya en el _Layout) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.js"></script>
+    <!-- FullCalendar -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // -------------------- DOM Refs --------------------
+            const calendarEl   = document.getElementById('calendar');
+            const chkPedidos   = document.getElementById('chkPedidos');
+            const chkCompras   = document.getElementById('chkCompras');
+            const badPedidos   = document.getElementById('badPedidos');
+            const badCompras   = document.getElementById('badCompras');
+            const uaLoading    = document.getElementById('uaLoading');
+            const uaEmpty      = document.getElementById('uaEmpty');
+            const btnHoy       = document.getElementById('btnHoy');
+            const btnRefrescar = document.getElementById('btnRefrescar');
+            const uaMonthTitle = document.getElementById('uaMonthTitle');
+
+            // -------------------- Helpers UI --------------------
+            // Crea fuente de eventos únicamente para PEDIDOS
+            const createPedidosSource = () => ({
+                id: 'src-pedidos',
+                url: '/Home/CalendarioEventos',
+                method: 'GET',
+                extraParams: { type: 'PEDIDO' }
+            });
+
+            // Crea fuente de eventos únicamente para COMPRAS
+            const createComprasSource = () => ({
+                id: 'src-compras',
+                url: '/Home/CalendarioEventos',
+                method: 'GET',
+                extraParams: { type: 'COMPRA' }
+            });
+
+            // Agrega o quita una fuente por ID según "enabled"
+            function ensureSourceEnabled(sourceId, factory, enabled) {
+                const exists = calendar.getEventSourceById(sourceId);
+                if (enabled && !exists) { calendar.addEventSource(factory()); return; }
+                if (!enabled && exists) { exists.remove(); }
+            }
+
+            // Actualiza los badges con base a los eventos actualmente cargados
+            function refreshBadges(currentEvents) {
+                let pedidos = 0, compras = 0;
+                for (const ev of currentEvents) {
+                    const type = (ev.extendedProps?.type || '').toUpperCase();
+                    if (type === 'PEDIDO') pedidos++;
+                    else if (type === 'COMPRA') compras++;
+                }
+                badPedidos.textContent = pedidos;
+                badCompras.textContent = compras;
+            }
+
+            // Muestra u oculta el “estado vacío” según haya eventos
+            function toggleEmptyState(currentEvents) {
+                if (!currentEvents || currentEvents.length === 0) {
+                    uaEmpty.classList.add('show');
+                } else {
+                    uaEmpty.classList.remove('show');
+                }
+            }
+
+            // Refresca el título con el mes visible (ej. “Noviembre 2025”)
+            function refreshMonthTitle() {
+                uaMonthTitle.textContent = calendar.view.title;
+            }
+
+            // -------------------- Instancia de FullCalendar --------------------
+                    const calendar = new FullCalendar.Calendar(calendarEl, {
+            // Vista inicial del calendario
+            initialView: 'dayGridMonth',
+
+            // Idioma español (fechas, nombres de días, etc.)
+            locale: 'es',
+
+            // Textos de los botones en ESPAÑOL
+            buttonText: {
+                today: 'Hoy',             // (por si algún día lo agregas al header)
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día',
+                list: 'Lista',
+                dayGridMonth: 'Mes',      // botón "Mes"
+                timeGridWeek: 'Semana',   // botón "Semana"
+                listWeek: 'Semana (lista)'
+            },
+
+            // Barra superior del calendario (navegación y cambio de vistas)
+            headerToolbar: {
+                left: 'prev,next',                  // Botones Anterior / Siguiente (iconos)
+                center: 'title',                    // Título (ej. "noviembre 2025")
+                right: 'dayGridMonth,timeGridWeek,listWeek' // Botones de vista
+            },
+
+            // Ajuste automático de altura + “+X más” cuando se llena el día
+            height: 'auto',
+            dayMaxEvents: true,
+
+            // Cargamos ambas fuentes (Pedidos y Compras)
+            eventSources: [ createPedidosSource(), createComprasSource() ],
+
+            // Navegar al Details al hacer clic en un evento
+            eventClick: function (info) {
+                info.jsEvent.preventDefault();
+                if (info.event.url) window.location.href = info.event.url;
+            },
+
+            // Mostrar/ocultar el loader
+            loading: function(isLoading) {
+                uaLoading.classList.toggle('show', isLoading);
+            },
+
+            // Cada vez que cambia el conjunto de eventos visibles
+            eventsSet: function(events) {
+                refreshBadges(events);      // Actualiza conteo de Pedidos/Compras
+                toggleEmptyState(events);   // Muestra u oculta mensaje "No hay eventos"
+                refreshMonthTitle();        // Actualiza el título arriba de la tarjeta
+            }
+        });
+
+            // Render inicial
+            calendar.render();
+            refreshMonthTitle();
+
+            // -------------------- Eventos UI --------------------
+            chkPedidos.addEventListener('change', () => {
+                ensureSourceEnabled('src-pedidos', createPedidosSource, chkPedidos.checked);
+                calendar.refetchEvents();
+            });
+
+            chkCompras.addEventListener('change', () => {
+                ensureSourceEnabled('src-compras', createComprasSource, chkCompras.checked);
+                calendar.refetchEvents();
+            });
+
+            btnHoy.addEventListener('click', () => {
+                calendar.today();
+                refreshMonthTitle();
+            });
+
+            btnRefrescar.addEventListener('click', () => {
+                calendar.refetchEvents();
+            });
+        });
+    </script>
+}
+
+
+
+@* @{
     ViewData["Title"] = "Inicio";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -8,10 +614,10 @@
     <img src="~/Imagenes/logoCreArte.png" alt="CreArte Manualidades" class="home-logo" />
 </div>
 
-@* Si quieres mostrar un aviso con tu color #C5D930, ejemplo: *@
 @if (TempData["Mensaje"] != null)
 {
     <div class="alert alert-paleta mt-3" role="alert">
         @TempData["Mensaje"]
     </div>
 }
+ *@

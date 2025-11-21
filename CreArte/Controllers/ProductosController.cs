@@ -1,11 +1,13 @@
 ﻿using CreArte.Data;
 using CreArte.Models;
-using CreArte.ModelsPartial; // ProductoViewModels
-using CreArte.Services.Auditoria; // IAuditoriaService
+using CreArte.ModelsPartial; 
+using CreArte.Services.Auditoria; 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using Rotativa.AspNetCore;
+using Rotativa.AspNetCore.Options;
 
 namespace CreArte.Controllers
 {
@@ -31,9 +33,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // LISTADO – RUTA: GET /Productos?...
-        // Filtros: Search, SubCategoria, Tipo, Marca, Unidad, Empaque, Estado
-        // Orden: id/nombre/subcat/tipo/marca/unidad/empaque/estado/fecha
-        // Paginación: Page, PageSize
         // ============================================================
         public async Task<IActionResult> Index(
             string? Search,
@@ -493,7 +492,6 @@ namespace CreArte.Controllers
 
         // ============================================================
         // DELETE (GET/POST) – RUTA: GET /Productos/Delete/{id}
-        // Soft-delete (ELIMINADO=1). No se elimina archivo de imagen.
         // ============================================================
         public async Task<IActionResult> Delete(string id)
         {
@@ -602,9 +600,6 @@ namespace CreArte.Controllers
             vm.Marcas = await CargarMarcasAsync();
         }
 
-        // ---------------- Imagen: validación y guardado ----------------
-
-        // Valida tamaño/extensión. Devuelve "string error" si hay error, o null si OK.
         private string? ValidarImagen(IFormFile file)
         {
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -617,8 +612,6 @@ namespace CreArte.Controllers
             return null;
         }
 
-        // Guarda la imagen en /wwwroot/uploads/productos/ y devuelve la URL relativa
-        // Ejemplo de retorno: /uploads/productos/PR00000001_20250930_153045_a1b2c3.png
         private async Task<string> GuardarImagenAsync(IFormFile file)
         {
             // 1) Asegurar que exista el folder físico
@@ -662,6 +655,115 @@ namespace CreArte.Controllers
             {
                 // Silencioso: no bloquear la operación por error al borrar archivo
             }
+        }
+
+        // ============================================================
+        // GET: /Productos/ReportePDF
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+            string Search,
+            bool? Estado,
+            string Sort = "id",
+            string Dir = "asc")
+        {
+
+            var q = _context.PRODUCTO
+                .AsNoTracking()
+                .Include(p => p.SUBCATEGORIA)
+                .Include(p => p.TIPO_PRODUCTO)
+                .Include(p => p.UNIDAD_MEDIDA)
+                .Include(p => p.TIPO_EMPAQUE)
+                .Include(p => p.MARCA)
+                .AsQueryable();
+
+            // Búsqueda global (por ID, nombre o descripción)
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string s = Search.Trim();
+                q = q.Where(p =>
+                    EF.Functions.Like(p.PRODUCTO_ID, $"%{s}%") ||
+                    EF.Functions.Like(p.PRODUCTO_NOMBRE, $"%{s}%") ||
+                    EF.Functions.Like(p.PRODUCTO_DESCRIPCION, $"%{s}%"));
+            }
+
+            // Filtro por estado (Activo / Inactivo)
+            if (Estado.HasValue)
+            {
+                q = q.Where(p => p.ESTADO == Estado.Value);
+            }
+
+            // Ordenamiento
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+
+            q = (Sort ?? "id").ToLower() switch
+            {
+                "id" => asc ? q.OrderBy(p => p.PRODUCTO_ID)
+                                 : q.OrderByDescending(p => p.PRODUCTO_ID),
+
+                "nombre" => asc ? q.OrderBy(p => p.PRODUCTO_NOMBRE)
+                                 : q.OrderByDescending(p => p.PRODUCTO_NOMBRE),
+
+                "fecha" => asc ? q.OrderBy(p => p.FECHA_CREACION)
+                                 : q.OrderByDescending(p => p.FECHA_CREACION),
+
+                "estado" => asc ? q.OrderBy(p => p.ESTADO)
+                                 : q.OrderByDescending(p => p.ESTADO),
+
+                _ => asc ? q.OrderBy(p => p.PRODUCTO_ID)
+                                 : q.OrderByDescending(p => p.PRODUCTO_ID),
+            };
+
+            // Traer todos los datos 
+            var items = await q.ToListAsync();
+
+            // Totales: activos e inactivos
+            int totActivos = items.Count(p => p.ESTADO && !p.ELIMINADO);
+            int totInactivos = items.Count(p => !p.ESTADO && !p.ELIMINADO);
+
+            var vm = new ReporteViewModel<PRODUCTO>
+            {
+                // Datos
+                Items = items,
+
+                // Filtros que se usaron
+                Search = Search,
+                Estado = Estado,
+                Sort = Sort,
+                Dir = Dir,
+
+                // Para este reporte no usamos paginación
+                Page = 1,
+                PageSize = items.Count,
+                TotalItems = items.Count,
+                TotalPages = 1,
+
+                // Metadatos del reporte
+                ReportTitle = "Reporte de Productos",
+                CompanyInfo = "CreArte Manualidades — Sololá, Guatemala",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            // Registrar totales en el diccionario genérico
+            vm.AddTotal("Activos", totActivos);
+            vm.AddTotal("Inactivos", totInactivos);
+
+            //Generar PDF en una nueva pestaña
+            var pdf = new ViewAsPdf("ReporteProductos", vm)
+            {
+                FileName = $"ReporteProductos.pdf",
+                ContentDisposition = ContentDisposition.Inline,   // se abre en el navegador
+                PageSize = Size.Letter,
+                PageOrientation = Orientation.Portrait,
+                PageMargins = new Margins { Left = 10, Right = 10, Top = 10, Bottom = 10 },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\" " +
+                    $"--footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\" " +
+                    $"--footer-font-size 8 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

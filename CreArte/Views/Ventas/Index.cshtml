@@ -42,12 +42,21 @@
                 MODIFICAR
             </a> *@
 
-            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z"/></svg>
-                EXPORTAR
-            </a>
-
-            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
+            <a  id="btnExportar"
+                class="ua-btn ua-btn-exportar"
+                title="Exportar"
+                target="_blank"
+                href="@Url.Action("ReportePDF", "Ventas", new {
+                    Search   = Model.Search,
+                    Cliente  = Model.Cliente,
+                    Usuario  = Model.Usuario,
+                    Desde    = Model.Desde?.ToString("yyyy-MM-dd"),
+                    Hasta    = Model.Hasta?.ToString("yyyy-MM-dd"),
+                    TotalMin = Model.TotalMin,
+                    TotalMax = Model.TotalMax,
+                    Sort     = Model.Sort,
+                    Dir      = Model.Dir
+                })">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
                 REPORTE
             </a>
@@ -60,7 +69,7 @@
             <input name="Search" value="@Model.Search" placeholder="Buscar por ID, cliente o usuario" />
             <button title="Buscar" type="submit">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/>
+                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                 </svg>
             </button>
         </form>

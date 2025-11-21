@@ -8,103 +8,150 @@
     decimal saldo = totalIng - totalEgr; // solo movimientos (el inicial se ve en Cerrar)
 }
 
+@section Styles {
+    <style>
+        .ua-table-container {
+            margin-top: 20px; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05); 
+        }
+
+        .ua-table {
+            margin-bottom: 0;
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%; 
+        }
+
+            .ua-table thead th {
+                background: #C5D930; 
+                color: black; 
+                font-weight: 700; 
+                text-transform: uppercase; 
+                padding: 5px 5px;
+                border: none; 
+            }
+
+            .ua-table thead tr:first-child th:first-child {
+                border-top-left-radius: 10px;
+            }
+
+            .ua-table thead tr:first-child th:last-child {
+                border-top-right-radius: 10px;
+            }
+
+            .ua-table tbody td {
+                border-top: 1px solid #e5e7eb; 
+                background: #fff; 
+                vertical-align: middle; 
+                padding: 8px 12px; 
+            }
+
+            .ua-table tfoot td,
+            .ua-table tfoot th {
+                background: #f9fafb; 
+                border-top: 2px solid #e5e7eb; 
+                padding: 10px 12px; 
+            }
+    </style>
+}
+
 <div class="container-fluid py-3">
     <!-- Toolbar -->
     <div class="ua-toolbar">
         <h2 class="m-0">Movimientos de <span class="m-0">@sesionId</span></h2>
         <div class="d-flex align-items-center gap-2">
             <!-- Exportar/Reporte placeholders -->
-            <a href="#" class="ua-btn ua-btn-exportar" id="btnExportar" title="Exportar">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18v10l4-4h-3V2h-2v6H8l4 4z" /></svg>
-                EXPORTAR
-            </a>
-            <a href="#" class="ua-btn ua-btn-reporte" id="btnReporte" title="Reporte">
+            <a href="@Url.Action("ReporteMovimientosPDF", "Caja", new { id = ViewBag.SesionId })"
+               target="_blank"
+               class="ua-btn ua-btn-exportar"
+               title="Exportar movimientos a PDF">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13zM8 13h8v2H8v-2z" /></svg>
                 REPORTE
             </a>
         </div>
-        <div></div>
     </div>
 
     <div class="ua-card">
         <!-- Resumen superior -->
         <div class="row g-3 mb-2">
             <div class="col-md-4">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Ingresos</div>
-                    <div class="fs-5 fw-semibold text-center">Q @totalIng.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#03C1FF">
+                    <div class="small text-center" style="color:white">Ingresos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:white">Q @totalIng.ToString("N2")</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Egresos</div>
-                    <div class="fs-5 fw-semibold text-center">Q @totalEgr.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#FF007D">
+                    <div class="small text-center" style="color:white">Egresos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:white">Q @totalEgr.ToString("N2")</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="ua-stat p-3 border rounded-3">
-                    <div class="text-muted small text-center">Saldo movimientos</div>
-                    <div class="fs-5 fw-semibold text-center" style="color:#BF265E">Q @saldo.ToString("N2")</div>
+                <div class="ua-stat p-3 border rounded-3" style="background-color:#FFEA00">
+                    <div class="small text-center">Saldo movimientos</div>
+                    <div class="fs-5 fw-semibold text-center" style="color:black">Q @saldo.ToString("N2")</div>
                 </div>
             </div>
         </div>
 
         <!-- Tabla de movimientos -->
-        <div class="table-responsive">
-            <table class="table ua-table align-middle">
-                <thead>
-                    <tr>
-                        <th style="width:180px;">MOVIMIENTO</th>
-                        <th style="width:200px;">FECHA</th>
-                        <th>TIPO</th>
-                        <th>REFERENCIA</th>
-                        <th>USUARIO</th>
-                        <th class="text-end" style="width:160px;">MONTO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model != null && Model.Any())
-                    {
-                        foreach (var m in Model.OrderByDescending(x => x.Fecha))
+            <div class="table-responsive">
+                <table class="table table-sm align-middle ua-table">
+                    <thead>
+                        <tr>
+                            <th style="width:180px;">Movimiento</th>
+                            <th style="width:200px;">Fecha</th>
+                            <th>Tipo</th>
+                            <th>Referencia</th>
+                            <th>Usuario</th>
+                            <th class="text-end" style="width:160px;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var m in Model.OrderByDescending(x => x.Fecha))
+                            {
+                                <tr>
+                                    <td>@m.MovimientoId</td>
+                                    <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge @(m.TipoMovimiento == "INGRESO" ? "bg-reci" : "bg-cerra")">
+                                            @m.TipoMovimiento
+                                        </span>
+                                    </td>
+                                    <td>@m.Referencia</td>
+                                    <td>@m.UsuarioNombre</td>
+                                    <td class="text-end">Q @m.Monto.ToString("N2")</td>
+                                </tr>
+                            }
+                        }
+                        else
                         {
                             <tr>
-                                <td>@m.MovimientoId</td>
-                                <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td>
-                                    <span class="badge @(m.TipoMovimiento == "INGRESO" ? "bg-reci" : "bg-cerra")">
-                                        @m.TipoMovimiento
-                                    </span>
-                                </td>
-                                <td>@m.Referencia</td>
-                                <td>@m.UsuarioNombre</td>
-                                <td class="text-end">Q @m.Monto.ToString("N2")</td>
+                                <td colspan="6" class="text-center py-4">Sin movimientos.</td>
                             </tr>
                         }
-                    }
-                    else
-                    {
-                        <tr><td colspan="6" class="text-center py-4">Sin movimientos.</td></tr>
-                    }
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="5" class="text-end">Totales</th>
-                        <th class="text-end">
-                            <div>Ingresos: <strong>Q @totalIng.ToString("N2")</strong></div>
-                            <div>Egresos: <strong>Q @totalEgr.ToString("N2")</strong></div>
-                        </th>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="5" class="text-center">Totales</th>
+                            <th class="text-end">
+                                <div>Ingresos: <strong>Q @totalIng.ToString("N2")</strong></div>
+                                <div>Egresos: <strong>Q @totalEgr.ToString("N2")</strong></div>
+                            </th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
 
         <!-- Acciones inferiores -->
         <div class="ua-actions">
             <a class="btn-cancel" href="@Url.Action("Index", "Caja")">
                 <i class="bi bi-arrow-left"></i> <span>Volver</span>
-            </a>
-            <a class="btn-save" href="@Url.Action("Cerrar", "Caja", new { id = sesionId })">
-                <i class="bi bi-lock-fill"></i> <span>Ir a cierre</span>
             </a>
         </div>
     </div>

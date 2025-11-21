@@ -57,7 +57,7 @@ namespace CreArte.Controllers
         private async Task<string?> GetSesionCajaActivaAsync(string usuarioId)
         {
             return await _db.CAJA_SESION
-                .Where(c => c.USUARIO_APERTURA_ID == usuarioId && c.ESTADO == true)
+                .Where(c => c.ESTADO == true)
                 .OrderByDescending(c => c.FECHA_APERTURA)
                 .Select(c => c.SESION_ID)
                 .FirstOrDefaultAsync();
@@ -260,10 +260,10 @@ namespace CreArte.Controllers
             return View(venta);
         }
 
-        // ===========================================================
+        // ======================================================
         // GET: /Ventas/Create
-        // ===========================================================
-        [HttpGet]   
+        // ======================================================
+        [HttpGet]
         public async Task<IActionResult> Create()
         {
             // 1) Precio vigente por producto
@@ -299,9 +299,10 @@ namespace CreArte.Controllers
             ViewBag.ProductosJson = System.Text.Json.JsonSerializer.Serialize(inventarioCatalogo);
             ViewBag.MetodosPagoCombo = await GetMetodosPagoComboAsync();
 
-            // 3) Combo de clientes
+            // 3) Solo clientes activos
             var clientesCombo = await (from c in _db.CLIENTE
                                        join per in _db.PERSONA on c.CLIENTE_ID equals per.PERSONA_ID
+                                       where c.ESTADO == true /* && per.ESTADO == true (si tu PERSONA tiene ESTADO) */
                                        orderby per.PERSONA_PRIMERNOMBRE, per.PERSONA_PRIMERAPELLIDO
                                        select new SelectListItem
                                        {
@@ -309,14 +310,27 @@ namespace CreArte.Controllers
                                            Text = per.PERSONA_PRIMERNOMBRE + " " + per.PERSONA_PRIMERAPELLIDO
                                        }).ToListAsync();
 
-            // 4) Combo de usuarios
-            ViewBag.UsuariosCombo = await _db.USUARIO
-                .Where(u => u.ESTADO == true)
-                .Select(u => new SelectListItem { Value = u.USUARIO_ID, Text = u.USUARIO_NOMBRE })
-                .ToListAsync();
+            // 4) Usuario autenticado -> ID real y nombre para mostrar
+            var login = User?.Identity?.Name ?? "";
+            var usuario = await _db.USUARIO
+                .Where(u => u.ESTADO == true && (u.USUARIO_NOMBRE == login || u.USUARIO_ID == login))
+                .Select(u => new { u.USUARIO_ID, u.USUARIO_NOMBRE })
+                .FirstOrDefaultAsync();
 
-            // 5) VM inicial
-            var vm = new VentaCreateEditVM { ClientesCombo = clientesCombo };
+            if (usuario == null)
+            {
+                TempData["error"] = "No se encontró el usuario autenticado en el sistema.";
+                return RedirectToAction("Index");
+            }
+
+            // 5) VM inicial con usuario fijo y sin combo de usuarios
+            var vm = new VentaCreateEditVM
+            {
+                ClientesCombo = clientesCombo,
+                UsuarioId = usuario.USUARIO_ID,
+                UsuarioNombre = usuario.USUARIO_NOMBRE
+            };
+
             return View(vm);
         }
 
@@ -327,21 +341,37 @@ namespace CreArte.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(VentaCreateEditVM vm, CancellationToken ct)
         {
-            // -------- Validaciones explícitas (además de [Required]) --------
+            // ====== Usuario autenticado (autoridad del servidor) ======
+            var identity = User?.Identity?.Name ?? "";
+            var usr = await _db.USUARIO
+                .Where(u => u.ESTADO == true && (u.USUARIO_ID == identity || u.USUARIO_NOMBRE == identity))
+                .Select(u => new { u.USUARIO_ID, u.USUARIO_NOMBRE })
+                .FirstOrDefaultAsync(ct);
+
+            if (usr == null)
+            {
+                TempData["error"] = "No se pudo resolver el usuario actual. Inicie sesión nuevamente.";
+                return await ReturnCreateViewAsync(vm, ct);
+            }
+
+            vm.UsuarioId = usr.USUARIO_ID;
+            vm.UsuarioNombre = usr.USUARIO_NOMBRE ?? usr.USUARIO_ID;
+
+            // ====== Validaciones de cabecera ======
             if (string.IsNullOrWhiteSpace(vm.ClienteId))
                 ModelState.AddModelError(nameof(vm.ClienteId), "Seleccione un cliente.");
-
-            if (string.IsNullOrWhiteSpace(vm.UsuarioId))
-                ModelState.AddModelError(nameof(vm.UsuarioId), "Seleccione el usuario (vendedor).");
 
             if (vm.Detalles == null || vm.Detalles.Count == 0)
                 ModelState.AddModelError("", "Agregue al menos un producto a la venta.");
 
+            // ====== Validaciones de detalle y cálculo de total en servidor ======
+            decimal totalCalc = 0m;
             if (vm.Detalles != null)
             {
                 for (int i = 0; i < vm.Detalles.Count; i++)
                 {
                     var d = vm.Detalles[i];
+
                     if (string.IsNullOrWhiteSpace(d.InventarioId))
                         ModelState.AddModelError($"Detalles[{i}].InventarioId", "Falta InventarioId.");
                     if (string.IsNullOrWhiteSpace(d.ProductoId))
@@ -350,23 +380,38 @@ namespace CreArte.Controllers
                         ModelState.AddModelError($"Detalles[{i}].Cantidad", "Cantidad debe ser mayor a cero.");
                     if (d.PrecioUnitario < 0)
                         ModelState.AddModelError($"Detalles[{i}].PrecioUnitario", "Precio inválido.");
+
+                    // Suma robusta en servidor
+                    var cant = RoundToInt(d.Cantidad);
+                    if (cant > 0 && d.PrecioUnitario >= 0)
+                        totalCalc += cant * d.PrecioUnitario;
                 }
             }
+            totalCalc = Math.Round(totalCalc, 2);
+
+            // MontoPago y Método de pago (del modal). Aseguramos coherencia del lado servidor.
+            var metodoPago = string.IsNullOrWhiteSpace(vm.MetodoPagoId) ? "EFECTIVO" : vm.MetodoPagoId;
+            if (totalCalc <= 0)
+                ModelState.AddModelError("", "El total de la venta debe ser mayor a 0.");
+
+            // Si el modal envió MontoPago, validamos contra totalCalc (tolerancia de 1 centavo)
+            if (vm.MontoPago <= 0 || Math.Abs(vm.MontoPago - totalCalc) > 0.01m)
+                ModelState.AddModelError(nameof(vm.MontoPago), "El monto de pago no coincide con el total de la venta.");
 
             if (!ModelState.IsValid)
-                return await ReturnCreateViewAsync(vm, ct);  // ← sin redirect
+                return await ReturnCreateViewAsync(vm, ct);
 
             await using var trx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
-                // -------- Cabecera VENTA --------
+                // ====== Cabecera VENTA ======
                 var venta = new VENTA
                 {
-                    VENTA_ID = await SiguienteVentaIdAsync(),   
+                    VENTA_ID = await SiguienteVentaIdAsync(),
                     CLIENTE_ID = vm.ClienteId!,
-                    USUARIO_ID = vm.UsuarioId!,                 
+                    USUARIO_ID = vm.UsuarioId!,
                     FECHA = DateTime.Now,
-                    TOTAL = vm.Total,                           
+                    TOTAL = totalCalc, // usar total calculado en servidor
                     USUARIO_CREACION = UserName(),
                     FECHA_CREACION = DateTime.Now,
                     ESTADO = true
@@ -374,17 +419,16 @@ namespace CreArte.Controllers
                 _db.VENTA.Add(venta);
                 await _db.SaveChangesAsync(ct);
 
-                // -------- Detalles + Inventario + Kardex --------
+                // ====== Detalles + Inventario + Kardex ======
                 foreach (var d in vm.Detalles!)
                 {
-                    // Inventario existente
                     var inv = await _db.INVENTARIO
                         .FirstOrDefaultAsync(i => i.INVENTARIO_ID == d.InventarioId && i.PRODUCTO_ID == d.ProductoId, ct);
 
                     if (inv == null)
                     {
                         await trx.RollbackAsync(ct);
-                        ModelState.AddModelError("", $"No se encontró inventario para {d.NombreProducto}.");
+                        ModelState.AddModelError("", $"No se encontró inventario para {d?.NombreProducto ?? d?.ProductoId}.");
                         return await ReturnCreateViewAsync(vm, ct);
                     }
 
@@ -392,7 +436,7 @@ namespace CreArte.Controllers
                     if (inv.STOCK_ACTUAL < cant)
                     {
                         await trx.RollbackAsync(ct);
-                        ModelState.AddModelError("", $"Stock insuficiente para {d.NombreProducto} (Stock: {inv.STOCK_ACTUAL}).");
+                        ModelState.AddModelError("", $"Stock insuficiente para {d?.NombreProducto ?? d?.ProductoId} (Stock: {inv.STOCK_ACTUAL}).");
                         return await ReturnCreateViewAsync(vm, ct);
                     }
 
@@ -404,7 +448,7 @@ namespace CreArte.Controllers
                         PRODUCTO_ID = d.ProductoId!,
                         CANTIDAD = cant,
                         PRECIO_UNITARIO = d.PrecioUnitario,
-                        SUBTOTAL = Math.Round(cant * d.PrecioUnitario, 2), // si SUBTOTAL es computed en BD, quítalo
+                        SUBTOTAL = Math.Round(cant * d.PrecioUnitario, 2),
                         USUARIO_CREACION = UserName(),
                         FECHA_CREACION = DateTime.Now,
                         ESTADO = true
@@ -415,7 +459,6 @@ namespace CreArte.Controllers
                     inv.USUARIO_MODIFICACION = UserName();
                     inv.FECHA_MODIFICACION = DateTime.Now;
 
-                    // KARDEX (SALIDA)
                     var kardex = new KARDEX
                     {
                         KARDEX_ID = NewKardexId(),
@@ -423,7 +466,7 @@ namespace CreArte.Controllers
                         FECHA = DateTime.Now,
                         TIPO_MOVIMIENTO = "SALIDA",
                         CANTIDAD = cant,
-                        COSTO_UNITARIO = d.PrecioUnitario,      // ajusta si usas costo promedio/PEPS
+                        COSTO_UNITARIO = d.PrecioUnitario, 
                         REFERENCIA = venta.VENTA_ID,
                         USUARIO_CREACION = UserName(),
                         FECHA_CREACION = DateTime.Now,
@@ -434,15 +477,13 @@ namespace CreArte.Controllers
 
                 await _db.SaveChangesAsync(ct);
 
-                // -------- (NUEVO) RECIBO de pago --------
-                // Si tu VM trae Método de pago, se usa; si no, por defecto "EFECTIVO".
-                var metodoPago = string.IsNullOrWhiteSpace(vm.MetodoPagoId) ? "EFECTIVO" : vm.MetodoPagoId;
+                // ====== RECIBO de pago ======
                 var recibo = new RECIBO
                 {
-                    RECIBO_ID = NewReciboId(),         
+                    RECIBO_ID = NewReciboId(),
                     VENTA_ID = venta.VENTA_ID,
                     METODO_PAGO_ID = metodoPago,
-                    MONTO = venta.TOTAL,
+                    MONTO = totalCalc,
                     FECHA = DateTime.Now,
                     USUARIO_CREACION = UserName(),
                     FECHA_CREACION = DateTime.Now,
@@ -451,7 +492,7 @@ namespace CreArte.Controllers
                 _db.RECIBO.Add(recibo);
                 await _db.SaveChangesAsync(ct);
 
-                // -------- CAJA (INGRESO si hay sesión activa) --------
+                // ====== CAJA (INGRESO si hay sesión activa) ======
                 var sesionActiva = await GetSesionCajaActivaAsync(vm.UsuarioId!);
                 if (!string.IsNullOrWhiteSpace(sesionActiva))
                 {
@@ -459,8 +500,8 @@ namespace CreArte.Controllers
                     {
                         MOVIMIENTO_ID = await SiguienteMovimientoCajaIdAsync(),
                         SESION_ID = sesionActiva,
-                        TIPO = "INGRESO",                 
-                        MONTO = vm.Total,
+                        TIPO = "INGRESO",
+                        MONTO = totalCalc,
                         REFERENCIA = venta.VENTA_ID,
                         FECHA = DateTime.Now,
                         USUARIO_CREACION = UserName(),
@@ -486,11 +527,7 @@ namespace CreArte.Controllers
             catch (DbUpdateException ex)
             {
                 await trx.RollbackAsync(ct);
-
-                // -------- Diagnóstico útil --------
-                var root = ex.InnerException?.Message ?? ex.Message;
-                TempData["error"] = "Error al guardar la venta: " + root;
-
+                TempData["error"] = "Error al guardar la venta: " + (ex.InnerException?.Message ?? ex.Message);
                 return await ReturnCreateViewAsync(vm, ct);
             }
             catch (Exception ex)
@@ -500,11 +537,16 @@ namespace CreArte.Controllers
                 return await ReturnCreateViewAsync(vm, ct);
             }
         }
+
+        // ======================================================
+        // Helper para recargar la vista Create 
+        // ======================================================
         private async Task<IActionResult> ReturnCreateViewAsync(VentaCreateEditVM vm, CancellationToken ct)
         {
-            // clientes
+            // clientes activos
             vm.ClientesCombo = await (from c in _db.CLIENTE
                                       join per in _db.PERSONA on c.CLIENTE_ID equals per.PERSONA_ID
+                                      where c.ESTADO == true /* && per.ESTADO == true */
                                       orderby per.PERSONA_PRIMERNOMBRE, per.PERSONA_PRIMERAPELLIDO
                                       select new SelectListItem
                                       {
@@ -512,11 +554,18 @@ namespace CreArte.Controllers
                                           Text = per.PERSONA_PRIMERNOMBRE + " " + per.PERSONA_PRIMERAPELLIDO
                                       }).ToListAsync(ct);
 
-            // usuarios
-            ViewBag.UsuariosCombo = await _db.USUARIO
-                .Where(u => u.ESTADO == true)
-                .Select(u => new SelectListItem { Value = u.USUARIO_ID, Text = u.USUARIO_NOMBRE })
-                .ToListAsync(ct);
+            // usuario autenticado -> forzar nuevamente
+            var login = User?.Identity?.Name ?? "";
+            var usuario = await _db.USUARIO
+                .Where(u => u.ESTADO == true && (u.USUARIO_NOMBRE == login || u.USUARIO_ID == login))
+                .Select(u => new { u.USUARIO_ID, u.USUARIO_NOMBRE })
+                .FirstOrDefaultAsync(ct);
+
+            if (usuario != null)
+            {
+                vm.UsuarioId = usuario.USUARIO_ID;
+                vm.UsuarioNombre = usuario.USUARIO_NOMBRE;
+            }
 
             // JSON productos (igual que en GET)
             var preciosVigentes = await _db.PRECIO_HISTORICO
@@ -836,6 +885,8 @@ namespace CreArte.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+
+        //=================RECIBO DE VENTA=========================================
         [HttpGet]
         public async Task<IActionResult> Recibo(string id)
         {
@@ -885,10 +936,138 @@ namespace CreArte.Controllers
             return new Rotativa.AspNetCore.ViewAsPdf("ReciboVenta", venta)
             {
                 FileName = $"Recibo_{venta.VentaId}.pdf",
+                ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
                 PageMargins = new Rotativa.AspNetCore.Options.Margins(15, 10, 15, 10),
                 PageSize = Rotativa.AspNetCore.Options.Size.A5,
                 PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait
             };
+        }
+
+        //================REPORTE PDF
+        [HttpGet]
+        public async Task<IActionResult> ReportePDF(
+    string? Search,
+    string? Cliente,
+    string? Usuario,
+    DateTime? Desde,
+    DateTime? Hasta,
+    decimal? TotalMin,
+    decimal? TotalMax,
+    string? Sort = "fecha",
+    string? Dir = "desc")
+        {
+            var q =
+                from v in _db.VENTA.AsNoTracking()
+                join c in _db.CLIENTE on v.CLIENTE_ID equals c.CLIENTE_ID
+                join p in _db.PERSONA on c.CLIENTE_ID equals p.PERSONA_ID
+                join u in _db.USUARIO on v.USUARIO_ID equals u.USUARIO_ID
+                select new VentaIndexItemVM
+                {
+                    VentaId = v.VENTA_ID,
+                    Fecha = v.FECHA,
+                    ClienteNombre = (
+                        (p.PERSONA_PRIMERNOMBRE ?? "") + " " +
+                        (p.PERSONA_SEGUNDONOMBRE ?? "") + " " +
+                        (p.PERSONA_PRIMERAPELLIDO ?? "") + " " +
+                        (p.PERSONA_SEGUNDOAPELLIDO ?? "")
+                    ).Trim(),
+                    UsuarioNombre = u.USUARIO_NOMBRE ?? u.USUARIO_ID,
+                    Total = v.TOTAL,
+                    Estado = v.ESTADO
+                };
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                var s = Search.Trim();
+                q = q.Where(x =>
+                    x.VentaId.Contains(s) ||
+                    x.ClienteNombre.Contains(s) ||
+                    x.UsuarioNombre.Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(Cliente))
+                q = q.Where(x => x.ClienteNombre.Contains(Cliente));
+
+            if (!string.IsNullOrWhiteSpace(Usuario))
+                q = q.Where(x => x.UsuarioNombre.Contains(Usuario));
+
+            if (Desde.HasValue)
+                q = q.Where(x => x.Fecha >= Desde.Value);
+
+            if (Hasta.HasValue)
+            {
+                var hasta = Hasta.Value.Date.AddDays(1).AddTicks(-1);
+                q = q.Where(x => x.Fecha <= hasta);
+            }
+
+            if (TotalMin.HasValue)
+                q = q.Where(x => x.Total >= TotalMin.Value);
+            if (TotalMax.HasValue)
+                q = q.Where(x => x.Total <= TotalMax.Value);
+
+            bool asc = string.Equals(Dir, "asc", StringComparison.OrdinalIgnoreCase);
+            switch ((Sort ?? "fecha").ToLower())
+            {
+                case "cliente": q = asc ? q.OrderBy(x => x.ClienteNombre) : q.OrderByDescending(x => x.ClienteNombre); break;
+                case "usuario": q = asc ? q.OrderBy(x => x.UsuarioNombre) : q.OrderByDescending(x => x.UsuarioNombre); break;
+                case "total": q = asc ? q.OrderBy(x => x.Total) : q.OrderByDescending(x => x.Total); break;
+                default: q = asc ? q.OrderBy(x => x.Fecha) : q.OrderByDescending(x => x.Fecha); break;
+            }
+
+            var items = await q.ToListAsync();
+
+            int totalVentas = items.Count;
+            int totalActivas = items.Count(x => x.Estado);
+            int totalAnuladas = items.Count(x => !x.Estado);
+            decimal montoTotal = items.Sum(x => x.Total);
+
+            var vm = new ReporteViewModel<VentaIndexItemVM>
+            {
+                Items = items,
+                Search = Search,
+                Sort = Sort,
+                Dir = Dir,
+
+                ReportTitle = "Reporte de Ventas",
+                CompanyInfo = "CreArte Manualidades | Sololá, Guatemala | creartemanualidades2021@gmail.com",
+                GeneratedBy = User?.Identity?.Name ?? "Usuario no autenticado",
+                LogoUrl = Url.Content("~/Imagenes/logoCreArte.png")
+            };
+
+            vm.AddTotal("TotalVentas", totalVentas);
+            vm.AddTotal("Activas", totalActivas);
+            vm.AddTotal("Anuladas", totalAnuladas);
+            vm.AddTotal("MontoTotal", montoTotal);
+
+            if (!string.IsNullOrWhiteSpace(Cliente)) vm.ExtraFilters["Cliente"] = Cliente;
+            if (!string.IsNullOrWhiteSpace(Usuario)) vm.ExtraFilters["Usuario"] = Usuario;
+            if (Desde.HasValue || Hasta.HasValue)
+                vm.ExtraFilters["Rango fechas"] =
+                    $"{Desde?.ToString("dd/MM/yyyy") ?? "—"} a {Hasta?.ToString("dd/MM/yyyy") ?? "—"}";
+            if (TotalMin.HasValue || TotalMax.HasValue)
+                vm.ExtraFilters["Rango total"] =
+                    $"{TotalMin?.ToString("Q0.00") ?? "—"} a {TotalMax?.ToString("Q0.00") ?? "—"}";
+
+            var pdf = new Rotativa.AspNetCore.ViewAsPdf("ReporteVentas", vm)
+            {
+                FileName = $"ReporteVentas.pdf",
+                ContentDisposition = Rotativa.AspNetCore.Options.ContentDisposition.Inline,
+                PageSize = Rotativa.AspNetCore.Options.Size.Letter,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Portrait,
+                PageMargins = new Rotativa.AspNetCore.Options.Margins
+                {
+                    Left = 10,
+                    Right = 10,
+                    Top = 15,
+                    Bottom = 15
+                },
+                CustomSwitches =
+                    $"--footer-center \"Página [page] de [toPage]\"" +
+                    $" --footer-right \"CreArte Manualidades © {DateTime.Now:yyyy}\"" +
+                    $" --footer-font-size 9 --footer-spacing 3 --footer-line"
+            };
+
+            return pdf;
         }
     }
 }

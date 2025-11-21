@@ -15,8 +15,8 @@ using System.Threading.Tasks; // Task<IActionResult>
 using System; // DateTime
 using System.ComponentModel.DataAnnotations; // EmailAddressAttribute
 using Microsoft.AspNetCore.WebUtilities; // WebEncoders
-using System.Linq; // Linq
-// using System.Net.Mail; // Si desea capturar SmtpException en específico
+using System.Linq;
+using Microsoft.AspNetCore.Authorization; // Linq
 
 namespace CreArte.Controllers
 {
@@ -31,12 +31,14 @@ namespace CreArte.Controllers
             _app = appOptions.Value;
         }
 
+        [AllowAnonymous] // Permite acceso sin autenticar
         public IActionResult Login()
         {
             return View(); // Views/Login/Login.cshtml
         }
 
         [HttpPost]
+        [AllowAnonymous] // Permite acceso sin autenticar
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModels model)
         {
@@ -234,6 +236,7 @@ namespace CreArte.Controllers
         // GET: /Login/CambiarContrasena
         // Vista para cambiar contraseña tras "cambio inicial".
         // ============================================
+        [AllowAnonymous] // Permite acceso sin autenticar
         public IActionResult CambiarContrasena()
         {
             var userId = HttpContext.Session.GetString("UsuarioId");
@@ -248,6 +251,7 @@ namespace CreArte.Controllers
         // ► Ahora guarda con PBKDF2 (igual que UsuariosController).
         // ============================================
         [HttpPost]
+        [AllowAnonymous] // Permite acceso sin autenticar
         [ValidateAntiForgeryToken]
         public IActionResult CambiarContrasena(CambiarContrasenaViewModel model)
         {
@@ -284,6 +288,7 @@ namespace CreArte.Controllers
         // =====================================================================
 
         // GET: /Login/EnvioDeCorreo
+        [AllowAnonymous] // Permite acceso sin autenticar
         [HttpGet]
         public IActionResult EnvioDeCorreo()
         {
@@ -292,6 +297,7 @@ namespace CreArte.Controllers
 
         // POST: /Login/EnvioDeCorreo (envía correo con enlace)
         [HttpPost]
+        [AllowAnonymous] // Permite acceso sin autenticar
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EnvioDeCorreo(
             RecuperacionContrasenaVM vm,
@@ -471,6 +477,7 @@ namespace CreArte.Controllers
 
 
         // GET: /Login/RestablecerContrasena?token=...
+        [AllowAnonymous] // Permite acceso sin autenticar
         [HttpGet]
         public async Task<IActionResult> RestablecerContrasena(string token, CancellationToken ct)
         {
@@ -505,6 +512,7 @@ namespace CreArte.Controllers
 
         // POST: /Login/RestablecerContrasenaPorToken
         [HttpPost]
+        [AllowAnonymous] // Permite acceso sin autenticar
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestablecerContrasenaPorToken(
             RestablecerContrasenaVM model, string token, CancellationToken ct)
@@ -590,7 +598,7 @@ namespace CreArte.Controllers
         // Helpers criptográficos
         // =========================
 
-        // ► PBKDF2 (HMACSHA256) 100,000 iteraciones, hash 32 bytes
+        // PBKDF2 (HMACSHA256) 100,000 iteraciones, hash 32 bytes
         private static byte[] ComputePBKDF2(string password, byte[] salt, int iterations = 100_000)
         {
             using var pbkdf2 = new Rfc2898DeriveBytes(password ?? "", salt, iterations, HashAlgorithmName.SHA256);

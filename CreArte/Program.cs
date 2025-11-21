@@ -1,9 +1,10 @@
 ﻿using CreArte.Controllers; // Para AppSettings en el mismo namespace (si lo dejaste allí)
 using CreArte.Data;
 using CreArte.Services.Auditoria;
-using CreArte.Services.Mail;
 using CreArte.Services.Bitacora;
+using CreArte.Services.Mail;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Rotativa.AspNetCore;
@@ -22,10 +23,8 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-
 
 // App (BaseUrl)
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("App"));
@@ -100,7 +99,13 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+//builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 // MVC
 builder.Services.AddControllersWithViews();
 // Razor Pages
@@ -122,9 +127,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseSession(); // <-- IMPORTANTE para HttpContext.Session
 
 
 app.MapControllerRoute(
